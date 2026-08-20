@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="../src/presentation/newTab/newTab.css" />
+  <link rel="stylesheet" href="../src/presentation/shared/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/presentation/shared/penta-bridge/tokens.css" />
+  <link rel="stylesheet" href="../src/presentation/shared/penta-bridge/primitives.css" />
+</head>
+<body>
+  <main id="stage"></main>
+  <script type="module">
+    import { BookmarkDeckView } from "../src/presentation/newTab/views/BookmarkDeckView.js";
+
+    // Chrome shim with a realistic tree.
+    const tree = [{ id: "0", title: "", children: [
+      { id: "1", title: "Bookmarks Bar", children: [
+        { id: "11", title: "Gmail", url: "https://mail.google.com" },
+        { id: "12", title: "Work", children: [
+          { id: "121", title: "Figma", url: "https://figma.com" },
+          { id: "122", title: "Notion", url: "https://notion.so" },
+        ] },
+        { id: "13", title: "News", children: [
+          { id: "131", title: "BBC", url: "https://bbc.com" },
+          { id: "132", title: "Guardian", url: "https://theguardian.com" },
+          { id: "133", title: "NYT", url: "https://nytimes.com" },
+          { id: "134", title: "WP", url: "https://washingtonpost.com" },
+          { id: "135", title: "Reuters", url: "https://reuters.com" },
+          { id: "136", title: "AP", url: "https://ap.org" },
+          { id: "137", title: "AlJazeera", url: "https://aljazeera.com" },
+        ] },
+      ] },
+      { id: "2", title: "Other Bookmarks", children: [
+        { id: "21", title: "YouTube", url: "https://youtube.com" },
+      ] },
+    ] }];
+
+    const store = (() => {
+      const m = {};
+      return { async get(k){ if(Array.isArray(k)){const o={};for(const x of k)o[x]=m[x];return o;} return m[k]; },
+               async set(o){ Object.assign(m,o); }, async remove(){}, async clear(){} };
+    })();
+
+    const toast = { show(){}, };
+    const view = new BookmarkDeckView({ getTree: () => Promise.resolve(tree), toast, storage: store });
+    view.onExit = () => {};
+    view.renderInto(document.getElementById("stage"));
+    window.__deck = view;
+  </script>
+</body>
+</html>

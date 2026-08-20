@@ -1,0 +1,23 @@
+{
+  "settings": {
+    "name": "SmokeUser",
+    "background": { "kind": "solid_color", "value": "#000000" },
+    "timeFormat": "24h",
+    "backgroundBlur": 0,
+    "backgroundOverlay": 0.35,
+    "clocks": [{ "label": "Dhaka", "timeZone": "Asia/Dhaka" }],
+    "searchEnabled": true,
+    "searchEngine": "duckduckgo",
+    "shortcutsEnabled": true
+  },
+  "categories": [
+    { "id": "cat-quick", "name": "Quick", "order": 0 },
+    { "id": "cat-dev", "name": "Dev", "order": 1 }
+  ],
+  "bookmarks": [
+    { "id": "bm-1", "title": "GitHub", "url": "https://github.com", "categoryId": "cat-dev", "order": 0, "lastAccessed": null, "accessCount": 0 },
+    { "id": "bm-2", "title": "YouTube", "url": "https://youtube.com", "categoryId": "cat-quick", "order": 0, "lastAccessed": null, "accessCount": 2 },
+    { "id": "bm-3", "title": "BadIcon", "url": "https://example.com", "categoryId": "cat-quick", "order": 1, "faviconUrl": "not a real url", "accessCount": 0 }
+  ],
+  "tasks": [{ "id": "task-1", "title": "Smoke task", "completed": false, "order": 0 }]
+}
