@@ -1,0 +1,26 @@
+name: Feature Request
+description: Suggest an idea or enhancement for Syncly
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: Thank you for suggesting a feature!
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature Proposal
+      description: Describe the feature you would like to see.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What problem does this solve or why is it useful?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or features you've considered.
