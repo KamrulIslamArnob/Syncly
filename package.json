@@ -1,0 +1,13 @@
+{
+  "name": "syncly-dev",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "smoke": "node scripts/smoke.mjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.3.0"
+  }
+}

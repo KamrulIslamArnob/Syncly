@@ -1,0 +1,6 @@
+@font-face { font-family: "Doto"; font-style: normal; font-weight: 400 900; font-display: swap; src: url("doto-var.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 300 700; font-display: swap; src: url("spacegrotesk-var.woff2") format("woff2"); }
+@font-face { font-family: "Space Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("spacemono-400.woff2") format("woff2"); }
+@font-face { font-family: "Space Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("spacemono-700.woff2") format("woff2"); }
+@font-face { font-family: "Plus Jakarta Sans"; font-style: normal; font-weight: 400 700; font-display: swap; src: url("plusjakartasans-var.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 500; font-display: swap; src: url("jetbrainsmono-var.woff2") format("woff2"); }
