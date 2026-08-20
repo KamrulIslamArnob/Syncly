@@ -1,0 +1,185 @@
+/* ============================================================
+   Syncly — Bookmark Manager Visual System
+   Design tokens (colors, typography, spacing, motion, density)
+   Authoritative token source for the design system.
+   Dark is the default palette on :root; light overrides live
+   under html[data-color-mode="light"].
+   Fonts (self-hosted, see public/fonts/fonts.css):
+     Plus Jakarta Sans (400–700), JetBrains Mono (400–500)
+   ============================================================ */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- Surfaces ---- */
+  --bg:              #121316;  /* page canvas */
+  --surface:         #181A1E;  /* sidebar / panels */
+  --surface-2:       #1E2025;  /* cards */
+  --surface-active:  #2C3038;  /* pressed / elevated menus, batch toolbar */
+
+  /* ---- Text (Hierarchy) ---- */
+  --fg:              #E8EAEE;  /* body text */
+  --fg-secondary:    #F2F4F7;  /* headings, brightest */
+  --muted:           #8A919C;  /* icons, secondary labels */
+  --muted-2:         #6B7280;  /* mono meta, most muted */
+
+  /* ---- Borders ---- */
+  --border:          #24272D;  /* hairline */
+  --border-strong:   #343841;  /* dashed affordances, stronger dividers */
+  --border-accent:   var(--accent-dark);
+
+  /* ---- Accent (customizable, dark grey default) ---- */
+  --accent:          #555B66;  /* structural highlight, selection, focus */
+  --accent-primary:  #6A7280;  /* primary CTA */
+  --accent-dark:     #3F444E;
+  --accent-soft:     rgba(85, 91, 102, 0.16);
+  --on-accent:       #FFFFFF;
+
+  /* ---- Glass ---- */
+  --glass:        rgba(232, 234, 238, 0.04);
+  --glass-strong: rgba(24, 26, 30, 0.85);
+
+  /* ---- Status ---- */
+  --success: #34d399;
+  --warn:    #f5d76e;
+  --danger:  #E64A19;
+
+  /* ---- Elevation ---- */
+  --shadow-hairline: 0 0 0 1px rgba(232, 234, 238, 0.06);
+  --shadow-dialog:   0 22px 46px rgba(0, 0, 0, 0.55);
+
+  /* ---- Interactive states ---- */
+  --fill-hover:  rgba(232, 234, 238, 0.05);
+  --fill-active: rgba(232, 234, 238, 0.1);
+  --ring-focus:  var(--accent);
+
+  /* ---- Disabled ---- */
+  --fg-disabled:   rgba(138, 145, 156, 0.4);
+  --fill-disabled: rgba(24, 26, 30, 0.4);
+
+  /* ---- z-index scale ---- */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 100;
+  --z-dialog: 1000;
+  --z-toast: 1100;
+
+  /* ---- Typography ---- */
+  --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-body:    "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+  /* ---- Radius ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --radius-tile: 12px;
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);        /* percussive ease-out */
+  --dur: 160ms;
+  --dur-enter: 220ms;
+  --ease-enter: cubic-bezier(0.2, 0.7, 0.2, 1); /* grid/list re-render */
+
+  /* ---- Density: default = comfortable (bigger size) ---- */
+  --tile-min: 96px;
+  --tile-gap: 10px;
+  --icon-size: 52px;
+  --label-size: 12px;
+  --bookmark-max-h: min(40vh, 400px);
+
+  /* ---- Spacing scale ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --page-pad: clamp(16px, 3vw, 32px);
+  --stage-gap: clamp(12px, 1.8vw, 24px);
+
+  /* ---- Layout ---- */
+  --stage-max: 980px;
+  --clock-max: 560px;
+  --search-max: 480px;
+  --bookmarks-max: 600px;
+  --sidebar-width: 260px;
+}
+
+/* ---- Light theme ---- */
+html[data-color-mode="light"] {
+  color-scheme: light;
+  --bg:              #faf8f2;
+  --surface:         #FCFCFD;
+  --surface-2:       #FFFFFF;
+  --surface-active:  #F2F4F7;
+
+  --fg:              #16181D;
+  --fg-secondary:    #2A2E35;
+  --muted:           #555B66;
+  --muted-2:         #4B5563;
+
+  --border:          #E6E8EC;
+  --border-strong:   #CFD4DC;
+
+  --accent-soft:     rgba(85, 91, 102, 0.12);
+
+  --glass:        rgba(22, 24, 29, 0.03);
+  --glass-strong: rgba(255, 255, 255, 0.85);
+
+  --shadow-hairline: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-dialog:   0 18px 40px rgba(16, 24, 40, 0.14);
+
+  --fill-hover:  rgba(22, 24, 29, 0.04);
+  --fill-active: rgba(22, 24, 29, 0.08);
+
+  --fg-disabled:   rgba(152, 160, 172, 0.5);
+  --fill-disabled: rgba(242, 244, 247, 0.6);
+}
+
+/* ---- Density variants ---- */
+html[data-density="comfortable"] {
+  --tile-min: 96px;
+  --tile-gap: 10px;
+  --icon-size: 52px;
+  --label-size: 12px;
+  --bookmark-max-h: min(40vh, 400px);
+}
+html[data-density="compact"] {
+  --tile-min: 86px;
+  --tile-gap: 8px;
+  --icon-size: 46px;
+  --label-size: 11px;
+  --bookmark-max-h: min(46vh, 460px);
+}
+html[data-density="dense"] {
+  --tile-min: 62px;
+  --tile-gap: 5px;
+  --icon-size: 34px;
+  --label-size: 0px;
+  --bookmark-max-h: min(54vh, 540px);
+}
+
+/* ---- Type-scale helpers (optional) ---- */
+.nt-type-title {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: clamp(18px, 2vw, 22px);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.nt-type-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0;
+  color: var(--muted-2);
+}
+
+/* ---- Instant Theme Toggle (prevents staggered transition desync) ---- */
+html.no-transitions,
+html.no-transitions *,
+html.no-transitions *::before,
+html.no-transitions *::after {
+  transition: none !important;
+}

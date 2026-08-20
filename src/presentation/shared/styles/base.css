@@ -1,0 +1,106 @@
+/* Global base styles. Loads after tokens.css. */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-body);
+  color: var(--fg);
+  color-scheme: dark;
+  /* Default background color so the first paint is never white.
+     BackgroundView updates this with the user's chosen background. */
+  background-color: #1f2937;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+body {
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Background layer + dark overlay layer, both pseudo-elements
+   so the actual content layer (body > #app) sits on top. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-bg);
+  transition: filter var(--dur) var(--ease),
+              background var(--dur) var(--ease),
+              transform var(--dur) var(--ease);
+}
+
+body::before {
+  /* BackgroundView sets --bg-image / --bg-solid / --bg-size / --bg-position
+     on body.style. We honor them here. */
+  background-color: var(--bg-solid, transparent);
+  background-image: var(--bg-image, none);
+  background-size: var(--bg-size, cover);
+  background-position: var(--bg-position, center);
+  background-repeat: no-repeat;
+  filter: blur(var(--bg-blur, 0px)) grayscale(var(--bg-grayscale, 0%)) hue-rotate(var(--bg-hue, 0deg));
+  
+  /* Advanced pixelation support */
+  right: var(--bg-pixel-right, 0);
+  bottom: var(--bg-pixel-bottom, 0);
+  width: var(--bg-pixel-width, 100%);
+  height: var(--bg-pixel-height, 100%);
+  transform-origin: top left;
+  transform: scale(calc(var(--bg-scale, 1) * var(--bg-pixel-scale, 1)));
+  image-rendering: var(--bg-image-rendering, auto);
+
+  z-index: var(--z-bg);
+}
+
+body::after {
+  /* BackgroundView sets --bg-overlay (0..0.8) and --bg-overlay-color on body.style. */
+  background-color: var(--bg-overlay-color, #000000);
+  opacity: var(--bg-overlay, 0.35);
+  z-index: var(--z-bg-overlay);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+option {
+  background-color: #1f2937;
+  color: #ffffff;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg);
+}

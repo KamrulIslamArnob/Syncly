@@ -1,0 +1,147 @@
+/*
+ * Penta Bridge — Centralized Design Token Registry
+ * --------------------------------------------------------------------
+ * SINGLE SOURCE OF TRUTH for all spacing, color, type, motion, and
+ * z-index values. Every component in /primitives, /widgets, and
+ * /compositions MUST resolve styling exclusively from these custom
+ * properties. Hardcoded magic numbers in component files are
+ * forbidden — that is the architectural invariant that keeps the
+ * entire dashboard visually cohesive.
+ *
+ * Nothing-style design language (Swiss typography, monochrome,
+ * industrial warmth): 4px spacing base, OLED dark surfaces, red
+ * accent reserved for "look HERE, NOW" interrupts.
+ */
+
+:root {
+  /* ─── Spacing scale (4px base) ──────────────────────────────────────── */
+  --pb-space-0: 0;
+  --pb-space-1: 4px;
+  --pb-space-2: 8px;
+  --pb-space-3: 12px;
+  --pb-space-4: 16px;
+  --pb-space-5: 20px;
+  --pb-space-6: 24px;
+  --pb-space-8: 32px;
+  --pb-space-10: 40px;
+  --pb-space-12: 48px;
+  --pb-space-16: 64px;
+
+  /* ─── Radii ─────────────────────────────────────────────────────────── */
+  --pb-radius-xs: 4px;
+  --pb-radius-sm: 6px;
+  --pb-radius-md: 8px;
+  --pb-radius-lg: 12px;
+  --pb-radius-xl: 16px;
+  --pb-radius-pill: 999px;
+
+  /* ─── Surfaces (Core Palette) ─────────────────────────────────────── */
+  --pb-surface-bg:        #0b090a;          /* --onyx */
+  --pb-surface-1:         #161a1d;          /* --carbon-black */
+  --pb-surface-2:         #1e2327;          /* elevated carbon */
+  --pb-surface-3:         #252b30;          /* hover well */
+  --pb-surface-border:    rgba(211, 211, 211, 0.12); /* --dust-grey */
+  --pb-surface-border-strong: #660708;      /* --dark-garnet */
+
+  /* ─── Text (Hierarchy) ─────────────────────────────────────────────── */
+  --pb-text-display:   #ffffff;             /* --white */
+  --pb-text-primary:   #f5f3f4;             /* --white-smoke */
+  --pb-text-secondary: #b1a7a6;             /* --silver */
+  --pb-text-muted:     #b1a7a6;             /* --silver */
+  --pb-text-inverse:   #0b090a;
+
+  /* ─── Accents ──────────────────────────────────────────────────────── */
+  --pb-accent:        #e5383b;              /* --strawberry-red */
+  --pb-accent-soft:   rgba(229, 56, 59, 0.16);
+  --pb-accent-dark:   #660708;              /* --dark-garnet */
+  --pb-accent-mid:    #ba181b;              /* --mahogany-red-2 */
+  --pb-danger:        #e5383b;
+  --pb-success:       #34d399;
+  --pb-warning:       #f5d76e;
+
+  /* ─── Typography ───────────────────────────────────────────────────── */
+  --pb-font-display:  'Doto', ui-monospace, monospace;
+  --pb-font-primary:  'Space Grotesk', -apple-system, BlinkMacSystemFont,
+                      "Segoe UI", Roboto, sans-serif;
+  --pb-font-secondary: 'Space Mono', ui-monospace, monospace;
+
+  --pb-fs-xs:   10px;
+  --pb-fs-sm:   12px;
+  --pb-fs-base: 14px;
+  --pb-fs-md:   16px;
+  --pb-fs-lg:   20px;
+  --pb-fs-xl:   24px;
+  --pb-fs-2xl:  32px;
+  --pb-fs-hero: clamp(64px, 12vw, 120px);
+
+  --pb-lh-tight: 1;
+  --pb-lh-snug:  1.25;
+  --pb-lh-base:  1.5;
+
+  --pb-tracking-wide: 1px;
+  --pb-tracking-wider: 2px;
+  --pb-tracking-widest: 3px;
+
+  /* ─── Motion ───────────────────────────────────────────────────────── */
+  --pb-ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --pb-duration-fast:  150ms;
+  --pb-duration-med:   300ms;
+  --pb-duration-slow:  500ms;
+
+  /* ─── z-index scale ────────────────────────────────────────────────── */
+  --pb-z-bg:          0;
+  --pb-z-bg-overlay:  1;
+  --pb-z-shell:       10;
+  --pb-z-content:     20;
+  --pb-z-popover:     50;
+  --pb-z-sidebar:     80;
+  --pb-z-toast:       100;
+
+  /* ─── Shell slot dimensions ────────────────────────────────────────── */
+  /* Sidebars stretch the absolute full viewport height. The grid uses
+     these so the shell can be re-tuned without touching components. */
+  --pb-shell-padding: clamp(16px, 3vw, 32px);
+  --pb-shell-gap:     clamp(16px, 2vw, 32px);
+  --pb-shell-left-width:  360px;     /* collapsed drawer width */
+  --pb-shell-right-width: clamp(240px, 28vw, 320px);
+
+  /* ─── Sidebar surface — opaque enough to read against wallpaper ────── */
+  --pb-sidebar-bg: #000000;
+
+  /* ─── Focus ring (single source) ───────────────────────────────────── */
+  --pb-focus-ring: 0 0 0 2px var(--pb-accent);
+
+  /* ─── Texture: subtle dot-matrix motif reused across widgets ───────── */
+  --pb-dot-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Ccircle cx='1' cy='1' r='0.8' fill='%232a2a2a'/%3E%3C/svg%3E");
+
+  /* ─── Halftone primitive — see primitives/halftone.js ───────────────── */
+  /* The reference SVGs (Watch, Weather, Recording) build their surfaces
+     out of tiny ellipses on a fixed grid. These tokens let every widget
+     reuse the same rhythm instead of inventing its own. */
+  --pb-dot-size:    1.2766px;   /* matches Weather.svg ellipse rx */
+  --pb-dot-grid:    2.9787px;   /* vertical pitch between dot rows */
+  --pb-dot-color:   #E7EAE9;    /* default ink for halftone dots */
+  --pb-dot-color-2: #AEABB1;    /* secondary dot (used by weather meta rows) */
+  --pb-dot-color-3: #6C696E;    /* tertiary dot (inactive/forecast rows) */
+  --pb-dot-color-live: #A0A0A0; /* the "this dot is hot" ash — pulse anchor */
+
+  /* ─── Live palette (extracted from public/components/*.svg) ────────── */
+  /* These supplement the OLED-first surface scale above. Use them when
+     a widget needs the brighter, slightly warmer aesthetic of the
+     reference cards (Weather.svg / Watch.svg). */
+  --pb-surface-dark:  #1A1D1C;  /* widget body, Watch tile bg */
+  --pb-surface-light: #FCFAFE;  /* inverted tile / Recording bg */
+  --pb-accent-live:   #A0A0A0;   /* "now", "recording", "listening" */
+
+  /* Three-step ink scale used inside the live cards. */
+  --pb-ink-1: #E7EAE9;          /* labels, halftone dots, primary copy */
+  --pb-ink-2: #AEABB1;          /* body values, secondary labels */
+  --pb-ink-3: #6C696E;          /* captions, inactive rows, meta */
+
+  /* Card geometry — mirrors the 320x152 / 152x152 / 320x76 tile family
+     found across public/components/. Use these for any new "live"
+     widget so the proportions stay in the same family. */
+  --pb-card-radius:   20px;     /* the large 320x152 card radius */
+  --pb-tile-radius:   76px;     /* the 152x152 circular tile */
+  --pb-card-padding:  16px;
+}
