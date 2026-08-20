@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-color-mode="dark" data-theme-preset="aurora">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>New Tab</title>
+    <link rel="icon" type="image/png" href="../../../public/icons/icon32.png" />
+    <!-- Critical inline CSS: dark first paint + visibility fallback
+         (tokens.css/newTab.css may not load under strict MV3 CSP, so
+          explicit colors here prevent invisible text on black bg). -->
+    <style>
+      html, body { background-color: #100e0b; color: #E8EAEE; margin: 0; padding: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
+      html[data-color-mode="light"], html[data-color-mode="light"] body { background-color: #faf8f2; color: #16181D; }
+      #stage { min-height: 80px; }
+    </style>
+    <link rel="stylesheet" href="../../../public/fonts/fonts.css" />
+    <link rel="stylesheet" href="../shared/styles/tokens.css" />
+    <link rel="stylesheet" href="../shared/penta-bridge/tokens.css" />
+    <link rel="stylesheet" href="../shared/penta-bridge/primitives.css" />
+    <link rel="stylesheet" href="newTab.css" />
+  </head>
+  <body>
+    <main class="stage" id="stage"></main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="newTabController.js"></script>
+  </body>
+</html>

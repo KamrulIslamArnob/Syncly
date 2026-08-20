@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" data-color-mode="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Save bookmark</title>
+  <!-- Critical inline CSS for instant first paint without flash -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 380px;
+      min-width: 380px;
+      max-width: 380px;
+      min-height: 540px;
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      overflow-x: hidden;
+    }
+    html[data-color-mode="dark"], html[data-color-mode="dark"] body {
+      background: #111215;
+      color: #ffffff;
+    }
+    html[data-color-mode="light"], html[data-color-mode="light"] body {
+      background: #ffffff;
+      color: #111827;
+    }
+  </style>
+  <link rel="stylesheet" href="../../../public/fonts/fonts.css">
+  <link rel="stylesheet" href="../shared/styles/tokens.css">
+  <link rel="stylesheet" href="../shared/styles/base.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Main Form View -->
+    <div id="main-view" class="popup-view is-active">
+      <!-- Header -->
+      <header class="popup-header">
+        <div class="popup-header-brand">
+          <img class="popup-logo" src="../../../public/icons/logo-transparent-white.svg" alt="Syncly" width="22" height="22">
+          <span class="popup-brand-name">Syncly</span>
+        </div>
+        <div class="popup-header-actions">
+          <div class="popup-domain-badge" id="popup-domain-badge" title="Active page domain">
+            <img id="popup-favicon" class="popup-favicon" src="" alt="" hidden>
+            <span class="popup-domain" id="popup-domain"></span>
+          </div>
+          <button type="button" id="btn-theme-toggle" class="popup-theme-btn" title="Toggle dark / light mode">
+            <span class="theme-icon theme-icon-dark">🌙</span>
+            <span class="theme-icon theme-icon-light">☀️</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Primary Quickie Action (Vibrant Engaging Button) -->
+      <div class="popup-quickie-section">
+        <button type="button" id="btn-save-quickie" class="popup-quickie-btn" title="Instant capture to inbox (Quickie)">
+          <div class="popup-quickie-icon-box">
+            <span class="popup-quickie-icon">⚡</span>
+          </div>
+          <div class="popup-quickie-text-group">
+            <span class="popup-quickie-title">Quick Save to Inbox</span>
+            <span class="popup-quickie-sub">Save to Quickie · 1-click capture</span>
+          </div>
+          <span class="popup-quickie-arrow">→</span>
+        </button>
+      </div>
+
+      <!-- Section Divider with Type Switcher -->
+      <div class="popup-destination-switch-wrap">
+        <div class="popup-type-switch" role="tablist">
+          <button type="button" class="popup-type-btn is-active" id="type-btn-bookmark" role="tab" aria-selected="true">
+            <span class="popup-type-icon">📁</span>
+            <span>Bookmark Folder</span>
+          </button>
+          <button type="button" class="popup-type-btn" id="type-btn-collection" role="tab" aria-selected="false">
+            <span class="popup-type-icon">🗂️</span>
+            <span>Collection</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Direct Form for Organization -->
+      <form id="add-form" class="popup-form">
+        <div class="popup-field">
+          <div class="popup-field-header">
+            <label class="popup-field-label" for="bm-title">Title</label>
+          </div>
+          <input type="text" id="bm-title" class="popup-input popup-input-title" placeholder="Page title" required autocomplete="off">
+        </div>
+
+        <div class="popup-field">
+          <div class="popup-field-header">
+            <label class="popup-field-label" for="bm-url">URL</label>
+          </div>
+          <input type="url" id="bm-url" class="popup-input popup-input-url" placeholder="https://..." required autocomplete="off">
+        </div>
+
+        <!-- Destination Folder selector (Drill-down to Full-Height Subview) -->
+        <div class="popup-field" id="field-folder">
+          <div class="popup-field-header">
+            <label class="popup-field-label" for="bm-collection-trigger">Folder</label>
+          </div>
+          <div class="picker-trigger-box" id="bm-collection">
+            <button type="button" class="picker-trigger-btn" id="bm-collection-trigger" aria-haspopup="dialog">
+              <span class="picker-trigger-icon">📁</span>
+              <span class="picker-trigger-label" id="bm-collection-label">Bookmarks bar</span>
+              <span class="picker-trigger-chevron">›</span>
+            </button>
+            <input type="hidden" id="bm-collection-value">
+          </div>
+        </div>
+
+        <!-- Collection selector (Drill-down to Full-Height Subview) -->
+        <div class="popup-field" id="field-collection" style="display: none;">
+          <div class="popup-field-header">
+            <label class="popup-field-label" for="bm-custom-collection-trigger">Collection</label>
+          </div>
+          <div class="picker-trigger-box" id="bm-custom-collection">
+            <button type="button" class="picker-trigger-btn" id="bm-custom-collection-trigger" aria-haspopup="dialog">
+              <span class="picker-trigger-icon">🗂️</span>
+              <span class="picker-trigger-label" id="bm-custom-collection-label">Select Collection</span>
+              <span class="picker-trigger-chevron">›</span>
+            </button>
+            <input type="hidden" id="bm-custom-collection-value">
+          </div>
+        </div>
+
+        <!-- Workspace selector (Drill-down to Full-Height Subview) -->
+        <div class="popup-field" id="field-workspace">
+          <div class="popup-field-header">
+            <label class="popup-field-label" for="bm-workspace-trigger">Workspace</label>
+          </div>
+          <div class="picker-trigger-box" id="bm-workspace">
+            <button type="button" class="picker-trigger-btn" id="bm-workspace-trigger" aria-haspopup="dialog">
+              <span class="custom-select-swatch" id="bm-workspace-swatch"></span>
+              <span class="picker-trigger-label" id="bm-workspace-label">All Bookmarks</span>
+              <span class="picker-trigger-chevron">›</span>
+            </button>
+            <input type="hidden" id="bm-workspace-value">
+          </div>
+        </div>
+
+        <div class="popup-field">
+          <div class="popup-field-header">
+            <label class="popup-field-label" for="bm-tags-input">Hashtags</label>
+            <span class="popup-field-hint">Tap suggested · type to add</span>
+          </div>
+          <div class="popup-tags-box" id="bm-tags-box">
+            <div class="popup-tags-list" id="bm-tags-list"></div>
+            <input type="text" id="bm-tags-input" class="popup-tags-input" placeholder="+ tag…" autocomplete="off">
+          </div>
+        </div>
+
+        <div id="bm-error" class="popup-error-msg" role="status"></div>
+
+        <footer class="popup-footer">
+          <button type="submit" id="bm-submit" class="popup-save-btn">
+            <span id="bm-submit-text">Save Bookmark</span>
+          </button>
+          <div class="popup-footer-hint">Press <kbd class="popup-kbd">Enter</kbd> to save · <kbd class="popup-kbd">Esc</kbd> to close</div>
+        </footer>
+      </form>
+    </div>
+
+    <!-- Full-Height Picker Subview (Takes 100% of popup height) -->
+    <div id="picker-subview" class="popup-subview" hidden>
+      <div class="popup-subview-header">
+        <button type="button" id="subview-back-btn" class="popup-subview-back-btn" title="Back to bookmark form">
+          <span class="subview-back-arrow">←</span>
+          <span class="subview-back-text">Back</span>
+        </button>
+        <h2 id="subview-title" class="popup-subview-title">Select Folder</h2>
+        <button type="button" id="subview-action-btn" class="popup-subview-action-btn" title="Create new">
+          + New
+        </button>
+      </div>
+
+      <div class="popup-subview-search-bar" id="subview-search-bar">
+        <span class="popup-subview-search-icon">🔍</span>
+        <input type="text" id="subview-search-input" class="popup-subview-search-input" placeholder="Search folders..." autocomplete="off">
+        <button type="button" id="subview-search-clear" class="popup-subview-search-clear" hidden>✕</button>
+      </div>
+
+      <div class="popup-subview-content">
+        <ul id="subview-list" class="popup-subview-list" role="listbox"></ul>
+      </div>
+
+      <!-- Inline Subview Creator Footer -->
+      <div id="subview-inline-creator" class="popup-subview-creator" hidden>
+        <div class="popup-subview-creator-row">
+          <input type="text" id="subview-creator-input" class="popup-subview-creator-input" placeholder="Folder name..." autocomplete="off">
+          <button type="button" id="subview-creator-confirm" class="popup-subview-creator-btn-confirm">Add</button>
+          <button type="button" id="subview-creator-cancel" class="popup-subview-creator-btn-cancel">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popupController.js"></script>
+</body>
+</html>
