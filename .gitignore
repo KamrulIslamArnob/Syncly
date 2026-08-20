@@ -1,0 +1,98 @@
+# ====================================================================
+# OS / System Files
+# ====================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ====================================================================
+# IDE / Editor Files
+# ====================================================================
+.vscode/
+# Do not ignore VS Code recommendation configs
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+
+# ====================================================================
+# Node / Javascript (for development tooling)
+# ====================================================================
+node_modules/
+jspm_packages/
+web_modules/
+.npm/
+.pnpm-store/
+.yarn-cache/
+.eslintcache
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ====================================================================
+# Build & Output Directories & Coverage
+# ====================================================================
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+
+# ====================================================================
+# Python (for helper scripts)
+# ====================================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+
+# ====================================================================
+# Local Tool-specific Cache & Temp Files
+# ====================================================================
+.puku/
+.kiro/
+base64.txt
+*.tmp
+*.temp
+scratch/
+
+# Graphify knowledge-graph cache (regenerated, not source)
+graphify-out/
+
+# Local dev screenshot/probe harnesses
+_shot.mjs
+_probe.mjs
+
+# Personal/cache folders (never commit)
+~/
+.opencode/
+.agents/
+.agnes/
+Backup_of_shortcut/
+competitor-profiles/
+dashboard/
+
+# ====================================================================
+# Secrets & Environment Files — NEVER commit
+# ====================================================================
+*service-account*.json
+*serviceAccount*.json
+.env
+.env.*
+!.env.example
