@@ -1,12 +1,14 @@
 # CLAUDE.md
 
+> **Canonical location:** `docs/agents/CLAUDE.md` — moved from repo root `CLAUDE.md` (strict move 2026-08-21). Configure Claude Code to read `docs/agents/CLAUDE.md` if your tooling expects it at root.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project
 
 Syncly — a Chrome MV3 new-tab replacement extension (vanilla JS, ES modules, no framework). The new tab is a two-pane **bookmark manager** over the user's real Chrome bookmarks: sidebar (workspace switcher + smart filters + collections tree) and a searchable card grid. Dark (`#121316` slate) and light (`#F8F9FA`) themes, terracotta `#D2683F`/`#E64A19` accent, Plus Jakarta Sans + JetBrains Mono. This replaced an earlier Nothing-Phone-inspired monochrome OLED widget dashboard (clock/Pomodoro/tasks/weather/curated-shortcuts) — see "What changed" below for what's still in the tree but no longer mounted.
 
-`AGENTS.md` is a companion instruction file (written for OpenCode) covering the same ground — read it too if present; it may be stale on the redesign specifics below since it predates it.
+[`AGENTS.md`](AGENTS.md) is a companion instruction file (written for OpenCode) covering the same ground — read it too if present (canonical at [`docs/agents/AGENTS.md`](AGENTS.md)); it may be stale on the redesign specifics below since it predates it.
 
 ## Commands
 
@@ -85,10 +87,10 @@ Use case mutates state → repo persists → use case emits on the `EventBus` (`
 
 ## Reference docs
 
-- `PRODUCT_SPEC.md` — exhaustive product + engineering spec; section 5 (New Tab) and the widget sections predate the bookmark-manager redesign and describe the old dashboard — treat as historical/stale until updated, prefer reading source for current new-tab behavior.
-- `Design.md` — design system notes; predates the redesign's terracotta/Plus-Jakarta-Sans visual system.
-- `docs/AI-Quota-Tracker-Extension-Build-Task.md` — spec for the not-yet-wired AI-quota feature above.
-- `OPTIMIZATION_PLAN.md` — architecture audit / known-issues list from a past pass; useful context, may be stale on specifics.
+- [`PRODUCT_SPEC.md`](../../PRODUCT_SPEC.md) — exhaustive product + engineering spec; section 5 (New Tab) and the widget sections predate the bookmark-manager redesign and describe the old dashboard — treat as historical/stale until updated, prefer reading source for current new-tab behavior.
+- [`Design.md`](../design/Design.md) — design system notes; predates the redesign's terracotta/Plus-Jakarta-Sans visual system.
+- [`AI-Quota-Tracker-Extension-Build-Task.md`](../AI-Quota-Tracker-Extension-Build-Task.md) — spec for the not-yet-wired AI-quota feature above.
+- `OPTIMIZATION_PLAN.md` (if present at repo root) — architecture audit / known-issues list from a past pass; useful context, may be stale on specifics.
 
 ## Repo hygiene
 

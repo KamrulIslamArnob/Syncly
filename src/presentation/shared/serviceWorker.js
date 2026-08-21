@@ -157,7 +157,52 @@ chrome.omnibox.onInputEntered.addListener(async (text, disposition) => {
   }
 });
 
+// ── Cross-device sync (chrome.storage.sync) ─────────────────────────────────
+//
+// The DI container wires a sync-area listener, but ONLY inside extension
+// pages (new tab / popup / options). When Google delivers a workspace or
+// collection change from another device while no Syncly page is open,
+// nothing used to apply it — the change sat in sync storage forever.
+//
+// chrome.storage.onChanged registered at the TOP LEVEL of the service
+// worker wakes the worker when a cross-device change arrives, so this is
+// the always-on receiver. It merges remote data item-level into local
+// storage (never blind-overwrites), and open new-tab pages pick the local
+// write up through their existing area === "local" listeners.
+
+import { GoogleSyncService, SYNC_KEYS, TOMBSTONE_KEY } from "../../infrastructure/services/GoogleSyncService.js";
+
+const googleSync = new GoogleSyncService();
+const RECONCILE_ALARM = "syncly-sync-reconcile";
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "sync") return;
+  const relevant = {};
+  for (const [key, change] of Object.entries(changes)) {
+    if (!SYNC_KEYS.includes(key) && key !== TOMBSTONE_KEY) continue;
+    if (googleSync.isOwnEcho(key, change?.newValue)) continue;
+    relevant[key] = change;
+  }
+  if (Object.keys(relevant).length === 0) return;
+  googleSync.applyRemoteChanges(relevant).catch(() => {});
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  // Catch up on anything delivered while the browser was closed.
+  googleSync.reconcile().catch(() => {});
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === RECONCILE_ALARM) {
+    // Safety net for missed deliveries (e.g. Chrome offline during a push).
+    googleSync.reconcile().catch(() => {});
+  }
+});
+
 // ── Init ────────────────────────────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
-  // Service worker initialization
+  try {
+    chrome.alarms.create(RECONCILE_ALARM, { periodInMinutes: 15 });
+  } catch {}
+  googleSync.reconcile().catch(() => {});
 });

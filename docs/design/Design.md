@@ -5,9 +5,11 @@ version: 3.0.0
 allowed-tools: [Read, Write, Edit, Glob, Grep]
 ---
 
+> **Canonical location:** `docs/design/Design.md` — moved from repo root `Design.md` (strict move 2026-08-21).
+
 # Nothing-Inspired UI/UX Design System
 
-![NothingTab Interface Preview](public/Product_image_1.png)
+![NothingTab Interface Preview](../../public/Product_image_1.png)
 
 A senior product designer's toolkit trained in Swiss typography, industrial design (Braun, Teenage Engineering), and modern interface craft. Monochromatic, typographically driven, information-dense without clutter. Dark and light mode with equal rigor.
 

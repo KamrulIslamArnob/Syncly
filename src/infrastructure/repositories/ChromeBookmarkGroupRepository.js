@@ -4,7 +4,7 @@
    Manages persistence of bookmark groups using chrome.storage.local.
 
    DECISION: local-only (no chrome.storage.sync).
-   AGENTS.md mandates that all user data lives in chrome.storage.local
+   docs/agents/AGENTS.md mandates that all user data lives in chrome.storage.local
    — only `aiQuotaPrefs` may use sync.  The previous dual-write to
    chrome.storage.sync was removed because the storage.onChanged
    listener in ChromeStorageClient only watches `area === "local"`,
@@ -13,8 +13,13 @@
    ============================================================ */
 
 import { BookmarkGroup } from "../../domain/entities/BookmarkGroup.js";
+import { GoogleSyncService } from "../services/GoogleSyncService.js";
 
 const STORAGE_KEY = "bookmarkGroups";
+
+// Lightweight tombstone recorder so deletions propagate cross-device
+// (without it, a stale snapshot from another device resurrects the group).
+const tombstoneRecorder = new GoogleSyncService();
 
 export class ChromeBookmarkGroupRepository {
   constructor() {
@@ -89,6 +94,7 @@ export class ChromeBookmarkGroupRepository {
     await this.load(); // Ensure cache is loaded
     this._cache = this._cache.filter(g => g.id !== id);
     await this._saveToStorage(this._cache);
+    try { await tombstoneRecorder.recordDeletion(STORAGE_KEY, [id]); } catch {}
   }
 
   async findAll() {

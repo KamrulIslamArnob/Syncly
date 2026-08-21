@@ -2,7 +2,7 @@
 
 > **Purpose of this document:** A self-contained, copy-pasteable spec. If you hand this to an engineer (or paste it into a fresh repo), it recreates the *same product*: same features, same workflows, same architecture, same design system. It is derived by reading 100% of the source.
 
-> **⚠ Stale as of the bookmark-manager redesign.** The new tab was rebuilt as a two-pane native-Chrome-bookmarks manager (`BookmarkDeckView.js`) with dark/light theming, a workspace switcher, and real tags — replacing the widget dashboard (clock/Pomodoro/tasks/weather/curated-shortcuts grid) that sections 0, 2.2–2.4, 3.1–3.7, 5, and 6 below describe. Those sections are accurate for the *old* dashboard and its still-present-but-unmounted code, not for what actually renders today. See `CLAUDE.md`'s "What changed" section for the current architecture; this doc hasn't been re-derived against it yet.
+> **⚠ Stale as of the bookmark-manager redesign.** The new tab was rebuilt as a two-pane native-Chrome-bookmarks manager (`BookmarkDeckView.js`) with dark/light theming, a workspace switcher, and real tags — replacing the widget dashboard (clock/Pomodoro/tasks/weather/curated-shortcuts grid) that sections 0, 2.2–2.4, 3.1–3.7, 5, and 6 below describe. Those sections are accurate for the *old* dashboard and its still-present-but-unmounted code, not for what actually renders today. See [`docs/agents/CLAUDE.md`](docs/agents/CLAUDE.md)'s "What changed" section for the current architecture; this doc hasn't been re-derived against it yet.
 
 ---
 
@@ -394,7 +394,7 @@ src/
                     primitives/{draggableScroller,halftone}.js,
                     widgets/{CategoryTabs,widgets.css}
 ```
-> Dev/helper artifacts present in repo but not part of the product runtime: `fix.js`, `fix_css.js`, `fix_ref_error.js`, `base64.txt`, `old_newTab.css`, `ui_kits-app-index.html`, `Design.md` (the Nothing design-system skill doc), `README.md`. The canonical runtime entry is `newTab.html` + the module graph above.
+> Dev/helper artifacts present in repo but not part of the product runtime: `fix.js`, `fix_css.js`, `fix_ref_error.js`, `base64.txt`, `old_newTab.css`, `ui_kits-app-index.html`, `Design.md` shim at repo root (canonical `docs/design/Design.md`), `README.md`. The canonical runtime entry is `newTab.html` + the module graph above.
 
 ---
 

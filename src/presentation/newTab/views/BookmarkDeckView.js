@@ -24,7 +24,7 @@ import { OmniSearchIndex } from "../../../domain/services/OmniSearchIndex.js";
    app's old curated-shortcuts domain model): a sidebar (workspace
    switcher + smart filters + collections/bookmarks tree) and a main pane
    (search/tag bar + responsive card grid). Replaces the old widget
-   dashboard entirely — see CLAUDE.md for what got dropped.
+   dashboard entirely — see docs/agents/CLAUDE.md for what got dropped.
    ============================================================ */
 
 const USAGE_KEY = "bookmarkUsage";

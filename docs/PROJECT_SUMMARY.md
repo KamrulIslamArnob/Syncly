@@ -18,13 +18,19 @@
 ## 2. Project Structure (top-level)
 
 ```
-Chrome_theme_for_homescreen/
+Syncly/
 ├── manifest.json              # Chrome MV3 manifest
-├── CLAUDE.md                  # Canonical agent instructions (READ FIRST)
-├── AGENTS.md                  # OpenCode-specific agent guidance
 ├── PRODUCT_SPEC.md            # Exhaustive product + engineering spec (404 lines)
-├── Design.md                  # Design system rules
 ├── README.md                  # User-facing readme
+├── docs/
+│   ├── agents/
+│   │   ├── CLAUDE.md          # Canonical agent instructions (READ FIRST) — moved from root
+│   │   └── AGENTS.md          # OpenCode-specific agent guidance — moved from root
+│   ├── design/
+│   │   └── Design.md          # Design system rules (Nothing design) — moved from root
+│   ├── security/
+│   │   └── SECURITY.md        # Canonical security policy — moved from root
+│   └── SECURITY.md            # Duplicate for GitHub detection (sync of security/SECURITY.md)
 │
 ├── src/                       # === MAIN SOURCE ===
 │   ├── domain/                # Entities, value objects, repo interfaces
@@ -248,10 +254,11 @@ Root scratch files (one-off artifacts, NOT part of the extension):
 
 | File | Purpose |
 |------|---------|
-| `CLAUDE.md` | Canonical agent instructions — READ FIRST |
-| `AGENTS.md` | OpenCode-specific agent guidance |
+| `docs/agents/CLAUDE.md` | Canonical agent instructions — READ FIRST |
+| `docs/agents/AGENTS.md` | OpenCode-specific agent guidance |
 | `PRODUCT_SPEC.md` | Exhaustive product + engineering spec (404 lines) |
-| `Design.md` | Design system rules |
+| `docs/design/Design.md` | Design system rules |
+| `docs/security/SECURITY.md` (mirror `docs/SECURITY.md`) | Security policy |
 | `src/presentation/shared/styles/tokens.css` | Design tokens (source of truth) |
 | `src/presentation/shared/penta-bridge/theme.js` | JS mirror of tokens |
 | `src/infrastructure/di/container.js` | Composition root — wire everything here |

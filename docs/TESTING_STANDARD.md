@@ -204,6 +204,6 @@ See `test/tree-view.test.mjs` (pure helper), `test/collections.test.mjs` (entity
 
 ## 10. Out of Scope (Explicit Non-Goals)
 
-- Visual regression (CSS token) testing — covered by `Design.md` review.
+- Visual regression (CSS token) testing — covered by `docs/design/Design.md` review (shim at `Design.md`).
 - Real `chrome.bookmarks.getTree()` with thousands of nodes — perf benchmarking is manual (`scripts/tree-integration.mjs`).
 - E2E with real Chrome — only `npm run smoke` (manual, not CI).

@@ -178,7 +178,7 @@ We welcome contributions of all kinds! Please read our **[Contributing Guideline
 
 ## Security
 
-For vulnerability disclosures and security policies, please review **[SECURITY.md](SECURITY.md)**.
+For vulnerability disclosures and security policies, please review **[SECURITY.md](docs/security/SECURITY.md)** (also mirrored at [`docs/SECURITY.md`](docs/SECURITY.md) for GitHub detection).
 
 ---
 

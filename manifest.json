@@ -20,7 +20,7 @@
     "page": "src/presentation/options/options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "bookmarks", "tabs", "favicon"],
+  "permissions": ["storage", "unlimitedStorage", "activeTab", "bookmarks", "tabs", "favicon", "alarms"],
   "omnibox": { "keyword": "nt" },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://api.github.com https://geocoding-api.open-meteo.com https://api.open-meteo.com;"

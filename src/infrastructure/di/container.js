@@ -19,7 +19,7 @@ import { UuidGenerator } from "../services/UuidGenerator.js";
 import { BasicSanitizer } from "../security/BasicSanitizer.js";
 import { AutoBackupService } from "../services/AutoBackupService.js";
 import { GitHubBackupService } from "../services/GitHubBackupService.js";
-import { GoogleSyncService } from "../services/GoogleSyncService.js";
+import { GoogleSyncService, SYNC_KEYS, TOMBSTONE_KEY } from "../services/GoogleSyncService.js";
 
 import { EventBus } from "../../application/ports/EventBus.js";
 
@@ -114,31 +114,36 @@ export function buildContainer() {
     if (changes.bookmarkTags) events.emit("bookmarkTags:changed", undefined);
   });
 
-  // Cross-device Google Sync change listener
+  // Cross-device Google Sync change listener.
+  // chrome.storage.onChanged fires here (page context) AND in the service
+  // worker (serviceWorker.js) — the SW covers delivery while no Syncly page
+  // is open; this one gives open tabs an instant refresh path. Both go
+  // through applyRemoteChanges() which MERGES remote data item-level into
+  // local storage instead of blindly overwriting (no more clobbering a
+  // workspace created locally while a remote snapshot lands).
   if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "sync") return;
-      const payload = {};
+      const relevant = {};
       for (const [key, change] of Object.entries(changes)) {
-        if (change.newValue !== undefined) payload[key] = change.newValue;
+        if (!SYNC_KEYS.includes(key) && key !== TOMBSTONE_KEY) continue;
+        if (googleSyncService.isOwnEcho(key, change?.newValue)) continue;
+        relevant[key] = change;
       }
-      if (Object.keys(payload).length > 0 && typeof chrome.storage.local?.set === "function") {
-        chrome.storage.local.set(payload).catch(() => {});
-      }
+      if (Object.keys(relevant).length === 0) return;
 
-      if (changes.bookmarks) bookmarkRepo.invalidate();
-      if (changes.categories) categoryRepo.invalidate();
-      if (changes.settings) settingsRepo.invalidate();
-      if (changes.bookmarkGroups) bookmarkGroupRepo.clearCache();
-      if (changes.bookmarkCollections) bookmarkCollectionRepo.clearCache();
-      if (changes.bookmarkTags) bookmarkTagRepo.clearCache();
-
-      if (changes.bookmarks) events.emit("bookmarks:changed", undefined);
-      if (changes.categories) events.emit("categories:changed", undefined);
-      if (changes.settings) events.emit("settings:changed", changes.settings.newValue);
-      if (changes.bookmarkGroups) events.emit("bookmarkGroups:changed", undefined);
-      if (changes.bookmarkCollections) events.emit("bookmarkCollections:changed", undefined);
-      if (changes.bookmarkTags) events.emit("bookmarkTags:changed", undefined);
+      googleSyncService.applyRemoteChanges(relevant).then((changedKeys) => {
+        for (const key of changedKeys) {
+          // NOTE: changedKeys may include keys affected by newly-arrived
+          // tombstones that were NOT part of this batch — always emit.
+          if (key === "bookmarks") { bookmarkRepo.invalidate(); events.emit("bookmarks:changed", undefined); }
+          if (key === "categories") { categoryRepo.invalidate(); events.emit("categories:changed", undefined); }
+          if (key === "settings") { settingsRepo.invalidate(); events.emit("settings:changed", undefined); }
+          if (key === "bookmarkGroups") { bookmarkGroupRepo.clearCache(); events.emit("bookmarkGroups:changed", undefined); }
+          if (key === "bookmarkCollections") { bookmarkCollectionRepo.clearCache(); events.emit("bookmarkCollections:changed", undefined); }
+          if (key === "bookmarkTags") { bookmarkTagRepo.clearCache(); events.emit("bookmarkTags:changed", undefined); }
+        }
+      }).catch(() => {});
     });
   }
 

@@ -1,5 +1,7 @@
 # Security Policy
 
+> **Canonical location:** `docs/security/SECURITY.md` — also mirrored at [`docs/SECURITY.md`](../SECURITY.md) for GitHub security-policy detection (former root `SECURITY.md` moved here 2026-08-21).
+
 ## Supported Versions
 
 Syncly is actively maintained. Security updates are applied to the latest development version and published releases.

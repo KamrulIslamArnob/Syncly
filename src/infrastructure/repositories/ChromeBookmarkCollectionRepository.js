@@ -9,8 +9,13 @@
    ============================================================ */
 
 import { BookmarkCollection } from "../../domain/entities/BookmarkCollection.js";
+import { GoogleSyncService } from "../services/GoogleSyncService.js";
 
 const STORAGE_KEY = "bookmarkCollections";
+
+// Deletion tombstones so removed collections are not resurrected by a
+// stale snapshot arriving from another device via chrome.storage.sync.
+const tombstoneRecorder = new GoogleSyncService();
 
 export class ChromeBookmarkCollectionRepository {
   constructor({ storage } = {}) {
@@ -86,6 +91,7 @@ export class ChromeBookmarkCollectionRepository {
     if (this._cache[id]) {
       delete this._cache[id];
       await this._saveToStorage();
+      try { await tombstoneRecorder.recordDeletion(STORAGE_KEY, [id]); } catch {}
     }
   }
 
