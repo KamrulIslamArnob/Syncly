@@ -171,9 +171,24 @@ chrome.omnibox.onInputEntered.addListener(async (text, disposition) => {
 // write up through their existing area === "local" listeners.
 
 import { GoogleSyncService, SYNC_KEYS, TOMBSTONE_KEY } from "../../infrastructure/services/GoogleSyncService.js";
+import { ChromeBookmarkGroupRepository } from "../../infrastructure/repositories/ChromeBookmarkGroupRepository.js";
+import { AdoptNativeWorkspaceFolders } from "../../application/useCases/workspaces/AdoptNativeWorkspaceFolders.js";
 
 const googleSync = new GoogleSyncService();
 const RECONCILE_ALARM = "syncly-sync-reconcile";
+
+function runNativeWorkspaceAdoption() {
+  try {
+    const adopter = new AdoptNativeWorkspaceFolders({
+      groupRepository: new ChromeBookmarkGroupRepository(),
+      getTree: () => chrome.bookmarks.getTree(),
+      updateFolder: async (folderId, title) => {
+        await chrome.bookmarks.update(folderId, { title });
+      },
+    });
+    adopter.execute().catch(() => {});
+  } catch {}
+}
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "sync") return;
@@ -190,6 +205,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.runtime.onStartup.addListener(() => {
   // Catch up on anything delivered while the browser was closed.
   googleSync.reconcile().catch(() => {});
+  // Native-sync fallback: adopt w-* workspace folders synced natively.
+  runNativeWorkspaceAdoption();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {

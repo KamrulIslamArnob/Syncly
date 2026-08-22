@@ -26,6 +26,7 @@
 
 - All data in `chrome.storage.local`. Keys: `bookmarks`, `categories`, `settings`, `tasks`, `layout`, `aiQuotaCache`, `aiQuotaPrefs` (sync for AI quota prefs), `quickNote`.
 - Cross-device sync mirrors a fixed allowlist (`SYNC_KEYS` in `GoogleSyncService.js`) to `chrome.storage.sync`: workspaces/collections/tags merge item-level (never whole-key overwrite) with deletion tombstones under `syncTombstones`; the MV3 service worker applies incoming sync changes even when no extension page is open.
+- Workspace native-sync fallback: workspace root folders live under Other Bookmarks titled `w-{name}` (`src/domain/services/workspaceNaming.js`) so they ride Chrome's NATIVE bookmark sync (quota-proof). `AdoptNativeWorkspaceFolders` runs at startup: migrates own plain-titled folders to the prefix (exact-name match only) and adopts untracked `w-*` folders arriving from other devices. Deleting a workspace removes its dedicated `w-` folder natively (bookmarks inside go too); referenced external folders are only unlinked.
 - AI Quota source-of-truth: Supabase Postgres via raw `fetch` to PostgREST (`supabase/schema.sql`). Bearer PAT stored in `chrome.storage.local`. Provider API keys never leave the backend.
 - AutoBackupService uses File System Access API + IndexedDB (`neptab-backup-db`) to persist a chosen JSON backup file.
 

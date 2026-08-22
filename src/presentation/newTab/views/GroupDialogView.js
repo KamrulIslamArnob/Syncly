@@ -11,6 +11,7 @@ import { icon } from "../../shared/icons.js";
 import { IconPickerView } from "./IconPickerView.js";
 import { ConfirmDialogView } from "./ConfirmDialogView.js";
 import { BookmarkGroup } from "../../../domain/entities/BookmarkGroup.js";
+import { WORKSPACE_PREFIX, toFolderTitle, fromFolderTitle, isWorkspaceFolder } from "../../../domain/services/workspaceNaming.js";
 
 export class GroupDialogView {
   constructor({ useCases, getTree, toast } = {}) {
@@ -201,8 +202,11 @@ export class GroupDialogView {
               const siblings = this._getChildrenOfParent(tree, await this._resolveTargetParentId());
               const folderExists = siblings.some((n) => n.id === match.folderIds[0]);
               if (!folderExists) {
-                // Try find by title and remap
-                const byTitle = siblings.find((n) => (n.title || "").trim().toLowerCase() === name.trim().toLowerCase() && !n.url);
+                // Try find by title and remap — prefer the "w-" convention, then plain
+                const wanted = name.trim().toLowerCase();
+                const byTitle = siblings.find(
+                  (n) => isWorkspaceFolder(n) && fromFolderTitle(n.title).toLowerCase() === wanted
+                ) || siblings.find((n) => (n.title || "").trim().toLowerCase() === wanted && !n.url);
                 if (byTitle) {
                   try { await this.useCases.updateBookmarkGroup.execute({ id: match.id, folderIds: [byTitle.id] }); } catch {}
                 }
@@ -233,11 +237,12 @@ export class GroupDialogView {
           icon: iconName,
         });
 
-        // Optionally rename the root folder in Chrome if it exists
+        // Optionally rename the root folder in Chrome if it exists —
+        // the "w-" prefixed title propagates to all devices via native sync
         const rootFolderId = this.editGroup.folderIds?.[0];
         if (rootFolderId && typeof chrome !== "undefined" && chrome.bookmarks?.update) {
           try {
-            await chrome.bookmarks.update(rootFolderId, { title: name });
+            await chrome.bookmarks.update(rootFolderId, { title: toFolderTitle(name) });
           } catch {
             // Non-fatal if native folder rename fails
           }
@@ -245,7 +250,8 @@ export class GroupDialogView {
 
         this.toast?.show("Workspace updated");
       } else {
-        // 1. Auto-sync: if folder with same name already exists (from Chrome sync on other browser), reuse it
+        // 1. Auto-sync: if a workspace root folder for this name already exists
+        //    (synced natively from another browser via the "w-" convention), reuse it.
         // Reserved names already rejected by validateName, so safe to reuse
         let folderId = null;
         let createdFolderId = null;
@@ -254,15 +260,18 @@ export class GroupDialogView {
           parentId = await this._resolveTargetParentId();
           const tree = await this.getTree().catch(() => []);
           const siblings = this._getChildrenOfParent(tree, parentId);
-          const existingFolder = siblings.find((n) => (n.title || "").trim().toLowerCase() === name.trim().toLowerCase() && !n.url);
+          const wanted = name.trim().toLowerCase();
+          const existingFolder = siblings.find(
+            (n) => isWorkspaceFolder(n) && fromFolderTitle(n.title).toLowerCase() === wanted
+          );
           if (existingFolder) {
-            // Auto-sync: reuse existing native folder (from other browser's sync)
+            // Auto-sync: reuse existing native workspace folder (from other browser's sync)
             folderId = existingFolder.id;
             createdFolderId = null;
           } else {
             const newFolder = await chrome.bookmarks.create({
               parentId,
-              title: name,
+              title: toFolderTitle(name),
             });
             folderId = newFolder.id;
             createdFolderId = newFolder.id;
@@ -325,18 +334,52 @@ export class GroupDialogView {
     return find(roots) || [];
   }
 
+  _findNodeById(nodes, id) {
+    if (!Array.isArray(nodes)) return null;
+    const roots = nodes.length === 1 && (nodes[0].id === "0" || nodes[0].title === "") && nodes[0].children ? nodes[0].children : nodes;
+    const walk = (list) => {
+      for (const n of list) {
+        if (n?.id === id) return n;
+        if (Array.isArray(n?.children)) {
+          const found = walk(n.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    return walk(roots);
+  }
+
   async handleDelete() {
     if (!this.editGroup?.id) return;
 
     const targetGroup = this.editGroup;
+    // Detect whether the workspace's root folder is DEDICATED to it (carries
+    // the "w-" prefix we create). Dedicated roots are removed natively so the
+    // deletion syncs everywhere; referenced external folders are never touched.
+    let dedicatedRootId = null;
+    try {
+      const rootFolderId = targetGroup.folderIds?.[0];
+      if (rootFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
+        const tree = await this.getTree().catch(() => []);
+        const node = this._findNodeById(tree, rootFolderId);
+        if (node && !node.url && String(node.title ?? "").startsWith(WORKSPACE_PREFIX)) {
+          dedicatedRootId = node.id;
+        }
+      }
+    } catch {}
+
     this.confirmDialog.open({
       title: "Delete Workspace",
-      message: `Are you sure you want to delete workspace "${targetGroup.name}"? Your bookmarks and folders in Chrome will remain untouched.`,
+      message: `Delete workspace "${targetGroup.name}"? Its workspace folder and the bookmarks inside it will be removed on ALL synced devices. Folders you linked into this workspace from elsewhere are not affected.`,
       confirmLabel: "Delete Workspace",
       isDanger: true,
       onConfirm: async () => {
         try {
           await this.useCases.deleteBookmarkGroup.execute(targetGroup.id);
+          if (dedicatedRootId && typeof chrome !== "undefined" && chrome.bookmarks?.removeTree) {
+            try { await chrome.bookmarks.removeTree(dedicatedRootId); } catch {}
+          }
           this.toast?.show("Workspace deleted");
           if (this.onDelete) this.onDelete();
           this.hide();

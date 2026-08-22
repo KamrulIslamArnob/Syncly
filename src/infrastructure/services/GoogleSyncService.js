@@ -113,6 +113,11 @@ export class GoogleSyncService {
     }
   }
 
+  /** Public read access to current deletion tombstones. */
+  async getTombstones() {
+    return this._getTombstones();
+  }
+
   /**
    * Record deletions of entity ids so other devices do not resurrect them.
    * Writes tombstones to BOTH local and sync areas.

@@ -5,6 +5,8 @@
    and hydrates local repositories and views.
    ============================================================ */
 
+import { toFolderTitle } from "../../../domain/services/workspaceNaming.js";
+
 export class SyncFromGoogleCloudUseCase {
   #googleSyncService;
   #events;
@@ -76,13 +78,18 @@ export class SyncFromGoogleCloudUseCase {
                 continue;
               }
               // Not found locally — find or create folder by workspace name (single-folder workspaces)
-              // For multi-folder workspaces, we try group.name as title
-              const title = group.name || fid;
+              // For multi-folder workspaces, we try group.name as title.
+              // Prefer the "w-" workspace convention, fall back to plain title (pre-convention data).
+              const plainTitle = String(group.name || fid);
+              const wantedTitle = toFolderTitle(plainTitle);
               const siblings = getChildren(otherId);
-              let localFolder = siblings.find((n) => (n.title || "").trim().toLowerCase() === String(title).trim().toLowerCase() && !n.url);
+              const byTitle = (t) => siblings.find(
+                (n) => !n.url && (n.title || "").trim().toLowerCase() === t.trim().toLowerCase()
+              );
+              let localFolder = byTitle(wantedTitle) || byTitle(plainTitle);
               if (!localFolder) {
                 try {
-                  localFolder = await chrome.bookmarks.create({ parentId: otherId, title });
+                  localFolder = await chrome.bookmarks.create({ parentId: otherId, title: wantedTitle });
                 } catch {}
               }
               if (localFolder) {

@@ -31,6 +31,7 @@ import { UpdateCollectionMembersUseCase } from "../../application/useCases/colle
 import { DeleteBookmarkCollectionUseCase } from "../../application/useCases/collections/DeleteBookmarkCollectionUseCase.js";
 import { RenameBookmarkCollectionUseCase } from "../../application/useCases/collections/RenameBookmarkCollectionUseCase.js";
 import { SyncFromGoogleCloudUseCase } from "../../application/useCases/sync/SyncFromGoogleCloudUseCase.js";
+import { AdoptNativeWorkspaceFolders } from "../../application/useCases/workspaces/AdoptNativeWorkspaceFolders.js";
 
 import { ListBookmarksUseCase } from "../../application/useCases/bookmarks/ListBookmarksUseCase.js";
 import { CreateBookmarkUseCase } from "../../application/useCases/bookmarks/CreateBookmarkUseCase.js";
@@ -90,6 +91,18 @@ export function buildContainer() {
   const autoBackupService = new AutoBackupService();
   const githubBackupService = new GitHubBackupService();
   const googleSyncService = new GoogleSyncService();
+  const adoptNativeWorkspaceFolders = new AdoptNativeWorkspaceFolders({
+    groupRepository: bookmarkGroupRepo,
+    events,
+    getTree: () =>
+      typeof chrome !== "undefined" && chrome.bookmarks?.getTree
+        ? chrome.bookmarks.getTree()
+        : Promise.resolve([]),
+    updateFolder: async (folderId, title) => {
+      if (typeof chrome === "undefined" || !chrome.bookmarks?.update) return;
+      await chrome.bookmarks.update(folderId, { title });
+    },
+  });
 
   // ---- repositories that can be wiped when another tab changes state ----
   storage.onChanged((changes) => {
@@ -163,7 +176,11 @@ export function buildContainer() {
       events.emit("bookmarkCollections:changed", undefined);
       events.emit("bookmarkTags:changed", undefined);
     }
-  }).catch(() => {});
+  }).catch(() => {})
+  // Native-sync fallback: after hydration settles, migrate existing workspace
+  // folders to the "w-" convention and adopt "w-*" folders that arrived from
+  // other devices via Chrome's native bookmark sync (quota-proof channel).
+  .then(() => adoptNativeWorkspaceFolders.execute()).catch(() => {});
 
   // 2-browser auto-sync: when same Google profile open on 2 devices, push missing local → sync, pull missing sync → local
   // Runs reconcile every 30s + soon after startup, handles "existing data not yet in sync" case
@@ -279,6 +296,7 @@ export function buildContainer() {
     updateBookmarkGroup: new UpdateBookmarkGroup(bookmarkGroupRepo),
     deleteBookmarkGroup: new DeleteBookmarkGroup(bookmarkGroupRepo),
     listBookmarkGroups: new ListBookmarkGroups(bookmarkGroupRepo),
+    adoptNativeWorkspaceFolders,
     setActiveGroup: new SetActiveGroup(storage),
 
     listBookmarkTags: new ListBookmarkTagsUseCase({ tagRepo: bookmarkTagRepo }),
