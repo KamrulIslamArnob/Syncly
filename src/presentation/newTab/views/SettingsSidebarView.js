@@ -946,8 +946,12 @@ export class SettingsSidebarView {
       googlePullBtn.disabled = true;
       try {
         const res = await this.useCases.syncFromGoogleCloud.execute();
-        this.toast.show(`Pulled ${res.count} keys from cloud ✓ - reloading`);
-        setTimeout(() => location.reload(), 600);
+        if (res.count > 0) {
+          this.toast.show(`Pulled ${res.count} keys from cloud ✓ - reloading`);
+          setTimeout(() => location.reload(), 600);
+        } else {
+          this.toast.show("No new changes in Google Cloud to pull");
+        }
       } catch (err) {
         this.toast.show(err.message || "Pull failed", { error: true });
       } finally { googlePullBtn.disabled = false; }

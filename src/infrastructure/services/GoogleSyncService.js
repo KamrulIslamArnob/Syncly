@@ -97,7 +97,7 @@ export class GoogleSyncService {
       return writtenKeys;
     } catch (err) {
       console.warn(`[GoogleSync] Failed to push keys ${writtenKeys.join(", ")} to sync:`, err);
-      return [];
+      throw err;
     }
   }
 

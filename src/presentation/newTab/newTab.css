@@ -1425,10 +1425,17 @@ html[data-color-mode="light"] .settings-logo {
   display: flex;
   flex-direction: column;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition: padding 240ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease, background 200ms ease;
+  transition: 
+    padding 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    min-height 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms ease,
+    background 200ms ease;
 }
 .settings-card.is-collapsed {
-  padding: 13px 18px;
+  padding: 0 18px;
+  min-height: 48px;
+  height: 48px;
+  justify-content: center;
 }
 .settings-card.is-danger-card {
   border-color: rgba(239, 68, 68, 0.25);
@@ -1450,7 +1457,14 @@ html[data-color-mode="light"] .settings-logo {
   user-select: none;
   border-radius: var(--radius-xs);
   outline-offset: 2px;
+  line-height: 1;
+  min-height: 18px;
   transition: color 180ms ease, opacity 180ms ease;
+}
+.settings-card.is-collapsed .settings-card-header {
+  height: 100%;
+  display: flex;
+  align-items: center;
 }
 .settings-card-header:hover {
   color: var(--fg);
@@ -1458,13 +1472,22 @@ html[data-color-mode="light"] .settings-logo {
 .settings-card-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+  line-height: 1;
+}
+.settings-card-header-left span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 .settings-card-icon {
   width: 14px;
   height: 14px;
   color: var(--accent);
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: color 180ms ease;
 }
 .settings-card.is-danger-card .settings-card-icon {
@@ -1479,6 +1502,7 @@ html[data-color-mode="light"] .settings-logo {
   height: 16px;
   color: var(--muted);
   flex-shrink: 0;
+  line-height: 1;
   transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms ease;
 }
 .settings-card-caret svg {

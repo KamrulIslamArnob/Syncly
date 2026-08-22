@@ -150,10 +150,12 @@ export function resolveCollectionLeaves(bookmarkIds, leafIndex, bookmarkUrls = [
 
 /** Find a folder node anywhere in the tree by native id. */
 function findFolderById(nodes, id) {
+  if (!nodes || !id) return null;
+  const targetId = String(id);
   for (const n of nodes) {
-    if (n.type === "folder" && n.id === id) return n;
+    if (n.type === "folder" && String(n.id) === targetId) return n;
     if (n.children) {
-      const found = findFolderById(n.children, id);
+      const found = findFolderById(n.children, targetId);
       if (found) return found;
     }
   }
@@ -492,12 +494,11 @@ export class BookmarkDeckView {
     this._unscopedLeaves = flattenLeaves(collectFolders(this._roots));
     this._leafIndex = new Map(this._unscopedLeaves.map((l) => [l.id, l]));
 
-    if (!this._quickieFolderId) {
-      const qFolder = this._roots.flatMap((r) => r.children || []).find((c) => c.type === "folder" && c.title === "Quickie");
-      if (qFolder) this._quickieFolderId = qFolder.id;
+    let quickieFolder = this._quickieFolderId ? findFolderById(this._roots, this._quickieFolderId) : null;
+    if (!quickieFolder) {
+      quickieFolder = this._roots.flatMap((r) => r.children || []).find((c) => c.type === "folder" && c.title === "Quickie") || null;
+      if (quickieFolder) this._quickieFolderId = String(quickieFolder.id);
     }
-
-    const quickieFolder = this._quickieFolderId ? findFolderById(this._roots, this._quickieFolderId) : null;
     this._quickieLeaves = quickieFolder ? flattenLeaves(quickieFolder.children || []) : [];
 
     // Auto-cleanup orphan workspaces whose native folder was manually deleted via chrome://bookmarks
