@@ -125,6 +125,49 @@ test("computeMerged: only handles merge keys; reports whether local changed", ()
   assert.equal(computeMerged("settings", { a: 1 }, { a: 2 }, {}), null); // whole-value key → handled elsewhere
 });
 
+test("REGRESSION: bookmarkCollections object-map is merged, never collapsed to an array", async () => {
+  const { cloud, deviceA, deviceB } = makeDevices();
+
+  const c1 = { id: "c1", name: "Design Links", bookmarkIds: ["b1"], workspaceId: null, createdAt: 100, updatedAt: 100 };
+  const c2 = { id: "c2", name: "Client Work", bookmarkIds: ["b2"], workspaceId: null, createdAt: 200, updatedAt: 200 };
+
+  // Collections live as OBJECT MAPS on both devices
+  await deviceA["_local"].set({ bookmarkCollections: { c1 } });
+  await cloud.set({ bookmarkCollections: { c1 } });
+  await deviceB["_local"].set({ bookmarkCollections: { c1, c2 } });
+
+  // A renames c1 (newer updatedAt) and pushes the MAP
+  const c1Renamed = { ...c1, name: "Design Links v2", updatedAt: 400 };
+  await deviceA["_local"].set({ bookmarkCollections: { c1: c1Renamed } });
+  await deviceA.pushKey("bookmarkCollections", { c1: c1Renamed });
+
+  const changed = await deviceB.applyRemoteChanges({
+    bookmarkCollections: { oldValue: { c1 }, newValue: { c1: c1Renamed } },
+  });
+
+  const bRaw = (await deviceB["_local"].get("bookmarkCollections")).bookmarkCollections;
+  assert.ok(!Array.isArray(bRaw), "collections must stay an object map");
+  assert.equal(bRaw.c1.name, "Design Links v2"); // newer edit won
+  assert.ok(bRaw.c2, "B's local collection survived (no wipe)");
+});
+
+test("mergeEntityMap recovers an array-corrupted local store from the remote map", async () => {
+  const { cloud, deviceB } = makeDevices();
+  const c1 = { id: "c1", name: "Survivor", bookmarkIds: [], workspaceId: null, createdAt: 100, updatedAt: 100 };
+  await cloud.set({ bookmarkCollections: { c1 } });
+
+  // Local was corrupted to [] by the old merge bug
+  await deviceB["_local"].set({ bookmarkCollections: [] });
+
+  const changed = await deviceB.applyRemoteChanges({
+    bookmarkCollections: { oldValue: [], newValue: { c1 } },
+  });
+
+  const raw = (await deviceB["_local"].get("bookmarkCollections")).bookmarkCollections;
+  assert.ok(!Array.isArray(raw));
+  assert.equal(raw.c1.name, "Survivor");
+});
+
 test("estimateBytes: guards against sync per-item quota overflow", () => {
   const small = [{ id: "a" }];
   assert.ok(estimateBytes(small) < MAX_SYNC_ITEM_BYTES);

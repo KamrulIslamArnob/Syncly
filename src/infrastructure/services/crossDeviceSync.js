@@ -206,6 +206,65 @@ function pickNewer(a, b) {
 }
 
 /**
+ * Normalize any stored shape into an entity object map keyed by id.
+ * Tolerates both the canonical `{ [id]: entity }` shape used by
+ * bookmarkCollections and legacy arrays of entities.
+ * @param {unknown} raw
+ * @returns {Record<string, Record<string, unknown>>}
+ */
+export function toEntityMap(raw) {
+  const out = {};
+  if (Array.isArray(raw)) {
+    for (const it of raw) {
+      if (it && typeof it.id === "string" && it.id) out[it.id] = it;
+    }
+  } else if (isPlainObject(raw)) {
+    for (const [k, v] of Object.entries(raw)) {
+      if (v && typeof v === "object") {
+        out[typeof v.id === "string" && v.id ? v.id : k] = v;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Merge two entity OBJECT MAPS ({ [id]: entity }) by key — newer updatedAt
+ * wins per entry, tombstoned entries are dropped, keys sorted canonically.
+ *
+ * CRITICAL: bookmarkCollections is stored as a map, NOT an array. Merging
+ * it with array logic would collapse it to [] and wipe user data on every
+ * sync cycle.
+ *
+ * @param {unknown} localRaw map or legacy array
+ * @param {unknown} remoteRaw map or legacy array
+ * @param {Record<string, number>|undefined} tombsForKey
+ * @returns {Record<string, Record<string, unknown>>}
+ */
+export function mergeEntityMap(localRaw, remoteRaw, tombsForKey) {
+  const L = toEntityMap(localRaw);
+  const R = toEntityMap(remoteRaw);
+  const out = {};
+
+  for (const id of new Set([...Object.keys(L), ...Object.keys(R)])) {
+    const mine = L[id];
+    const theirs = R[id];
+    let winner;
+    if (!mine) winner = theirs;
+    else if (!theirs) winner = mine;
+    else winner = pickNewer(mine, theirs);
+
+    const editedAt = typeof winner.updatedAt === "number" ? winner.updatedAt : (winner.createdAt || 0);
+    if (isTombstoned(tombsForKey, id, editedAt)) continue;
+    out[id] = winner;
+  }
+
+  const sorted = {};
+  for (const k of Object.keys(out).sort()) sorted[k] = out[k];
+  return sorted;
+}
+
+/**
  * Merge tag maps ({ [bookmarkId]: string[] }) by unioning tag arrays.
  * Entries whose tags were tombstoned are dropped. Output keys are sorted
  * canonically so both devices serialize byte-identical maps (no write
@@ -262,6 +321,9 @@ export function computeMerged(key, localVal, remoteVal, tombstones) {
   let merged;
   if (key === "bookmarkTags") {
     merged = mergeTagMap(localVal, remoteVal, tombsForKey);
+  } else if (key === "bookmarkCollections") {
+    // Object-map shape — array merge would wipe it (see mergeEntityMap)
+    merged = mergeEntityMap(localVal, remoteVal, tombsForKey);
   } else {
     merged = mergeEntityList(localVal, remoteVal, tombsForKey);
   }
