@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" data-color-mode="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Syncly</title>
+  <!--
+    Side panel shell. Hosts the existing popup page in a same-origin
+    frame so both entry points share one implementation — popup edits
+    automatically apply here. The panel is opened by clicking the
+    toolbar icon (chrome.sidePanel.setPanelBehavior in serviceWorker.js).
+  -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111215;
+      color: #ffffff;
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+    .sidepanel-frame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <iframe class="sidepanel-frame" src="../popup/popup.html" title="Syncly"></iframe>
+</body>
+</html>

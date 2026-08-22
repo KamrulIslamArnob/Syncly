@@ -49,9 +49,11 @@ export class SettingsSidebarView {
       themePresetLight:    lightPreset,
       colorMode:           colorMode,
       showWebsitePreviews: s.showWebsitePreviews !== false,
+      timeFormat24h:        s.timeFormat?.value === "24h" || s.timeFormat === "24h",
       cssVarAccent:        wsTheme?.cssVarAccent ?? s.cssVarAccent ?? "#555B66",
       customCss:           s.customCss ?? "",
       workspaceThemes:     s.workspaceThemes ? { ...s.workspaceThemes } : {},
+      moveBookmarksToQuickAccess: !!s.moveBookmarksToQuickAccess,
     };
     return this.draft;
   }
@@ -76,6 +78,9 @@ export class SettingsSidebarView {
       }
 
       await this.useCases.saveUserSettings.execute(patch);
+      if (typeof chrome !== "undefined" && chrome.storage?.local) {
+        await chrome.storage.local.set({ moveBookmarksToQuickAccess: this.draft.moveBookmarksToQuickAccess });
+      }
       this.stateRef.current.settings = await this.useCases.getSettings.execute();
       this.events.emit("settings:changed", this.stateRef.current.settings);
       if (options.showToast) this.toast.show("Settings saved ✓");
@@ -454,12 +459,88 @@ export class SettingsSidebarView {
       timelineSelect
     );
 
+    // Clock Format (12h shows AM/PM, 24h hides it)
+    const fmt12Btn = el("button", {
+      type: "button",
+      className: "settings-theme-pill" + (!draft.timeFormat24h ? " is-active" : ""),
+    }, "12h · AM/PM");
+    const fmt24Btn = el("button", {
+      type: "button",
+      className: "settings-theme-pill" + (draft.timeFormat24h ? " is-active" : ""),
+    }, "24h");
+
+    const switchClockFormat = (h24) => {
+      draft.timeFormat24h = h24;
+      fmt12Btn.classList.toggle("is-active", !h24);
+      fmt24Btn.classList.toggle("is-active", h24);
+      this.save();
+    };
+    fmt12Btn.addEventListener("click", () => switchClockFormat(false));
+    fmt24Btn.addEventListener("click", () => switchClockFormat(true));
+
+    const clockFormatBlock = el("div", { className: "settings-option-block" },
+      el("div", { className: "settings-option-meta" },
+        el("span", { className: "settings-option-label" }, "Clock Format"),
+        el("span", { className: "settings-option-hint" }, "AM/PM badge next to the digits")
+      ),
+      el("div", { className: "settings-segmented" }, fmt12Btn, fmt24Btn)
+    );
+
     focusCard.append(
       focusHeader,
       nameBlock,
       taglineBlock,
-      timelineBlock
+      timelineBlock,
+      clockFormatBlock
     );
+
+    // ═══════════════════════════════════════════════════════════
+    // 2b. SHORTCUTS & BOOKMARK BAR CARD
+    // ═══════════════════════════════════════════════════════════
+    const shortcutsCard = el("div", { className: "settings-card" });
+    const shortcutsHeader = el("div", { className: "settings-card-header" },
+      icon("grid", "settings-card-icon"),
+      el("span", {}, "Shortcuts & Bookmarks")
+    );
+
+    const moveBookmarksCheckbox = el("input", {
+      type: "checkbox",
+      className: "settings-toggle-input",
+      id: "settings-move-bookmarks-toggle",
+      checked: !!draft.moveBookmarksToQuickAccess,
+    });
+    const moveBookmarksSlider = el("span", { className: "settings-toggle-track" });
+    const moveBookmarksToggle = el("label", { className: "settings-toggle-switch", htmlFor: "settings-move-bookmarks-toggle" }, moveBookmarksCheckbox, moveBookmarksSlider);
+
+    moveBookmarksCheckbox.addEventListener("change", async () => {
+      draft.moveBookmarksToQuickAccess = moveBookmarksCheckbox.checked;
+      await this.save();
+      if (draft.moveBookmarksToQuickAccess) {
+        try {
+          if (this.useCases?.migrateBookmarkBarToQuickAccess) {
+            const res = await this.useCases.migrateBookmarkBarToQuickAccess.execute();
+            if (res.success && res.count > 0) {
+              this.toast.show(`Transferred ${res.count} bookmark bar link(s) to Quick Access ✓`);
+            } else if (res.success) {
+              this.toast.show("Quick Access category ready ✓");
+            }
+          }
+          this.events.emit("bookmarks:changed");
+        } catch (err) {
+          this.toast.show(err.message || "Failed to transfer bookmarks", { error: true });
+        }
+      }
+    });
+
+    const moveBookmarksRow = el("div", { className: "settings-row-between" },
+      el("div", { className: "settings-option-meta" },
+        el("span", { className: "settings-option-label" }, "Move Bookmark Bar links to Quick Access Shortcuts"),
+        el("span", { className: "settings-option-hint" }, "Automatically transfer direct bookmark bar links to the default Quick Access shortcut category.")
+      ),
+      moveBookmarksToggle
+    );
+
+    shortcutsCard.append(shortcutsHeader, moveBookmarksRow);
 
     // ═══════════════════════════════════════════════════════════
     // 3. BACKUP & RESTORE CARD
@@ -838,6 +919,7 @@ export class SettingsSidebarView {
     content.append(
       appearanceCard,
       focusCard,
+      shortcutsCard,
       backupCard,
       githubCard,
       googleCard,

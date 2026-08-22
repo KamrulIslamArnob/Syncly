@@ -18,10 +18,18 @@ export class NewTabController {
     this.views = {};
     this.unsubs = [];
     this.toast = new ToastView();
+    // PERF-T12: instrumentation is strictly opt-in (?perf URL param or
+    // localStorage["syncly-perf"]="1"). Zero overhead in normal browsing.
+    this._perfEnabled =
+      new URLSearchParams(location.search).has("perf") ||
+      localStorage.getItem("syncly-perf") === "1";
   }
 
   async init() {
     document.fonts.ready.then(() => document.body.classList.add("fonts-loaded"));
+    if (this._perfEnabled) {
+      try { performance.mark("syncly:init-start"); } catch {}
+    }
 
     try {
       this.container = buildContainer();
@@ -73,9 +81,34 @@ export class NewTabController {
     this.subscribe();
     this.bindGlobalKeys();
 
+    // PERF-T12: wrap the deck's _load with a duration probe (flag-gated)
+    if (this._perfEnabled && this.views.deck && typeof this.views.deck._load === "function") {
+      const deck = this.views.deck;
+      const origLoad = deck._load.bind(deck);
+      deck._load = async (...args) => {
+        const t0 = performance.now();
+        try {
+          return await origLoad(...args);
+        } finally {
+          const dt = performance.now() - t0;
+          window.__synclyPerf = window.__synclyPerf || { loads: [] };
+          window.__synclyPerf.loads.push(dt);
+          console.info(`[perf] _load ${dt.toFixed(1)}ms`);
+        }
+      };
+    }
+
     try {
       await this.loadState();
       this.render();
+      if (this._perfEnabled) {
+        try {
+          performance.mark("syncly:first-render-end");
+          performance.measure("syncly:first-render", "syncly:init-start", "syncly:first-render-end");
+          const m = performance.getEntriesByName("syncly:first-render").pop();
+          console.info(`[perf] first-render ${(m?.duration || 0).toFixed(1)}ms`);
+        } catch {}
+      }
       setTimeout(() => this.triggerAutoBackup(), 1500);
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
@@ -239,6 +272,11 @@ export class NewTabController {
     for (const [prop, val] of Object.entries(accentVars)) {
       document.documentElement.style.setProperty(prop, val);
     }
+
+    const themeColorMeta = document.getElementById("theme-color-meta") || document.querySelector("meta[name='theme-color']");
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute("content", config.colorMode === "light" ? "#faf8f2" : "#100e0b");
+    }
   }
 
   applyCustomCss(css) {
@@ -254,6 +292,8 @@ export class NewTabController {
     const backupService = this.internals.autoBackupService;
     this._backupService = backupService;
     const run = async () => {
+      // PERF-T05: zero storage reads / hashing / disk writes while hidden.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       try {
         const result = await backupService.performBackupIfChanged();
         if (result === 'requires_permission') this.showResumeBackupButton(backupService);
@@ -262,9 +302,17 @@ export class NewTabController {
       }
     };
     await run();
-    // 1-minute dirty-checked backup: only writes when storage changed.
+    // 1-minute dirty-checked backup: only writes when storage changed,
+    // and only while the tab is visible.
     if (this._backupTimer) clearInterval(this._backupTimer);
     this._backupTimer = setInterval(run, 60000);
+    // PERF-T05: immediate catch-up when the tab becomes visible again.
+    if (!this._backupVisHandler && typeof document !== "undefined") {
+      this._backupVisHandler = () => {
+        if (document.visibilityState === "visible") run();
+      };
+      document.addEventListener("visibilitychange", this._backupVisHandler);
+    }
   }
 
   showResumeBackupButton(backupService) {
@@ -330,6 +378,13 @@ export class NewTabController {
     });
     this.unsubs = [];
     if (this._backupTimer) clearInterval(this._backupTimer);
+    this._backupTimer = null;
+    // PERF-T05: remove the visibilitychange listener so reloaded pages
+    // don't accumulate handlers.
+    if (this._backupVisHandler && typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", this._backupVisHandler);
+      this._backupVisHandler = null;
+    }
     this.views.deck?.destroy?.();
   }
 }

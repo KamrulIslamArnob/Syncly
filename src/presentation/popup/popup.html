@@ -10,9 +10,7 @@
     html, body {
       margin: 0;
       padding: 0;
-      width: 380px;
-      min-width: 380px;
-      max-width: 380px;
+      width: 100%;
       min-height: 540px;
       font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       overflow-x: hidden;
@@ -43,7 +41,7 @@
         </div>
         <div class="popup-header-actions">
           <div class="popup-domain-badge" id="popup-domain-badge" title="Active page domain">
-            <img id="popup-favicon" class="popup-favicon" src="" alt="" hidden>
+            <img id="popup-favicon" class="popup-favicon" alt="" hidden>
             <span class="popup-domain" id="popup-domain"></span>
           </div>
           <button type="button" id="btn-theme-toggle" class="popup-theme-btn" title="Toggle dark / light mode">
@@ -53,17 +51,19 @@
         </div>
       </header>
 
-      <!-- Primary Quickie Action (Vibrant Engaging Button) -->
+      <!-- Primary Quick Actions: Inbox capture + Shortcut capture -->
       <div class="popup-quickie-section">
-        <button type="button" id="btn-save-quickie" class="popup-quickie-btn" title="Instant capture to inbox (Quickie)">
+        <button type="button" id="btn-save-quickie" class="popup-quickie-btn popup-quickie-btn--main" title="Instant capture to inbox (Quickie)">
           <div class="popup-quickie-icon-box">
             <span class="popup-quickie-icon">⚡</span>
           </div>
-          <div class="popup-quickie-text-group">
-            <span class="popup-quickie-title">Quick Save to Inbox</span>
-            <span class="popup-quickie-sub">Save to Quickie · 1-click capture</span>
+          <span class="popup-quickie-title">Quick Save</span>
+        </button>
+        <button type="button" id="btn-save-shortcut" class="popup-quickie-btn popup-quickie-btn--shortcut" title="Instant save to your Shortcuts grid">
+          <div class="popup-quickie-icon-box">
+            <span class="popup-quickie-icon">🚀</span>
           </div>
-          <span class="popup-quickie-arrow">→</span>
+          <span class="popup-quickie-title">Quick Shortcut</span>
         </button>
       </div>
 
@@ -110,6 +110,8 @@
             </button>
             <input type="hidden" id="bm-collection-value">
           </div>
+          <!-- Recent folders: one-click destination without leaving the form -->
+          <div class="picker-quick-row" id="folder-quick-row" role="group" aria-label="Recent folders"></div>
         </div>
 
         <!-- Collection selector (Drill-down to Full-Height Subview) -->

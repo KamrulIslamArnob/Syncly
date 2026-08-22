@@ -217,6 +217,14 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 // ── Init ────────────────────────────────────────────────────────────────────
+
+// Clicking the toolbar icon opens the Syncly side panel (which hosts the
+// popup UI) instead of the classic anchored popup. Registered at top level
+// so it re-arms on every service-worker start.
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((err) => console.warn("[SidePanel] setPanelBehavior failed:", err));
+
 chrome.runtime.onInstalled.addListener(() => {
   try {
     chrome.alarms.create(RECONCILE_ALARM, { periodInMinutes: 15 });

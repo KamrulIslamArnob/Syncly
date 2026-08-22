@@ -1,0 +1,23 @@
+{
+  "n": 500,
+  "budgets": {
+    "firstRenderMs": 500,
+    "loadMs": 150
+  },
+  "timestamp": "2026-08-22T01:28:03.778Z",
+  "wallClockToShellMs": 1565,
+  "perf": {
+    "firstRenderMs": 12.199999999254942,
+    "domContentLoadedMs": 190.09999999962747,
+    "loadEventMs": 317.59999999962747,
+    "deckLoads": 1,
+    "deckLoadAvgMs": 27.700000001117587,
+    "deckLoadMaxMs": 27.700000001117587,
+    "longTasks": 1,
+    "domNodes": 443
+  },
+  "heapMb": {
+    "jsHeapUsed": 4.46,
+    "jsHeapTotal": 9.25
+  }
+}

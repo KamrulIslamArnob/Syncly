@@ -42,9 +42,7 @@ The Content Security Policy restricts external HTTP connections to:
 
 ## Web Accessible Resources
 
-| Resource | Accessible To | Justification |
-| :--- | :--- | :--- |
-| `public/omnibox-backup.json` | `<all_urls>` | Fallback dataset for omnibox keyword auto-completion (`nt <keyword>`). |
+Syncly declares **zero web accessible resources**. No extension assets or files are exposed to external web pages.
 
 ---
 

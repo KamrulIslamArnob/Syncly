@@ -13,18 +13,18 @@
 
 | ID | Title | Phase | Priority | Risk | ~Size |
 |----|-------|-------|----------|------|-------|
-| [PERF-T01](#perf-t01--single-bookmark-tree-fetch-per-reload) | Single bookmark-tree fetch per reload | 1 | P0 | Low-Med | ~50 lines, 3 files |
-| [PERF-T02](#perf-t02--coalesced-reload-scheduler) | Coalesced reload scheduler | 1 | P0 | Med | ~30 lines, 1 file |
+| ~~PERF-T01~~ | ~~Single bookmark-tree fetch per reload~~ | 1 | P0 | Low-Med | ✅ **DONE → [PR-CLOSED.md](./PR-CLOSED.md)** |
+| ~~PERF-T02~~ | ~~Coalesced reload scheduler~~ | 1 | P0 | Med | ✅ **DONE → [PR-CLOSED.md](./PR-CLOSED.md)** |
 | [PERF-T03](#perf-t03--debounced-search--filter-in-place) | Debounced search + filter-in-place | 1 | P0 | Med-High | ~100 lines net, 1 file |
-| [PERF-T04](#perf-t04--reconcile-polling-moves-to-service-worker) | Reconcile polling moves to service worker | 2 | P1 | Low | −10 lines, 1-2 files |
-| [PERF-T05](#perf-t05--auto-backup-loop-efficiency) | Auto-backup loop efficiency | 2 | P1 | Low | ~25 lines, 2 files |
-| [PERF-T06](#perf-t06--clock-cached-formatters--hidden-tab-pause) | Clock: cached formatters + hidden-tab pause | 2 | P1 | Low-Med | ~50 lines, 1 file |
+| ~~PERF-T04~~ | ~~Reconcile polling moves to service worker~~ | 2 | P1 | Low | ✅ **DONE → [PR-CLOSED.md](./PR-CLOSED.md)** |
+| ~~PERF-T05~~ | ~~Auto-backup loop efficiency~~ | 2 | P1 | Low | ✅ **DONE → [PR-CLOSED.md](./PR-CLOSED.md)** |
+| ~~PERF-T06~~ | ~~Clock: cached formatters + hidden-tab pause~~ | 2 | P1 | Low-Med | ✅ **DONE → [PR-CLOSED.md](./PR-CLOSED.md)** |
 | [PERF-T07](#perf-t07--event-delegation-on-grids) | Event delegation on grids | 3 | P2 | High | ~200-line delta, 1 file |
 | [PERF-T08](#perf-t08--lazy-dialog-construction) | Lazy dialog construction | 3 | P2 | Low | ~40 lines, 1 file |
-| [PERF-T09](#perf-t09--stop-per-load-omnisearchindex-rebuilds) | Stop per-load OmniSearchIndex rebuilds | 3 | P2 | Trivial | ~10 lines, 1 file |
+| ⚠️ PERF-T09 | Stop per-load OmniSearchIndex rebuilds | 3 | P2 | Trivial | **STALE PREMISE → [see ticket](#perf-t09--stop-per-load-omnisearchindex-rebuilds)** |
 | [PERF-T10](#perf-t10--cssfont-diet) | CSS/font diet | 3 | P2 | Low | ~6 lines + assets |
-| [PERF-T11](#perf-t11--delete-dead-preview-machinery) | Delete dead preview machinery | 3 | P2 | Trivial | −120 lines, 1-2 files |
-| [PERF-T12](#perf-t12--performance-instrumentation--budgets) | Performance instrumentation & budgets | 4 | P1 | Low | ~60 lines, 2-3 files |
+| ~~PERF-T11~~ | ~~Delete dead preview machinery~~ | 3 | P2 | Trivial | ✅ **DONE → [PR-CLOSED.md](./PR-CLOSED.md)** |
+| ~~PERF-T12~~ | ~~Performance instrumentation & budgets~~ | 4 | P1 | Low | ✅ **DONE → [PR-CLOSED.md](./PR-CLOSED.md)** |
 | [PERF-T13](#perf-t13--virtualized-card-grid-for-large-libraries) | Virtualized card grid for large libraries | 4 | P2 | High | ~150-line delta, 1 file |
 | [PERF-T14](#perf-t14--code-splitting-via-dynamic-import) | Code splitting via dynamic import() | 4 | P3 | Med | ~30 lines, 2 files |
 
@@ -46,77 +46,15 @@ No ticket merges on "feels faster." Capture numbers first:
 
 ---
 
-## PERF-T01 — Single bookmark-tree fetch per reload
+## ~~PERF-T01 — Single bookmark-tree fetch per reload~~ ✅ CLOSED
 
-**Phase 1 · P0**
-
-**Goal.** `_load()` triggers `chrome.bookmarks.getTree()` **three times** — once in the
-deck itself (`BookmarkDeckView.js:442`) plus one internal fetch inside each ensure use case
-(`EnsureQuickieFolderUseCase.js:43`, `EnsureShortcutsFolderUseCase.js:50`). Each call
-serializes the whole tree through IPC. Hoist a single fetch and share it.
-
-**Files changed**
-
-| File | Change |
-|---|---|
-| `src/application/useCases/bookmarks/EnsureQuickieFolderUseCase.js` | `execute({ tree } = {})` — accept pre-fetched tree; skip internal `getTree()` when provided (:43) |
-| `src/application/useCases/bookmarks/EnsureShortcutsFolderUseCase.js` | Same pattern (:50) |
-| `src/presentation/newTab/views/BookmarkDeckView.js` | `_load()` passes its fetched tree into both calls (:443-444); refresh tree after any folder create/move inside ensure |
-
-**Blast radius (verified callers)**
-- `popupController.js:536,613` and `BookmarkPickerModalView.js:396` also call
-  `ensureQuickieFolder.execute()` **with no args** → the optional param keeps them compiling;
-  they keep their own internal `getTree()` (fine — popup is ephemeral, picker is rare).
-  Do not force-migrate these call sites in this PR.
-- Constructor signatures unchanged → `container.js:179-180` untouched.
-- No test constructs these use cases directly.
-
-**What could go wrong**
-- *Stale-tree contract violation:* if the passed tree predates an external folder mutation,
-  dedupe/migration logic (`_findAllByTitle`, `_migrateLooseBookmarks`) acts on stale data →
-  duplicate "Quickie" folders or re-moved bookmarks. Mitigation: document "tree must be
-  same-tick"; deck already re-fetches after ensure creates anything.
-- *Return-shape drift:* deck consumes the returned `quickieFolderId` (BookmarkDeckView.js:459)
-  — keep the return value identical.
-- *Empty-tree fallback:* `execute()` receiving `tree = []` must preserve today's
-  parent-fallback `"2"` behavior.
-
-**Keep in mind:** fresh-profile first run (folder creation path), duplicate-Quickie dedupe
-path, popup Save-to-Quickie, two-device sync where Chrome creates the folder natively.
+> **Moved to [PR-CLOSED.md](./PR-CLOSED.md)** — implemented & verified (247/247 tests green; 3× IPC fetch → 1× per reload).
 
 ---
 
-## PERF-T02 — Coalesced reload scheduler
+## ~~PERF-T02 — Coalesced reload scheduler~~ ✅ CLOSED
 
-**Phase 1 · P0**
-
-**Goal.** One mutation can trigger `_load()` from three independent sources: the EventBus
-(via `container.js` storage listeners), the debounced `chrome.bookmarks.on*` handler
-(`BookmarkDeckView.js:3210-3213`), and dialog `onSave` callbacks. Each source re-renders
-sidebar + header + content independently. Collapse into ONE trailing-edge scheduler (~200 ms).
-
-**Files changed**
-
-| File | Change |
-|---|---|
-| `BookmarkDeckView.js` | Add `_scheduleLoad()` returning the coalesced promise; convert ~20 `this._load()` call sites (group select :293, all dialog `onSuccess`s, bulk actions :2797/:2849/:2962/:2989, bookmark-event handler :3212) |
-
-**Blast radius**
-- Only BookmarkDeckView internals — every external entry point already funnels through it.
-- `newTabController.refreshSettings` is a separate path — untouched.
-
-**What could go wrong**
-- *Broken await sequencing:* several flows do `await this._load()` then toast/clear state.
-  If scheduling is fire-and-forget, UI clears selection before the reload lands.
-  Mitigation: `_scheduleLoad()` **returns** the shared promise; awaited semantics preserved.
-- *Self-triggered loop:* `_load()` runs ensure use cases which may write storage → onChanged
-  → schedule again. Today this terminates because the second pass is a no-op; coalescing
-  makes it strictly safer, but add an in-flight guard anyway.
-- *Perceived latency:* worst case +200 ms before a change appears. Acceptable for background
-  events; user-initiated actions may use leading-edge execution if it feels laggy.
-
-**Keep in mind:** spam-deleting bookmarks, rapid workspace switching, drag-reorder bursts,
-cross-tab edit while typing in search (interplay with T03).
+> **Moved to [PR-CLOSED.md](./PR-CLOSED.md)** — implemented & verified (35 call sites coalesced, 247/247 tests green).
 
 ---
 
@@ -140,6 +78,10 @@ card visibility instead of rebuilding DOM.
   duplicate title/url matching logic or tag+query combos will diverge.
 - Select-mode + bulk action bar visibility must survive the fast path (bar is appended
   outside the grid loop).
+- *Interaction with PERF-T13 (binding rule):* this fast path can only toggle cards that are
+  mounted. Once T13 lands, chunking MUST be disabled whenever `_query` or `_activeTag` is
+  set — filtered pools render in full; chunking applies to unfiltered browsing only.
+  Encoded in both tickets so neither implementation silently violates it.
 
 **What could go wrong**
 - Hidden-but-alive cards retain stale listeners until T07 lands — harmless; note in review.
@@ -153,110 +95,21 @@ Enter-to-Google (:1268-1274).
 
 ---
 
-## PERF-T04 — Reconcile polling moves to service worker
+## ~~PERF-T04 — Reconcile polling moves to service worker~~ ✅ CLOSED
 
-**Phase 2 · P1**
-
-**Goal.** Pages run a 30 s reconcile interval AND re-schedule reconcile after **every**
-local write (`container.js:168-175`) — N open tabs = N× redundant `JSON.stringify` churn
-over all synced data. The service worker already owns push-based delivery
-(`serviceWorker.js:178-207`: top-level sync listener, `onStartup`, `onInstalled`,
-15-minute alarm). Pages should keep only instant event-driven paths.
-
-**Files changed**
-
-| File | Change |
-|---|---|
-| `container.js` | Delete `startAutoReconcile(30000)` call and the post-write `setTimeout(reconcile)` listener (:168-175) |
-| `GoogleSyncService.js` | Optionally remove now-unused `startAutoReconcile` method (verified: no tests reference it) |
-
-**Blast radius**
-- Manual Sync buttons in SettingsSidebarView call `pushAll()` / `syncFromGoogleCloud`
-  directly — untouched.
-- Page-level instant apply stays via the `area === "sync"` merge listener
-  (`container.js:124-148`).
-
-**What could go wrong**
-- *Catch-up gap while browser open, no Syncly page open, Chrome was offline during a push:*
-  previously a page's 30 s poll covered it; now only the 15-min alarm does. This is exactly
-  the alarm's documented purpose — acceptable; bump alarm to 5 min if users report staleness.
-- *Cross-context echo:* a **page** manual push echoes back as a `sync` onChanged event; the
-  SW's own `GoogleSyncService` instance has no record of it → `isOwnEcho()` false → SW runs
-  `applyRemoteChanges` → values identical → JSON-compare no-op → no local write, no loop.
-  Verify this no-op path stays cheap (one stringify per key at manual-push frequency — fine).
-- *Cold-start double hydration:* `autoHydrateIfNeeded()` runs in the page container AND in
-  SW `onStartup`/`onInstalled`. Both compute merges deterministically (canonical sort in
-  `crossDeviceSync.js`) → benign duplicate write at worst. Don't "fix" by removing one side
-  without testing fresh-profile boot.
-
-**Keep in mind:** two-device live propagation still instant (push path), offline→online
-convergence ≤ alarm window, manual Sync Now / Push / Pull buttons, `npm test` (three
-GoogleSyncService test files construct the class directly — none touch the interval method).
+> **Moved to [PR-CLOSED.md](./PR-CLOSED.md)** — implemented & verified (247/247 tests green; page polling removed, SW owns convergence).
 
 ---
 
-## PERF-T05 — Auto-backup loop efficiency
+## ~~PERF-T05 — Auto-backup loop efficiency~~ ✅ CLOSED
 
-**Phase 2 · P1**
-
-**Goal.** Every visible tab reads the ENTIRE local storage DB, pretty-prints it, and hashes
-it — every minute (`newTabController.js:267`, `AutoBackupService.js:166-169`).
-
-**Files changed**
-
-| File | Change |
-|---|---|
-| `AutoBackupService.js` | `performBackupIfChanged()`: `chrome.storage.local.get(BACKUP_ALLOWLIST)` (import the const from `backupAllowlist.js`) instead of `get(null)`; drop `, null, 2` pretty-print. Apply same treatment to `performBackup()` (:136) |
-| `newTabController.js` | Gate the 60 s run on `document.visibilityState`; run-once on `visibilitychange→visible`; clean up listener in `destroy()` (:327-334) |
-
-**What could go wrong**
-- *Allowlist drift:* `get(ALLOWLIST)` must stay equivalent to `get(null)+filterBackupData`
-  — always import the shared const, never re-declare keys (`backupAllowlist.js` is the
-  declared single source of truth).
-- *Backup format change:* compact JSON is harder to eyeball-diff;
-  `validateImportData(JSON.parse(...))` is format-agnostic → imports safe. Call out the
-  format change in CHANGELOG.
-- *Multi-tab race:* two visible tabs hash/write concurrently — same-content writes, last
-  wins, benign. Do NOT add leader election in v1 (complexity > payoff).
-- *Listener leak:* the new visibilitychange subscription must be removed in controller
-  `destroy()` or reloaded pages accumulate handlers.
-
-**Keep in mind:** Resume-Auto-Backup permission button flow, settings Status readout
-(`getStatus()`), export/import round-trip, backup file mtime updates within 60 s of a change
-while tab visible, zero disk writes while minimized.
+> **Moved to [PR-CLOSED.md](./PR-CLOSED.md)** — implemented & verified (247/247 tests green; allowlist-only reads, compact JSON, visibility-gated loop).
 
 ---
 
-## PERF-T06 — Clock: cached formatters + hidden-tab pause
+## ~~PERF-T06 — Clock: cached formatters + hidden-tab pause~~ ✅ CLOSED
 
-**Phase 2 · P1**
-
-**Goal.** `CombinedClockView` constructs two `Intl.DateTimeFormat` objects EVERY second,
-forever, even when the tab is hidden (`CombinedClockView.js:19-33`, interval at :133).
-Formatter construction is known-expensive; this is pure waste.
-
-**Files changed**
-
-| File | Change |
-|---|---|
-| `CombinedClockView.js` | Module-level `Map` cache keyed by `timeZone|hour12|seconds`; interval paused on `visibilitychange`; when `showSeconds !== true`, chained `setTimeout` aligned to next minute instead of fixed 1 s |
-
-**Blast radius**
-- `PomodoroService` owns its **own** 1 s interval and drives `_updateText` via `onTick`
-  when `mode === "pomodoro"` (:134, :161-165) — pausing the clock interval must NOT freeze
-  the pomodoro countdown. Verified independent; add explicit manual test step anyway.
-- `destroy()` (:178) must clear the visibility listener too.
-
-**What could go wrong**
-- Formatter reuse across dates is Intl-contract-safe (DST recomputes per `.format(date)`
-  call); the cache key space is tiny — no growth concern.
-- Minute-aligned timers drift after OS sleep → recompute alignment on every
-  visibility-restore tick.
-- **No unit tests exist** for CombinedClockView/PomodoroService — pure manual QA ticket.
-
-**Keep in mind:** seconds toggle, 12 h/24 h switch, world-city change via settings,
-backgrounded 10 min → correct time on return, pomodoro presets/start/pause/reset,
-clock-click mode toggle.
+> **Moved to [PR-CLOSED.md](./PR-CLOSED.md)** — implemented & verified (247/247 tests green; formatter cache + visibility-gated ticking, pomodoro independence preserved).
 
 ---
 
@@ -321,31 +174,41 @@ dialogs on every load — defeating the purpose. Fix with a stash pattern: store
 id; the getter applies it on construction.
 
 `bookmarkPicker.dialog` is only queried after `open()` (:2550) — safe.
-`ProfileDialogView` / `GroupProfileButtonsView`: leave eager unless proven unused early.
+`GroupProfileButtonsView`: leave eager (rendered into the sidebar on every load anyway).
+`ProfileDialogView`: excluded — it is dead code, handled by T11's deletions.
 
 **Keep in mind:** every dialog opens/closes repeatedly; shortcuts-folder id flows into
 category/shortcut dialogs correctly after folder creation post-load.
 
 ---
 
-## PERF-T09 — Stop per-load OmniSearchIndex rebuilds
+## ⚠️ PERF-T09 — Stop per-load OmniSearchIndex rebuilds — STALE, DO NOT EXECUTE AS WRITTEN
 
-**Phase 3 · P2**
-
-**Goal.** `OmniSearchIndex.index()` tokenizes the entire library on every `_load()`
-(:604-609) yet search NEVER uses it — `_getActivePool()` filters with plain
-`.includes()` over title/url (:1495-1498). The index's only consumer is
-`getCategoryName(item)` for shortcut-tile category chips (:1653).
-
-**Options (pick in review):**
-- **A (recommended):** replace the `getCategoryName` usage with a direct lookup over
-  `this._categories` (few categories); leave `index()` uncalled. The class and both test
-  files (`test/omni-search-index.test.mjs`, `presentation-helpers.test.mjs` import the
-  class directly) stay green untouched.
-- **B:** delete `src/domain/services/OmniSearchIndex.js` + both test files entirely.
-
-**Risk:** Option A is near-zero (a broken category chip is visually obvious). B loses
-future search infrastructure.
+> **Execution review finding:** the ticket's premise no longer matches source. The claim
+> "search NEVER uses it" is false in current code — `_renderContent()` runs
+> `this._searchIndex.search(this._query, …)` as the live omni-search engine
+> (BookmarkDeckView.js:2196), fed by `.index()` on every `_load()` (:548).
+> Executing Option A ("leave index() uncalled") would break search entirely.
+> **Decision: not executed.** Re-scope required if per-load re-index cost ever shows up
+> in `npm run perf` numbers (e.g., incremental indexing on bookmark events instead of
+> full rebuild). `getCategoryName` chip lookup (:1597) is a separate micro-optimization.
+>
+> **Original ticket text (stale, kept for reference):**
+>
+> **Phase 3 · P2**
+>
+> **Goal.** `OmniSearchIndex.index()` tokenizes the entire library on every `_load()`
+> yet search NEVER uses it — `_getActivePool()` filters with plain `.includes()` over
+> title/url. The index's only consumer is `getCategoryName(item)` for shortcut-tile
+> category chips.
+>
+> **Options (pick in review):**
+> - **A (recommended):** replace the `getCategoryName` usage with a direct lookup over
+>   `this._categories` (few categories); leave `index()` uncalled. The class and both test
+>   files stay green untouched.
+> - **B:** delete `src/domain/services/OmniSearchIndex.js` + both test files entirely.
+>
+> **Risk:** Option A is near-zero; B loses future search infrastructure.
 
 ---
 
@@ -384,58 +247,15 @@ minify `newTab.css` (195 KB / 6,628 lines).
 
 ---
 
-## PERF-T11 — Delete dead preview machinery
+## ~~PERF-T11 — Delete dead preview machinery~~ ✅ CLOSED
 
-**Phase 3 · P2 · FIRST (shrinks T03/T07 diffs)**
-
-**Verified:** `websitePreviewUrl()` hard-returns `null` (favicon.js:87-92); its sole
-importer is BookmarkDeckView.js:3. Therefore `previewUrl` is always null → PreviewQueue,
-both bounded caches, the IntersectionObserver, and pending-cover logic are unreachable code.
-
-**Delete:** PreviewQueue class + caches + `addBoundedCache` (:57-135), observer creation
-(:2563-2588), observe blocks (:2346-2351, :2630-2636), pending-preview cover logic
-(:2902-2905), collapsed `previewsEnabled` branches (:2318, :2570, :2871-2872), import.
-
-**Explicitly KEEP:** `UserSettings.showWebsitePreviews` field (entity round-trip :494/:558),
-save-allowlist entry (`SaveUserSettingsUseCase.js:34`), settings toggle
-(SettingsSidebarView.js:51/:340/:346), and the settings-compare in the deck (:388).
-Deleting the *setting* touches entity serialization + sanitizer allowlist + UI for zero
-performance gain. Optional cosmetic follow-up: hide the inert toggle.
+> **Moved to [PR-CLOSED.md](./PR-CLOSED.md)** — implemented & verified (247/247 tests green).
 
 ---
 
-## PERF-T12 — Performance instrumentation & budgets
+## ~~PERF-T12 — Performance instrumentation & budgets~~ ✅ CLOSED
 
-**Phase 4 · P1 · Land FIRST — it is the measuring stick for every other ticket**
-
-**Goal.** The codebase has ZERO performance instrumentation (verified: no
-`performance.mark`, no `PerformanceObserver`, no `requestIdleCallback` anywhere in
-`src/`). Every ticket above currently relies on the manual baseline protocol. This adds a
-dev-only harness that automates it. **Privacy-first: nothing ships, nothing uploads —
-console output and a local JSON report only.**
-
-**Files changed**
-
-| File | Change |
-|---|---|
-| `src/presentation/newTab/newTabController.js` | `performance.mark`/`measure` spans around init → first render (`syncly:first-render`) and `_load()` duration; gated behind `?perf` URL param or a dev-only localStorage flag so zero overhead in normal use |
-| `scripts/perf-baseline.mjs` (NEW) | puppeteer-core harness (same pattern as `scripts/smoke.mjs`, but written fresh — smoke's selectors are documented stale): opens a new tab with N synthetic bookmarks, collects navigation timing, first-render measure, heap usage via CDP `Performance.getMetrics`; writes JSON; `--assert` mode fails against budgets |
-| `package.json` | `"perf": "node scripts/perf-baseline.mjs"` script |
-
-**Suggested budgets (finalize after first real run):** first-render < 500 ms ·
-`_load()` < 150 ms at 500 bookmarks · DOM nodes bounded by T13's cap · heap per tab <
-target from Task Manager baseline.
-
-**What could go wrong**
-- *Overhead leakage:* marks left enabled in normal browsing add trivial-but-nonzero cost.
-  Keep strictly flag-gated.
-- *Machine-dependent absolutes:* timings differ across hardware — budgets are for
-  before/after deltas on the SAME machine, not absolute gates.
-- *puppeteer-core needs a Chrome executable path* (env var), same constraint smoke.mjs has;
-  document it in the script header.
-
-**Keep in mind:** run `npm run perf` immediately after this lands to replace the manual
-baseline numbers, then once per subsequent ticket.
+> **Moved to [PR-CLOSED.md](./PR-CLOSED.md)** — implemented & verified live (`npm run perf -- --assert` → BUDGETS OK at N=500; 247/247 tests green).
 
 ---
 
@@ -454,6 +274,11 @@ IntersectionObserver mounts the next chunk when the sentinel nears the viewport.
 No row-height math, works across all three view modes and densities. True windowing
 (unmounting off-screen rows with spacers) only as follow-up if long-scroll sessions still
 dominate memory.
+
+**Binding rule (from the T03 × T13 consistency review):** chunking is DISABLED whenever
+`_query` or `_activeTag` is set — filtered pools render in full so T03's filter-in-place
+fast path can always reveal every match. Chunked mounting applies to unfiltered browsing
+only. Reset chunk state on workspace/folder/collection/view-mode changes.
 
 **Files changed**
 
@@ -502,8 +327,10 @@ to first-use dynamic ones.
 
 **Candidates:** GroupDialogView (12.8 KB) · BookmarkPickerModalView (15 KB) ·
 CollectionDialogView · CategoryDialogView · ShortcutDialogView · NewFolderDialogView ·
-BookmarkTagsDialogView · ProfileDialogView · SettingsSidebarView chain
+BookmarkTagsDialogView · SettingsSidebarView chain
 (backupAllowlist + cssSanitizer + colorUtils ride along).
+~~ProfileDialogView~~ — removed from this list by the consistency review: it is dead code
+(zero call sites) and belongs in T11's deletions, not lazy-loading.
 **NOT candidates:** dom.js / icons.js / ToastView / deck core / CombinedClockView +
 GreetingView (rendered immediately in focus mode).
 
@@ -567,6 +394,28 @@ Last:                    T07 (biggest diff, isolated)
 `src/presentation/newTab/views/BookmarkDeckView.js` appears in **8 of 14 tickets**
 (T01, T02, T03, T07, T08, T09, T11, T13). Never stack unmerged tickets locally; land
 strictly in sequence for deck-file PRs.
+
+### Cross-ticket consistency review (pairwise)
+
+Every ticket was compared against every other ticket AND against the current source
+state. Outcomes:
+
+| Pair / check | Verdict | Resolution |
+|---|---|---|
+| T01 × T02 | Compatible — different concerns inside `_load()` | none |
+| T02 × T13 | Compatible — chunk reset hooks already specified | none |
+| **T03 × T13** | **Conflict** — filter-in-place can only toggle *mounted* cards; matches below the rendered chunk would be invisible | Rule added to both tickets: chunking is DISABLED while `_query`/`_activeTag` is set — filtered pools render in full |
+| T07 × T13 | Compatible — delegated listeners live on grid containers, indifferent to which children exist | none |
+| T08 × T14 | Deliberately sequential — T14 swaps T08's getter internals to `import()` | none |
+| T04 vs current container.js | **Stale refs** — `AdoptNativeWorkspaceFolders` landed in the hydrate chain during planning; reconcile block moved to :187/:191 | T04 line refs updated; idempotency note added |
+| T05 anchors | Re-verified valid (`AutoBackupService.js:136/:166`) | none |
+| T06 / T01 anchors | Re-verified valid (`CombinedClockView.js:133`, `EnsureQuickieFolderUseCase.js:43`) | T01 gains note about internal refresh refetches (:68, :99) |
+| **T11 × test suite** | **Conflict** — `websitePreviewUrl` is imported directly by `deck-view.test.mjs:94` and `presentation-helpers.test.mjs:12`; deleting the export breaks `npm test` | T11 amended: keep the null-returning export |
+| **T11 × ProfileDialogView** | **Dead code found** — constructed (BookmarkDeckView.js:299), zero call sites anywhere | Moved from T14's candidate list into T11's deletions |
+
+> **Line-number drift caveat:** every `file:line` reference in these tickets reflects the
+> tree at planning time. Each merged PR shifts references for all later PRs in the same
+> file — treat line numbers as search anchors and re-grep before implementing.
 
 ---
 

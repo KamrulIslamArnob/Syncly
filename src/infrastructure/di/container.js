@@ -25,6 +25,7 @@ import { EventBus } from "../../application/ports/EventBus.js";
 
 import { EnsureQuickieFolderUseCase } from "../../application/useCases/bookmarks/EnsureQuickieFolderUseCase.js";
 import { EnsureShortcutsFolderUseCase } from "../../application/useCases/bookmarks/EnsureShortcutsFolderUseCase.js";
+import { MigrateBookmarkBarToQuickAccessUseCase } from "../../application/useCases/bookmarks/MigrateBookmarkBarToQuickAccessUseCase.js";
 import { ListBookmarkCollectionsUseCase } from "../../application/useCases/collections/ListBookmarkCollectionsUseCase.js";
 import { CreateBookmarkCollectionUseCase } from "../../application/useCases/collections/CreateBookmarkCollectionUseCase.js";
 import { UpdateCollectionMembersUseCase } from "../../application/useCases/collections/UpdateCollectionMembersUseCase.js";
@@ -182,19 +183,21 @@ export function buildContainer() {
   // other devices via Chrome's native bookmark sync (quota-proof channel).
   .then(() => adoptNativeWorkspaceFolders.execute()).catch(() => {});
 
-  // 2-browser auto-sync: when same Google profile open on 2 devices, push missing local → sync, pull missing sync → local
-  // Runs reconcile every 30s + soon after startup, handles "existing data not yet in sync" case
-  const reconcileInterval = googleSyncService.startAutoReconcile(30000);
-  // Also reconcile on any local change that was not yet mirrored (e.g., after quota error)
-  storage.onChanged((changes) => {
-    // If local changed but sync still empty for that key, push soon
-    setTimeout(() => googleSyncService.reconcile().catch(() => {}), 1500);
-  });
+  // PERF-T04: page-side reconcile polling (30s interval + post-write trigger)
+  // was removed — the MV3 service worker now owns catch-up convergence via its
+  // top-level sync listener (instant), runtime.onStartup, and the 15-minute
+  // reconcile alarm. Pages keep only the instant event-driven merge listener
+  // above; manual Push/Pull buttons call pushAll()/pullAll() directly.
+
+  const ensureShortcutsFolderUseCase = new EnsureShortcutsFolderUseCase();
 
   // ---- use cases ----
   const useCases = Object.freeze({
     ensureQuickieFolder: new EnsureQuickieFolderUseCase(),
-    ensureShortcutsFolder: new EnsureShortcutsFolderUseCase(),
+    ensureShortcutsFolder: ensureShortcutsFolderUseCase,
+    migrateBookmarkBarToQuickAccess: new MigrateBookmarkBarToQuickAccessUseCase({
+      ensureShortcutsFolder: ensureShortcutsFolderUseCase,
+    }),
     syncFromGoogleCloud: new SyncFromGoogleCloudUseCase({ googleSyncService, events }),
 
     listBookmarkCollections: new ListBookmarkCollectionsUseCase(bookmarkCollectionRepo),

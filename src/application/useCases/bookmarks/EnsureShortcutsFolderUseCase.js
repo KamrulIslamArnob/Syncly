@@ -29,7 +29,14 @@ export class EnsureShortcutsFolderUseCase {
     this.#bookmarks = bookmarks || (typeof chrome !== "undefined" && chrome.bookmarks ? chrome.bookmarks : null);
   }
 
-  async execute() {
+  /**
+   * @param {object} [options]
+   * @param {Array} [options.tree] pre-fetched chrome.bookmarks.getTree() output
+   *   (PERF-T01: lets callers share one tree fetch per reload). Must be fresh
+   *   (same tick as fetch). An empty array is honored as-is — parent lookup
+   *   then falls back to "2", matching the no-tree behavior.
+   */
+  async execute({ tree: providedTree } = {}) {
     if (!this.#bookmarks) return null;
 
     let shortcutsFolderId = null;
@@ -45,9 +52,11 @@ export class EnsureShortcutsFolderUseCase {
     }
 
     // 2. Verify exists in live tree
-    let tree = [];
+    let tree = Array.isArray(providedTree) ? providedTree : null;
     try {
-      tree = await this.#bookmarks.getTree();
+      if (tree === null) {
+        tree = await this.#bookmarks.getTree();
+      }
       if (shortcutsFolderId) {
         const exists = this._findFolderById(tree, shortcutsFolderId);
         if (!exists) shortcutsFolderId = null;
@@ -97,18 +106,6 @@ export class EnsureShortcutsFolderUseCase {
       } catch (err) {
         console.warn("Migration error for Shortcuts:", err);
       }
-    }
-
-    // 6. One-time import of OmniTab backup (just for this transition) — "just for once"
-    // Imports 12 categories + 73 bookmarks into native Shortcuts folder, skipping existing names
-    if (this.#storage && shortcutsFolderId) {
-      try {
-        const flag = await this.#storage.get(["omniboxImported"]);
-        if (!flag?.omniboxImported) {
-          const imported = await this._importOmniTabBackup(shortcutsFolderId);
-          if (imported) await this.#storage.set({ omniboxImported: true });
-        }
-      } catch {}
     }
 
     return shortcutsFolderId;
@@ -226,53 +223,5 @@ export class EnsureShortcutsFolderUseCase {
         }
       }
     }
-  }
-
-  async _importOmniTabBackup(shortcutsFolderId) {
-    let data = null;
-    // Try fetch from extension public folder (works in newTab page)
-    try {
-      const url = (typeof chrome !== "undefined" && chrome.runtime?.getURL) ? chrome.runtime.getURL("public/omnibox-backup.json") : "public/omnibox-backup.json";
-      const res = await fetch(url).catch(() => null);
-      if (res && res.ok) data = await res.json().catch(() => null);
-    } catch {}
-    // Fallback: try relative fetch (for tests or file://)
-    if (!data) {
-      try {
-        const res = await fetch("public/omnibox-backup.json").catch(() => null);
-        if (res && res.ok) data = await res.json().catch(() => null);
-      } catch {}
-    }
-    if (!data || !Array.isArray(data.bookmarks) || !Array.isArray(data.categories)) return false;
-
-    const cats = [...data.categories].sort((a, b) => (a.order || 0) - (b.order || 0));
-    const bms = [...data.bookmarks].sort((a, b) => (a.order || 0) - (b.order || 0));
-
-    // Check existing subfolders to avoid duplicates
-    const tree = await this.#bookmarks.getTree().catch(() => []);
-    const shortcutsNode = this._findFolderById(tree, shortcutsFolderId);
-    const existingNames = new Set((shortcutsNode?.children || []).filter((c) => !c.url).map((c) => c.title.trim().toLowerCase()));
-
-    for (const cat of cats) {
-      const catName = (cat.name || "Untitled").trim();
-      if (existingNames.has(catName.toLowerCase())) continue;
-      let subId = null;
-      try {
-        const created = await this.#bookmarks.create({ parentId: shortcutsFolderId, title: catName });
-        subId = created.id;
-      } catch { continue; }
-      const catBms = bms.filter((b) => b.categoryId === cat.id);
-      for (const bm of catBms) {
-        const title = (bm.title || "Bookmark").trim();
-        const urlRaw = bm.url?.href || bm.url || "";
-        if (!urlRaw) continue;
-        try {
-          const parsed = new URL(/^https?:\/\//i.test(urlRaw) ? urlRaw : `https://${urlRaw}`);
-          if (!/^https?:$/.test(parsed.protocol)) continue;
-          await this.#bookmarks.create({ parentId: subId, title, url: parsed.href });
-        } catch {}
-      }
-    }
-    return true;
   }
 }

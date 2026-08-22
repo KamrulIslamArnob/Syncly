@@ -8,7 +8,6 @@
   },
   "action": {
     "default_title": "Quick-add to Dashboard",
-    "default_popup": "src/presentation/popup/popup.html",
     "default_icon": {
       "16": "public/icons/icon16.png",
       "32": "public/icons/icon32.png",
@@ -16,21 +15,19 @@
       "128": "public/icons/icon128.png"
     }
   },
+  "side_panel": {
+    "default_path": "src/presentation/sidepanel/sidepanel.html"
+  },
   "options_ui": {
     "page": "src/presentation/options/options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "bookmarks", "tabs", "favicon", "alarms"],
+  "permissions": ["storage", "unlimitedStorage", "activeTab", "bookmarks", "tabs", "favicon", "alarms", "sidePanel"],
+  "minimum_chrome_version": "114",
   "omnibox": { "keyword": "nt" },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://api.github.com https://geocoding-api.open-meteo.com https://api.open-meteo.com;"
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["public/omnibox-backup.json"],
-      "matches": ["<all_urls>"]
-    }
-  ],
   "background": {
     "service_worker": "src/presentation/shared/serviceWorker.js",
     "type": "module"

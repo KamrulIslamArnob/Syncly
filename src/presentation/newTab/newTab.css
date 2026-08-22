@@ -368,7 +368,8 @@ body{position:relative}
 
 /* ── Timer & AI Reminder Widget Styles ── */
 .reminder-widget{background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-card, 12px);padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 4px 16px oklch(0% 0 0 / .35)}
-.reminder-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-left:4px;animation:live 2s ease-in-out infinite}
+/* NOTE (impeccable audit): .reminder-badge-dot removed — zero references, and
+   its infinite "live" pulse was the page's only nonfunctional ambient motion. */
 .reminder-presets-row{display:flex;flex-wrap:wrap;gap:6px}
 .reminder-preset-chip{height:24px;padding:0 10px;border-radius:var(--radius-pill);border:1px solid var(--border-strong);background:var(--surface-2);color:var(--muted);font-family:var(--font-mono);font-size:10px;cursor:pointer;transition:all var(--dur) var(--ease)}
 .reminder-preset-chip:hover{color:var(--fg);border-color:var(--accent);background:var(--surface)}
@@ -2721,18 +2722,9 @@ details summary:hover {
 .is-dragging {
   opacity: 0.4;
 }
-.drop-target-left {
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-.drop-target-right {
-  box-shadow: inset -3px 0 0 var(--accent);
-}
-.drop-target-top {
-  box-shadow: inset 0 3px 0 var(--accent);
-}
-.drop-target-bottom {
-  box-shadow: inset 0 -3px 0 var(--accent);
-}
+/* NOTE (impeccable audit): the old drop-target-left/right/top/bottom
+   3px accent-stripe classes were removed — the deck signals drop targets
+   via .is-drop-target instead. */
 .drop-target-category {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -2883,17 +2875,6 @@ body.mode-tree .stage{justify-content:flex-start;align-items:stretch;min-height:
 .block-head .coll:focus-visible{outline:2px solid var(--ring-focus);outline-offset:2px}
 .block-head .coll svg{width:12px;height:12px;transition:transform .25s var(--ease)}
 .block.collapsed .block-head .coll svg{transform:rotate(-90deg)}
-
-/* Smooth collapse: max-height transition instead of instant display:none */
-.chips{
-  display:flex;flex-wrap:wrap;gap:6px;
-  overflow:hidden;
-  transition:max-height .3s var(--ease),opacity .2s var(--ease);
-}
-.block.collapsed .chips{
-  max-height:0!important;opacity:0;padding-top:0;
-  pointer-events:none;
-}
 
 /* ── Chips grid (bookmark links) ── */
 .chip{
@@ -3162,9 +3143,14 @@ body.mode-tree .nav-toggle-btn.is-active{background:var(--accent);color:var(--on
 }
 .ai-progress-fill {
   height: 100%;
+  width: 100%;
   background: var(--accent, #A0A0A0);
   border-radius: 2px;
-  transition: width 0.5s ease;
+  /* Composited progress animation — no layout thrash.
+     Consumers animate via --fill-scale (0..1), not width. */
+  transform-origin: left center;
+  transform: scaleX(var(--fill-scale, 1));
+  transition: transform 0.5s var(--ease, ease);
 }
 .ai-policy-reset {
   font-family: var(--font-mono);
@@ -3494,22 +3480,6 @@ body.mode-tree .nav-toggle-btn.is-active{background:var(--accent);color:var(--on
 .bookmark-grid.grid-enter > *:nth-child(n+1),
 .bookmark-list.grid-enter > *:nth-child(n+1) {
   animation-delay: calc(var(--item-index, 0) * 30ms);
-}
-
-/* Hide category tabs when deep in navigation */
-.shortcut-module .tabs-row.nav-hidden {
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  transition: opacity 150ms var(--ease), max-height 150ms var(--ease);
-  margin: 0;
-  padding: 0;
-}
-
-.shortcut-module .tabs-row.nav-visible {
-  opacity: 1;
-  max-height: 60px;
-  transition: opacity 200ms var(--ease), max-height 200ms var(--ease);
 }
 
 /* ── AI mode: template buttons ── */
@@ -3910,7 +3880,12 @@ body.mode-tree .nav-toggle-btn.is-active{background:var(--accent);color:var(--on
   position: relative;
   z-index: 10;
   isolation: isolate;
-  transition: width 220ms var(--ease), min-width 220ms var(--ease), max-width 220ms var(--ease), opacity 180ms var(--ease);
+  transition: width 220ms var(--ease), opacity 180ms var(--ease);
+  /* NOTE (impeccable audit): width here is an intentional exception to the
+     "animate transform/opacity" rule — the sidebar collapse is meant to reflow
+     the main pane alongside it, which transforms cannot express. min-width and
+     max-width were dropped from the list: they animate in lockstep with width
+     and only added redundant layout work. */
 }
 .raindrop-sidebar::-webkit-scrollbar {
   display: none;
@@ -4678,14 +4653,15 @@ button.workspace-menu-row.is-active { color: var(--accent); font-weight: 600; }
   min-height: 56px;
   border-bottom: none;
   background: transparent;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   padding: 0 20px;
   gap: 16px;
   box-sizing: border-box;
 }
 
-.raindrop-header-left { display: flex; align-items: center; gap: 9px; min-width: 190px; flex-shrink: 0; }
+.raindrop-header-left { display: flex; align-items: center; gap: 9px; min-width: 0; flex-shrink: 0; justify-self: start; }
 .raindrop-header-icon { width: 18px; height: 18px; display: grid; color: var(--muted); }
 .raindrop-header-title {
   font-family: var(--font-body);
@@ -4733,16 +4709,18 @@ button.workspace-menu-row.is-active { color: var(--accent); font-weight: 600; }
 
 /* Search bar */
 .raindrop-header-spacer {
-  flex: 1;
+  justify-self: center;
+  width: 100%;
 }
 .raindrop-search-bar {
   position: relative;
-  flex: 1;
+  width: 100%;
   max-width: var(--search-max);
   margin: 0 auto;
   height: 36px;
   display: flex;
   align-items: center;
+  justify-self: center;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -4820,7 +4798,7 @@ button.workspace-menu-row.is-active { color: var(--accent); font-weight: 600; }
 .raindrop-tag-chip.is-active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 
 /* Right cluster: select button, view switch, theme switch, settings */
-.raindrop-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.raindrop-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-width: 0; justify-self: end; }
 .raindrop-select-btn {
   height: 26px;
   padding: 0 10px;
@@ -5326,7 +5304,6 @@ html[data-theme-preset="minimal"] .focus-aura-grain {
   height: 26px;
 }
 .raindrop-dashboard.is-focus-mode .bookmarks-section-header {
-  margin-top: auto;
   margin-bottom: 0;
   padding-top: 14px;
   padding-bottom: 14px;
@@ -5447,6 +5424,10 @@ html[data-color-mode="light"] .raindrop-dashboard.is-focus-mode .omni-section-co
   width: 24px;
   height: 24px;
   stroke-width: 2.2;
+}
+.home-focus-hero .greeting-icon--toggle {
+  width: 100px;
+  height: 44px;
 }
 .home-focus-hero .greeting h1:hover .greeting-icon {
   transform: rotate(12deg) scale(1.08);
@@ -5671,6 +5652,9 @@ html[data-color-mode="light"] .raindrop-dashboard.is-focus-mode .omni-section-co
 .raindrop-content {
   flex: 1;
   height: calc(100vh - 56px);
+  min-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 20px 24px 24px;
@@ -5702,6 +5686,18 @@ html[data-color-mode="light"] .raindrop-dashboard.is-focus-mode .omni-section-co
   width: 100%;
   padding-bottom: 4px;
   margin-bottom: 18px;
+}
+.shortcut-category-bar.is-two-layers {
+  flex-direction: column;
+  gap: 8px;
+}
+.shortcut-category-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
 }
 .shortcut-category-btn {
   display: inline-flex;
@@ -5875,10 +5871,18 @@ html[data-color-mode="light"] .raindrop-dashboard.is-focus-mode .omni-section-co
   color: var(--muted);
   font-weight: 500;
 }
-.shortcut-circular-add-item:hover .shortcut-circular-add-disc {
+.shortcut-circular-add-item:hover .shortcut-circular-add-disc,
+.shortcut-circular-add-item.is-drop-target .shortcut-circular-add-disc,
+.shortcut-circular-add-item.is-drag-over .shortcut-circular-add-disc {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-soft);
+  transform: scale(1.05);
+}
+
+.shortcut-circular-add-item.is-drop-target .shortcut-circular-add-disc {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
 }
 
 /* Bookmarks Section Header */
@@ -5896,7 +5900,13 @@ html[data-color-mode="light"] .raindrop-dashboard.is-focus-mode .omni-section-co
   cursor: pointer;
   user-select: none;
   border-radius: var(--radius-sm);
-  transition: opacity var(--dur) var(--ease);
+  transition: margin 360ms cubic-bezier(0.16, 1, 0.3, 1), padding 360ms cubic-bezier(0.16, 1, 0.3, 1), opacity var(--dur) var(--ease);
+  will-change: margin;
+}
+.bookmarks-section-header.is-collapsed {
+  margin-top: auto;
+  margin-bottom: 0;
+  padding-bottom: 8px;
 }
 .bookmarks-section-header:hover {
   opacity: 0.85;
@@ -5913,7 +5923,7 @@ html[data-color-mode="light"] .raindrop-dashboard.is-focus-mode .omni-section-co
   width: 16px;
   height: 16px;
   color: var(--muted);
-  transition: transform 180ms var(--ease);
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .bookmarks-section-caret svg {
   width: 14px;
@@ -5943,6 +5953,37 @@ html[data-color-mode="light"] .raindrop-dashboard.is-focus-mode .omni-section-co
   border: 1px solid var(--border-strong);
   padding: 1px 6px;
   border-radius: var(--radius-pill);
+}
+
+/* Bookmarks Collapsible Smooth Dropdown Animation */
+.bookmarks-collapsible-wrapper {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+  transform-origin: top center;
+  transition: 
+    grid-template-rows 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+  will-change: transform, opacity, grid-template-rows;
+}
+.bookmarks-collapsible-wrapper.is-collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(28px);
+  pointer-events: none;
+  visibility: hidden;
+  transition: 
+    grid-template-rows 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 200ms ease,
+    visibility 0s 360ms;
+}
+.bookmarks-collapsible-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* All Bookmarks board — single blackish transparent layer, a bit darker, no border; cards unchanged */
@@ -6788,6 +6829,62 @@ html[data-color-mode="dark"] .bookmark-list {
 }
 .raindrop-context-item.is-danger:hover {
   background: rgba(239, 68, 68, 0.12);
+}
+.raindrop-context-parent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.raindrop-context-parent-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.raindrop-context-arrow {
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: auto;
+  padding-left: 8px;
+}
+.raindrop-context-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: -6px;
+  min-width: 190px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  padding: 6px;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 1001;
+}
+.raindrop-context-parent:hover > .raindrop-context-submenu,
+.raindrop-context-parent:focus-within > .raindrop-context-submenu {
+  display: flex;
+}
+.raindrop-context-parent.submenu-left > .raindrop-context-submenu {
+  left: auto;
+  right: 100%;
+}
+.raindrop-context-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.raindrop-context-empty {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.raindrop-context-item.is-member {
+  opacity: 0.75;
 }
 
 /* ── Right Quick-Add Panel (opened from bookmark view) ─────── */

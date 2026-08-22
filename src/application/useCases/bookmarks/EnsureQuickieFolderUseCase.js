@@ -4,10 +4,6 @@
    Ensures that a native Chrome bookmark folder named "Quickie" exists
    under "Other Bookmarks" (native id "2"). Persists quickieFolderId
    in chrome.storage.local.
-
-   Also runs a guarded one-time migration: if quickieMigrated is not true,
-   moves every loose bookmark sitting directly at the root level into
-   the Quickie folder, then sets quickieMigrated = true.
    ============================================================ */
 
 export class EnsureQuickieFolderUseCase {
@@ -19,7 +15,14 @@ export class EnsureQuickieFolderUseCase {
     this.#bookmarks = bookmarks || (typeof chrome !== "undefined" && chrome.bookmarks ? chrome.bookmarks : null);
   }
 
-  async execute() {
+  /**
+   * @param {object} [options]
+   * @param {Array} [options.tree] pre-fetched chrome.bookmarks.getTree() output
+   *   (PERF-T01: lets callers share one tree fetch per reload). Must be fresh
+   *   (same tick as fetch). An empty array is honored as-is — parent lookup
+   *   then falls back to "2", matching the no-tree behavior.
+   */
+  async execute({ tree: providedTree } = {}) {
     if (!this.#bookmarks) return null;
 
     let quickieFolderId = null;
@@ -38,9 +41,11 @@ export class EnsureQuickieFolderUseCase {
 
     // 2. Verify folder exists in live Chrome bookmark tree
     let exists = false;
-    let tree = [];
+    let tree = Array.isArray(providedTree) ? providedTree : null;
     try {
-      tree = await this.#bookmarks.getTree();
+      if (tree === null) {
+        tree = await this.#bookmarks.getTree();
+      }
       if (quickieFolderId) {
         exists = this._findFolderById(tree, quickieFolderId);
       }
@@ -100,19 +105,6 @@ export class EnsureQuickieFolderUseCase {
       }
     } catch (err) {
       console.warn("Quickie dedupe failed:", err);
-    }
-
-    // 4. One-time migration for loose root bookmarks
-    if (this.#storage && quickieFolderId) {
-      try {
-        const data = await this.#storage.get("quickieMigrated");
-        if (!data?.quickieMigrated) {
-          await this._migrateLooseBookmarks(tree, quickieFolderId);
-          await this.#storage.set({ quickieMigrated: true });
-        }
-      } catch (err) {
-        console.warn("Migration error for Quickie loose bookmarks:", err);
-      }
     }
 
     return quickieFolderId;
@@ -175,30 +167,5 @@ export class EnsureQuickieFolderUseCase {
       }
     }
     return parentId;
-  }
-
-  async _migrateLooseBookmarks(tree, targetFolderId) {
-    if (!Array.isArray(tree) || tree.length === 0) return;
-    const roots = tree[0]?.children || tree;
-    const looseBookmarks = [];
-
-    for (const root of roots) {
-      if (root.children) {
-        for (const child of root.children) {
-          // Bookmark leaf sitting directly at root
-          if (child.url && child.id !== targetFolderId) {
-            looseBookmarks.push(child);
-          }
-        }
-      }
-    }
-
-    for (const bm of looseBookmarks) {
-      try {
-        await this.#bookmarks.move(bm.id, { parentId: targetFolderId });
-      } catch (err) {
-        console.warn(`Failed to migrate loose bookmark ${bm.id}:`, err);
-      }
-    }
   }
 }

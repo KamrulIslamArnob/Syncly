@@ -406,13 +406,9 @@ export class GoogleSyncService {
   }
 
   /**
-   * Start periodic reconciliation for 2-browser auto-push (runs every 30s while extension is open)
-   * @returns {number} interval id
+   * Start periodic reconciliation for 2-browser auto-push.
+   * REMOVED (PERF-T04): pages no longer poll — catch-up convergence is owned
+   * by the MV3 service worker (top-level sync listener + onStartup + the
+   * 15-minute reconcile alarm). Pages keep only instant event-driven paths.
    */
-  startAutoReconcile(intervalMs = 30000) {
-    if (!this.isAvailable()) return null;
-    // Run once soon after start
-    setTimeout(() => this.reconcile().catch(() => {}), 3000);
-    return setInterval(() => this.reconcile().catch(() => {}), intervalMs);
-  }
 }

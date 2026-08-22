@@ -71,10 +71,37 @@ function hostnameOf(urlString) {
   }
 }
 
+/* ── Destination memory (UX redesign: zero-click repeat saves) ───────────────
+   The last-used folder/collection is restored on every popup open and the four
+   most recent folders render as one-tap chips inside the form. Repeat saves
+   into a favorite destination need NO picker trip at all. */
+const LAST_FOLDER_KEY = "popupLastFolder";
+const RECENT_FOLDERS_KEY = "popupRecentFolders";
+const LAST_COLLECTION_KEY = "popupLastCollection";
+const MAX_RECENT_FOLDERS = 4;
+
+async function readLocal(key) {
+  try {
+    if (typeof chrome === "undefined" || !chrome.storage?.local) return null;
+    const data = await chrome.storage.local.get([key]);
+    return data?.[key] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeLocal(key, value) {
+  try {
+    if (typeof chrome === "undefined" || !chrome.storage?.local) return;
+    await chrome.storage.local.set({ [key]: value });
+  } catch { /* non-fatal */ }
+}
+
 class PopupController {
   constructor() {
     this.themeToggleBtn = document.getElementById("btn-theme-toggle");
     this.quickieBtn = document.getElementById("btn-save-quickie");
+    this.shortcutBtn = document.getElementById("btn-save-shortcut");
     this.typeBtnBookmark = document.getElementById("type-btn-bookmark");
     this.typeBtnCollection = document.getElementById("type-btn-collection");
     this.fieldFolder = document.getElementById("field-folder");
@@ -100,6 +127,7 @@ class PopupController {
     this.folderTrigger = document.getElementById("bm-collection-trigger");
     this.folderHidden = document.getElementById("bm-collection-value");
     this.folderLabel = document.getElementById("bm-collection-label");
+    this.folderQuickRow = document.getElementById("folder-quick-row");
 
     this.customCollectionTrigger = document.getElementById("bm-custom-collection-trigger");
     this.customCollectionHidden = document.getElementById("bm-custom-collection-value");
@@ -126,6 +154,7 @@ class PopupController {
     this.groups = [];
     this.folders = [];
     this.collections = [];
+    this.recentFolders = []; // [{ id, title }] — most recent first
     this.activeTags = new Set();
     this.currentColorMode = "dark";
     this.currentAccentColor = "#555B66";
@@ -136,6 +165,7 @@ class PopupController {
   _bindEvents() {
     this.themeToggleBtn?.addEventListener("click", () => this.toggleTheme());
     this.quickieBtn?.addEventListener("click", () => this.onSaveToQuickie());
+    this.shortcutBtn?.addEventListener("click", () => this.onSaveToShortcuts());
 
     this.typeBtnBookmark?.addEventListener("click", () => this.setDestinationType("bookmark"));
     this.typeBtnCollection?.addEventListener("click", () => this.setDestinationType("collection"));
@@ -203,6 +233,32 @@ class PopupController {
         if (val) { this.addTagChip(val, true); this.tagsInput.value = ""; }
       }
     });
+
+    // Live-sync to the active browser tab. Harmless in classic popup mode
+    // (the view closes on blur) and essential in side-panel mode, which
+    // stays open while the user switches tabs.
+    if (typeof chrome !== "undefined" && chrome.tabs?.onActivated) {
+      chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+        try {
+          const tab = await chrome.tabs.get(tabId);
+          this._seedTab(tab);
+        } catch { /* tab gone before get() resolved */ }
+      });
+      chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        if (!tab || !tab.active) return;
+        if (changeInfo.status === "complete" || changeInfo.url || changeInfo.title) {
+          this._seedTab(tab);
+        }
+      });
+    }
+    if (typeof chrome !== "undefined" && chrome.windows?.onFocusChanged) {
+      chrome.windows.onFocusChanged.addListener(async () => {
+        try {
+          const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+          if (tabs && tabs[0]) this._seedTab(tabs[0]);
+        } catch { /* no focused window (Chrome lost focus) */ }
+      });
+    }
 
     // Keyboard shortcuts
     document.addEventListener("keydown", (e) => {
@@ -528,6 +584,7 @@ class PopupController {
       this.showError("Failed to start: " + (err?.message || err));
       if (this.submitBtn) this.submitBtn.disabled = true;
       if (this.quickieBtn) this.quickieBtn.disabled = true;
+      if (this.shortcutBtn) this.shortcutBtn.disabled = true;
       return;
     }
 
@@ -536,6 +593,12 @@ class PopupController {
     if (this.useCases.ensureQuickieFolder) {
       this.useCases.ensureQuickieFolder.execute().catch((err) => {
         console.warn("Could not ensure quickie folder on popup open:", err);
+      });
+    }
+
+    if (this.useCases.ensureShortcutsFolder) {
+      this.useCases.ensureShortcutsFolder.execute().catch((err) => {
+        console.warn("Could not ensure shortcuts folder on popup open:", err);
       });
     }
 
@@ -622,7 +685,7 @@ class PopupController {
       if (this.quickieBtn) {
         this.quickieBtn.disabled = false;
         const titleEl = this.quickieBtn.querySelector(".popup-quickie-title");
-        if (titleEl) titleEl.textContent = "Quick Save to Inbox";
+        if (titleEl) titleEl.textContent = "Quick Save";
       }
       this.showError(err?.message || "Could not save to Quickie.");
       return;
@@ -630,7 +693,51 @@ class PopupController {
 
     if (this.quickieBtn) {
       const titleEl = this.quickieBtn.querySelector(".popup-quickie-title");
-      if (titleEl) titleEl.textContent = "Saved to Inbox!";
+      if (titleEl) titleEl.textContent = "Saved!";
+    }
+    setTimeout(() => window.close(), 350);
+  }
+
+  /** One-click save into the Shortcuts grid (reserved native folder). */
+  async onSaveToShortcuts() {
+    this.clearError();
+    const url = this.urlInput.value.trim();
+    const title = this.titleInput.value.trim() || hostnameOf(url) || "Shortcut";
+
+    if (!url) {
+      this.showError("URL is required.");
+      return;
+    }
+
+    if (this.shortcutBtn) {
+      this.shortcutBtn.disabled = true;
+      const titleEl = this.shortcutBtn.querySelector(".popup-quickie-title");
+      if (titleEl) titleEl.textContent = "Saving...";
+    }
+
+    try {
+      let shortcutsFolderId = null;
+      if (this.useCases?.ensureShortcutsFolder) {
+        shortcutsFolderId = await this.useCases.ensureShortcutsFolder.execute();
+      }
+      await chrome.bookmarks.create({
+        parentId: shortcutsFolderId || "2",
+        title,
+        url,
+      });
+    } catch (err) {
+      if (this.shortcutBtn) {
+        this.shortcutBtn.disabled = false;
+        const titleEl = this.shortcutBtn.querySelector(".popup-quickie-title");
+        if (titleEl) titleEl.textContent = "Quick Shortcut";
+      }
+      this.showError(err?.message || "Could not save shortcut.");
+      return;
+    }
+
+    if (this.shortcutBtn) {
+      const titleEl = this.shortcutBtn.querySelector(".popup-quickie-title");
+      if (titleEl) titleEl.textContent = "Saved!";
     }
     setTimeout(() => window.close(), 350);
   }
@@ -668,8 +775,30 @@ class PopupController {
     try {
       const raw = typeof chrome !== "undefined" && chrome.bookmarks ? await chrome.bookmarks.getTree() : [];
       this.folders = flattenFolders(raw);
+
+      // Restore memory: last-used folder wins; recents validated against the
+      // live tree so deleted folders never render.
+      const [storedLast, storedRecents] = await Promise.all([
+        readLocal(LAST_FOLDER_KEY),
+        readLocal(RECENT_FOLDERS_KEY),
+      ]);
+      const validIds = new Set(this.folders.map((f) => f.id));
+      this.recentFolders = Array.isArray(storedRecents)
+        ? storedRecents.filter((f) => f && f.id && validIds.has(String(f.id)))
+        : [];
+
+      const last = (storedLast && validIds.has(String(storedLast.id))) ? storedLast : null;
       const bar = this.folders.find((f) => f.id === "1" || /bookmarks bar|favorites bar/i.test(f.title)) || this.folders[0];
-      if (bar) this.selectFolder(bar.id, bar.title);
+      // First-run seed so the quick-chip row isn't empty before the first save.
+      if (this.recentFolders.length === 0 && bar) {
+        this.recentFolders = [{ id: bar.id, title: bar.title }];
+      }
+      if (last) {
+        this.selectFolder(last.id, last.title, { persist: false });
+      } else if (bar) {
+        this.selectFolder(bar.id, bar.title, { persist: false });
+      }
+      this._renderFolderQuickChips();
     } catch {
       if (this.folderLabel) this.folderLabel.textContent = "No folders found";
     }
@@ -679,12 +808,51 @@ class PopupController {
     const group = this.groups.find((g) => g.id === groupId);
     if (!group) return;
     const scoped = this.folders.filter((f) => group.folderIds.includes(f.id));
-    if (scoped.length) this.selectFolder(scoped[0].id, scoped[0].title);
+    // Workspace auto-scoping is not a user destination choice — don't
+    // overwrite the remembered last-used folder with it.
+    if (scoped.length) this.selectFolder(scoped[0].id, scoped[0].title, { persist: false });
   }
 
-  selectFolder(id, name) {
+  selectFolder(id, name, { persist = true } = {}) {
     if (this.folderHidden) this.folderHidden.value = id;
     if (this.folderLabel) this.folderLabel.textContent = name;
+    if (persist) this._rememberFolder(id, name);
+    this._renderFolderQuickChips();
+  }
+
+  /** Push a folder to the front of recents, persist it as last-used, refresh chips. */
+  async _rememberFolder(id, name) {
+    if (!id) return;
+    const entry = { id: String(id), title: String(name || "Folder") };
+    this.recentFolders = [
+      entry,
+      ...this.recentFolders.filter((f) => f.id !== entry.id),
+    ].slice(0, MAX_RECENT_FOLDERS);
+    await writeLocal(RECENT_FOLDERS_KEY, this.recentFolders);
+    await writeLocal(LAST_FOLDER_KEY, entry);
+  }
+
+  /** Render one-tap recent-destination chips under the Folder field. */
+  _renderFolderQuickChips() {
+    if (!this.folderQuickRow) return;
+    const validIds = new Set(this.folders.map((f) => f.id));
+    // Recents that no longer exist in the live tree are dropped from view
+    // (they self-heal out of storage on the next _rememberFolder).
+    const visible = this.recentFolders.filter((f) => validIds.has(f.id));
+    const currentId = this.folderHidden?.value;
+
+    this.folderQuickRow.replaceChildren();
+    for (const f of visible.slice(0, MAX_RECENT_FOLDERS)) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "picker-quick-chip" + (f.id === currentId ? " is-active" : "");
+      chip.title = f.title;
+      chip.textContent = `📁 ${f.title}`;
+      chip.addEventListener("click", () => {
+        this.selectFolder(f.id, f.title);
+      });
+      this.folderQuickRow.appendChild(chip);
+    }
   }
 
   async populateCollections() {
@@ -694,7 +862,12 @@ class PopupController {
       } else {
         this.collections = [];
       }
-      if (this.collections.length > 0) {
+      // Restore the last-used collection instead of always the first one.
+      const stored = await readLocal(LAST_COLLECTION_KEY);
+      const last = stored && this.collections.find((c) => c.id === stored.id);
+      if (last) {
+        this.selectCustomCollection(last.id, last.name);
+      } else if (this.collections.length > 0) {
         this.selectCustomCollection(this.collections[0].id, this.collections[0].name);
       } else if (this.customCollectionLabel) {
         this.customCollectionLabel.textContent = "Select Collection";
@@ -704,33 +877,62 @@ class PopupController {
     }
   }
 
+  async _rememberCollection(id, name) {
+    if (!id) return;
+    await writeLocal(LAST_COLLECTION_KEY, { id: String(id), name: String(name || "Collection") });
+  }
+
   selectCustomCollection(id, name) {
     if (this.customCollectionHidden) this.customCollectionHidden.value = id;
     if (this.customCollectionLabel) this.customCollectionLabel.textContent = name;
+    this._rememberCollection(id, name);
   }
 
-  async seedFromActiveTab() {
+  async seedFromActiveTab({ focusTitle = true } = {}) {
     let tab = null;
     try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      // Side panels persist across tab switches and are per-window, so
+      // lastFocusedWindow is the reliable query; currentWindow is the
+      // fallback for classic anchored popups.
+      let tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true }).catch(() => []);
+      if (!tabs || tabs.length === 0) {
+        tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      }
       tab = tabs && tabs[0] ? tabs[0] : null;
     } catch (err) {
       console.warn("Could not query active tab:", err);
     }
+    this._seedTab(tab, { focusTitle });
+  }
 
+  /** Fill the form from a tab. Reused by initial open AND live tab-switch sync. */
+  _seedTab(tab, { focusTitle = false } = {}) {
     if (tab && tab.url) {
       this.urlInput.value = tab.url;
       this.titleInput.value = tab.title || hostnameOf(tab.url) || "";
       if (this.domainEl) this.domainEl.textContent = hostnameOf(tab.url);
-      if (this.faviconEl && tab.favIconUrl) {
-        this.faviconEl.src = tab.favIconUrl;
-        this.faviconEl.hidden = false;
+      if (this.faviconEl) {
+        if (tab.favIconUrl) {
+          this.faviconEl.src = tab.favIconUrl;
+          this.faviconEl.hidden = false;
+        } else {
+          // Stale favicon from the previously seeded tab must not linger.
+          this.faviconEl.hidden = true;
+        }
       }
+      // Suggested tags belong to the page — clear chips from any prior seed.
+      if (this.tagsList) this.tagsList.replaceChildren();
+      this.activeTags.clear();
       const suggested = extractSuggestedTags(tab.title);
       for (const t of suggested) this.addTagChip(t, false);
     } else {
       if (this.domainEl) this.domainEl.textContent = "New Bookmark";
+      if (this.faviconEl) this.faviconEl.hidden = true;
     }
+
+    // Focus only when the view is first opened; auto-focusing on every
+    // tab switch would yank keyboard focus away from the web page.
+    if (focusTitle) setTimeout(() => this.titleInput?.focus(), 80);
   }
 
   addTagChip(tag, isActive = false) {
@@ -818,6 +1020,9 @@ class PopupController {
           title,
           url,
         });
+        // Keep destination memory truthful with what was actually saved.
+        const usedFolder = this.folders.find((f) => f.id === String(parentId));
+        if (usedFolder) await this._rememberFolder(usedFolder.id, usedFolder.title);
       }
     } catch (err) {
       if (this.submitBtn) {

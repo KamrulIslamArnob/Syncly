@@ -19,15 +19,24 @@
 html, body {
   margin: 0;
   padding: 0;
-  width: 380px;
-  min-width: 380px;
-  max-width: 380px;
+  width: 100%;
   min-height: 540px;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-body);
+  /* base.css sets overflow:hidden for the new-tab page; the popup must
+     scroll when content exceeds Chrome's 600px popup height cap. */
   overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+/* Scrolling stays functional, but the gutter is never drawn. */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+  width: 0;
 }
 
 body::before,
@@ -44,7 +53,7 @@ body::after {
   --border-strong: #3e4452;
   --fg: #ffffff;
   --muted: #a0a6b5;
-  --muted-2: #6e7585;
+  --muted-2: #808898;
 }
 
 [data-color-mode="light"] {
@@ -61,7 +70,7 @@ body::after {
 
 .popup-container {
   position: relative;
-  width: 380px;
+  width: 100%;
   min-height: 540px;
   overflow: hidden;
 }
@@ -125,7 +134,7 @@ html[data-color-mode="light"] .popup-logo {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--muted);
   max-width: 150px;
   overflow: hidden;
@@ -173,17 +182,21 @@ html[data-color-mode="light"] .popup-logo {
 [data-color-mode="light"] .theme-icon-dark { display: none; }
 [data-color-mode="light"] .theme-icon-light { display: block; }
 
-/* Primary High-Energy Quickie Action */
+/* Primary High-Energy Quick Actions (Inbox + Shortcut) */
 .popup-quickie-section {
   width: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
 }
 
 .popup-quickie-btn {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 10px;
   background: var(--accent-gradient);
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-md);
@@ -192,6 +205,13 @@ html[data-color-mode="light"] .popup-logo {
   text-align: left;
   box-shadow: 0 4px 14px var(--accent-glow);
   transition: all var(--dur) var(--ease);
+}
+
+.popup-quickie-btn--main,
+.popup-quickie-btn--shortcut {
+  width: auto;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .popup-quickie-btn:hover {
@@ -221,14 +241,14 @@ html[data-color-mode="light"] .popup-logo {
 
 .popup-quickie-title {
   font-family: var(--font-body);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
   color: #ffffff;
 }
 
 .popup-quickie-sub {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.85);
   letter-spacing: 0.01em;
 }
@@ -267,7 +287,7 @@ html[data-color-mode="light"] .popup-logo {
   height: 28px;
   border-radius: 4px;
   font-family: var(--font-body);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--muted);
   cursor: pointer;
@@ -306,7 +326,7 @@ html[data-color-mode="light"] .popup-logo {
 
 .popup-field-label {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -315,7 +335,7 @@ html[data-color-mode="light"] .popup-logo {
 
 .popup-field-hint {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted-2);
 }
 
@@ -401,6 +421,55 @@ html[data-color-mode="light"] .popup-logo {
 .picker-trigger-btn:hover .picker-trigger-chevron {
   color: var(--accent);
   transform: translateX(2px);
+}
+
+/* ── Recent-folder quick chips (PERF/UX redesign) ────────────────────────────
+   One-click destination switching without opening the full-height subview.
+   The last-used folder is auto-restored on every popup open, so the common
+   case needs zero extra clicks; these chips cover the "one of a few favorites"
+   case in a single tap. */
+.picker-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.picker-quick-row:empty {
+  display: none;
+}
+
+.picker-quick-chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 5px 9px;
+  cursor: pointer;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--dur) var(--ease);
+}
+
+.picker-quick-chip:hover {
+  color: var(--fg);
+  border-color: var(--border-strong);
+  background: var(--surface-active);
+}
+
+.picker-quick-chip.is-active {
+  color: var(--accent, #fff);
+  border-color: var(--accent, var(--border-strong));
+  background: var(--surface-active);
 }
 
 .custom-select-swatch {
@@ -494,7 +563,7 @@ html[data-color-mode="light"] .popup-logo {
   background: var(--accent-soft);
   color: var(--accent-primary);
   font-family: var(--font-body);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all var(--dur) var(--ease);
@@ -544,7 +613,7 @@ html[data-color-mode="light"] .popup-logo {
   border-radius: 50%;
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -583,7 +652,7 @@ html[data-color-mode="light"] .popup-logo {
 .subview-item {
   padding: 7px 10px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--fg);
   cursor: pointer;
   display: flex;
@@ -616,7 +685,7 @@ html[data-color-mode="light"] .popup-logo {
 .subview-item-title {
   flex: 1;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   color: inherit;
   white-space: nowrap;
@@ -626,7 +695,7 @@ html[data-color-mode="light"] .popup-logo {
 
 .subview-item-hint {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted-2);
   margin-left: auto;
   flex-shrink: 0;
@@ -743,7 +812,7 @@ html[data-color-mode="light"] .popup-logo {
 
 .popup-tag-chip {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   padding: 2px 6px;
   border-radius: var(--radius-pill);
@@ -786,7 +855,7 @@ html[data-color-mode="light"] .popup-logo {
 /* Error / Status */
 .popup-error-msg {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.02em;
   color: var(--danger, #ff4d4f);
   min-height: 12px;
@@ -838,14 +907,14 @@ html[data-color-mode="light"] .popup-logo {
 
 .popup-footer-hint {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--muted-2);
   text-align: center;
 }
 
 .popup-kbd {
   font-family: var(--font-mono);
-  font-size: 8.5px;
+  font-size: 9.5px;
   padding: 1px 4px;
   border-radius: 3px;
   background: var(--surface-2);

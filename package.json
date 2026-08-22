@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "smoke": "node scripts/smoke.mjs",
+    "perf": "node scripts/perf-baseline.mjs",
     "test": "node --test"
   },
   "devDependencies": {
+    "css-select": "^7.0.0",
+    "css-tree": "^3.2.1",
+    "domutils": "^4.0.2",
+    "htmlparser2": "^12.0.0",
     "puppeteer-core": "^25.3.0"
   }
 }

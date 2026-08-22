@@ -49,6 +49,7 @@ export class UserSettings {
   #showWebsitePreviews; // boolean
   #avatarUrl;         // string
   #workspaceThemes;   // object: { [workspaceId]: { themePresetDark, themePresetLight, themePreset, colorMode, cssVarAccent } }
+  #moveBookmarksToQuickAccess; // boolean
 
   constructor({
     name = "",
@@ -93,6 +94,7 @@ export class UserSettings {
     cssVarAccent = "#555B66",
     showWebsitePreviews = true,
     workspaceThemes = {},
+    moveBookmarksToQuickAccess = false,
   } = {}) {
     if (typeof name !== "string") throw new Error("name must be a string");
     if (name.length > 60) throw new Error("name must be <= 60 chars");
@@ -208,6 +210,7 @@ export class UserSettings {
     this.#showWebsitePreviews = typeof showWebsitePreviews === "boolean" ? showWebsitePreviews : true;
     this.#avatarUrl = typeof avatarUrl === "string" ? avatarUrl : "";
     this.#workspaceThemes = (typeof workspaceThemes === "object" && workspaceThemes !== null && !Array.isArray(workspaceThemes)) ? { ...workspaceThemes } : {};
+    this.#moveBookmarksToQuickAccess = typeof moveBookmarksToQuickAccess === "boolean" ? moveBookmarksToQuickAccess : false;
 
     if (clocks === null) {
       this.#clocks = [
@@ -263,6 +266,7 @@ export class UserSettings {
   get cssVarAccent() { return this.#cssVarAccent; }
   get showWebsitePreviews() { return this.#showWebsitePreviews; }
   get workspaceThemes() { return { ...this.#workspaceThemes }; }
+  get moveBookmarksToQuickAccess() { return this.#moveBookmarksToQuickAccess; }
 
   setName(newName) {
     if (typeof newName !== "string") throw new Error("name must be a string");
@@ -449,6 +453,10 @@ export class UserSettings {
       this.#workspaceThemes[workspaceId] = { ...(this.#workspaceThemes[workspaceId] || {}), ...themeObj };
     }
   }
+  setMoveBookmarksToQuickAccess(value) {
+    if (typeof value !== "boolean") throw new Error("moveBookmarksToQuickAccess must be a boolean");
+    this.#moveBookmarksToQuickAccess = value;
+  }
 
   toJSON() {
     return {
@@ -494,6 +502,7 @@ export class UserSettings {
       showWebsitePreviews: this.#showWebsitePreviews,
       avatarUrl: this.#avatarUrl,
       workspaceThemes: this.#workspaceThemes,
+      moveBookmarksToQuickAccess: this.#moveBookmarksToQuickAccess,
     };
   }
 
@@ -557,6 +566,7 @@ export class UserSettings {
       cssVarAccent: safe.cssVarAccent ?? "#555B66",
       showWebsitePreviews: safe.showWebsitePreviews !== false,
       workspaceThemes: safe.workspaceThemes ?? {},
+      moveBookmarksToQuickAccess: !!safe.moveBookmarksToQuickAccess,
     });
   }
 }

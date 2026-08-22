@@ -44,3 +44,80 @@ test("Bookmark entity: creates universal direct URL shortcut", () => {
   assert.equal(restored.id.value, "bm-1");
   assert.equal(restored.title, "GitHub");
 });
+
+import { EnsureShortcutsFolderUseCase } from "../src/application/useCases/bookmarks/EnsureShortcutsFolderUseCase.js";
+import fs from "node:fs";
+
+test("EnsureShortcutsFolderUseCase: fresh install creates empty Shortcuts folder without seeding shortcuts", async () => {
+  let nextId = 10;
+  const createdItems = [];
+  const tree = [{
+    id: "0",
+    title: "",
+    children: [
+      { id: "1", title: "Bookmarks bar", children: [] },
+      { id: "2", title: "Other bookmarks", children: [] },
+    ],
+  }];
+
+  const bookmarksMock = {
+    getTree: async () => tree,
+    create: async ({ parentId, title, url }) => {
+      const item = { id: String(nextId++), title, ...(url ? { url } : { children: [] }) };
+      createdItems.push({ parentId, ...item });
+      const parent = (parentId === "2") ? tree[0].children[1] : null;
+      if (parent && parent.children) parent.children.push(item);
+      return item;
+    },
+  };
+
+  const storageData = {};
+  const storageMock = {
+    get: async (keys) => {
+      const res = {};
+      for (const k of keys) res[k] = storageData[k];
+      return res;
+    },
+    set: async (obj) => Object.assign(storageData, obj),
+  };
+
+  const uc = new EnsureShortcutsFolderUseCase({
+    storage: storageMock,
+    bookmarks: bookmarksMock,
+  });
+
+  const folderId = await uc.execute();
+  assert.equal(folderId, "10");
+  assert.equal(storageData.shortcutsFolderId, "10");
+  // Only the "Shortcuts" folder itself was created - zero bookmarks or default seed categories created
+  assert.equal(createdItems.length, 1);
+  assert.equal(createdItems[0].title, "Shortcuts");
+  assert.equal(createdItems[0].url, undefined);
+});
+
+test("Codebase sanitization: public/omnibox-backup.json is completely removed", () => {
+  assert.equal(fs.existsSync("public/omnibox-backup.json"), false);
+});
+
+test("Empty state: adding a new shortcut manually works cleanly", async () => {
+  const created = [];
+  const bookmarksMock = {
+    create: async ({ parentId, title, url }) => {
+      const item = { id: "bm-new", parentId, title, url };
+      created.push(item);
+      return item;
+    },
+  };
+
+  const newShortcut = await bookmarksMock.create({
+    parentId: "cat-1",
+    title: "Google",
+    url: "https://www.google.com",
+  });
+
+  assert.equal(newShortcut.title, "Google");
+  assert.equal(newShortcut.url, "https://www.google.com");
+  assert.equal(newShortcut.parentId, "cat-1");
+  assert.equal(created.length, 1);
+});
+

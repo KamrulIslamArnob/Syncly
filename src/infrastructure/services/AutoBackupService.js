@@ -1,4 +1,4 @@
-import { filterBackupData } from "./backupAllowlist.js";
+import { filterBackupData, BACKUP_ALLOWLIST } from "./backupAllowlist.js";
 
 const LAST_HASH_KEY = "ntab:lastBackupHash";
 
@@ -133,9 +133,10 @@ export class AutoBackupService {
 
       // SECURITY: strip sensitive keys (PATs, gist id) before writing
       // the backup file — never let credentials reach disk.
-      const raw = await chrome.storage.local.get();
+      // PERF-T05: read only the allowlisted keys instead of the entire DB.
+      const raw = await chrome.storage.local.get(BACKUP_ALLOWLIST);
       const data = filterBackupData(raw);
-      const content = JSON.stringify(data, null, 2);
+      const content = JSON.stringify(data);
 
       const writable = await handle.createWritable();
       await writable.write(content);
@@ -163,9 +164,11 @@ export class AutoBackupService {
 
       // SECURITY: strip sensitive keys (PATs, gist id) before hashing
       // and writing — never let credentials reach disk.
-      const raw = await chrome.storage.local.get();
+      // PERF-T05: read only the allowlisted keys instead of the entire DB;
+      // compact JSON (no pretty-print) cuts stringify + hash cost further.
+      const raw = await chrome.storage.local.get(BACKUP_ALLOWLIST);
       const data = filterBackupData(raw);
-      const content = JSON.stringify(data, null, 2);
+      const content = JSON.stringify(data);
       const hash = hashString(content);
       if (hash === this._lastHash) return 'unchanged';
 

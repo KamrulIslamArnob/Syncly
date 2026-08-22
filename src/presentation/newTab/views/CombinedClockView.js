@@ -16,16 +16,35 @@ function getUtcOffset(timezone) {
   }
 }
 
-function formatParts(date, { is24h, withSeconds, timeZone }) {
-  const opts = { hour: "2-digit", minute: "2-digit", hour12: !is24h };
-  if (withSeconds) opts.second = "2-digit";
-  if (timeZone) opts.timeZone = timeZone;
+// PERF-T06: Intl.DateTimeFormat construction is expensive and was happening
+// every second. Cache formatters by their full option signature — the key
+// space is tiny (timeZone × hour12 × seconds) and reuse is Intl-contract-safe.
+const _formatterCache = new Map();
+
+function getFormatter({ is24h, withSeconds, timeZone }) {
+  const key = `${timeZone || "local"}|${!is24h}|${!!withSeconds}`;
+  let fmt = _formatterCache.get(key);
+  if (!fmt) {
+    const opts = { hour: "2-digit", minute: "2-digit", hour12: !is24h };
+    if (withSeconds) opts.second = "2-digit";
+    if (timeZone) opts.timeZone = timeZone;
+    try {
+      fmt = new Intl.DateTimeFormat("en-US", opts);
+    } catch {
+      delete opts.timeZone;
+      fmt = new Intl.DateTimeFormat("en-US", opts);
+    }
+    _formatterCache.set(key, fmt);
+  }
+  return fmt;
+}
+
+function formatParts(date, opts) {
   let text;
   try {
-    text = new Intl.DateTimeFormat("en-US", opts).format(date);
+    text = getFormatter(opts).format(date);
   } catch {
-    delete opts.timeZone;
-    text = new Intl.DateTimeFormat("en-US", opts).format(date);
+    text = getFormatter({ is24h: opts.is24h, withSeconds: opts.withSeconds }).format(date);
   }
   // "03:14:24 PM" → { time: "03:14:24", period: "PM" } ; 24h has no period
   const m = text.match(/^(\d{1,2}:\d{2}(?::\d{2})?)\s*([AP]M)?$/i);
@@ -48,6 +67,7 @@ export class CombinedClockView {
     if (this.root) {
       this._updateWorldMeta();
       this._updateText();
+      this._startTicking(); // re-evaluate cadence (showSeconds may have changed)
       return this.root;
     }
 
@@ -130,9 +150,52 @@ export class CombinedClockView {
 
     this._updateWorldMeta();
     this._updateText();
-    this.intervalId = setInterval(() => this._updateText(), 1000);
+    this._startTicking();
+    if (!this._visHandler && typeof document !== "undefined") {
+      // PERF-T06: pause all clock timers while the tab is hidden; on return,
+      // repaint immediately and realign the tick (OS sleep can drift timers).
+      // Pomodoro is unaffected — it runs on its own service interval.
+      this._visHandler = () => {
+        if (document.visibilityState === "visible") {
+          this._updateText();
+          this._startTicking();
+        } else {
+          this._stopTicking();
+        }
+      };
+      document.addEventListener("visibilitychange", this._visHandler);
+    }
     this.unsubPomo = this.pomodoro.onTick(() => { if (this.mode === "pomodoro") this._updateText(); });
     return this.root;
+  }
+
+  /** PERF-T06: seconds mode ticks every 1 s; minute mode sleeps until the
+   *  next minute boundary (recomputed every wake, so OS-sleep drift self-heals). */
+  _startTicking() {
+    this._stopTicking();
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    if (this.settings?.showSeconds === true) {
+      this.intervalId = setInterval(() => this._updateText(), 1000);
+    } else {
+      const align = () => {
+        const now = new Date();
+        return Math.max(250, (60 - now.getSeconds()) * 1000 - now.getMilliseconds());
+      };
+      const scheduleMinute = () => {
+        this._minuteTimer = setTimeout(() => {
+          this._updateText();
+          scheduleMinute();
+        }, align());
+      };
+      scheduleMinute();
+    }
+  }
+
+  _stopTicking() {
+    if (this.intervalId) clearInterval(this.intervalId);
+    if (this._minuteTimer) clearTimeout(this._minuteTimer);
+    this.intervalId = null;
+    this._minuteTimer = null;
   }
 
   _worldClock() {
@@ -170,14 +233,18 @@ export class CombinedClockView {
     const local = formatParts(now, { is24h, withSeconds });
     this._localTimeEl.textContent = local.time;
     this._localPeriodEl.textContent = local.period;
+    this._localPeriodEl.style.display = local.period ? "" : "none";
     const c = this._worldClock();
     const world = formatParts(now, { is24h, withSeconds: false, timeZone: c.timeZone });
     this._worldTimeEl.textContent = world.period ? `${world.time} ${world.period}` : world.time;
   }
 
   destroy() {
-    if (this.intervalId) clearInterval(this.intervalId);
-    this.intervalId = null;
+    this._stopTicking();
+    if (this._visHandler && typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", this._visHandler);
+      this._visHandler = null;
+    }
     this.unsubPomo?.();
     this.pomodoro.destroy();
     this.root = null;

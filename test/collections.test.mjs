@@ -162,17 +162,14 @@ test("EnsureQuickieFolderUseCase: creates Quickie folder, migrates loose bookmar
 
   const useCase = new EnsureQuickieFolderUseCase({ storage, bookmarks: bookmarksMock });
 
-  // 1st run: creates folder and runs migration
+  // 1st run: creates folder and leaves loose bookmarks untouched
   const id1 = await useCase.execute();
   assert.equal(id1, "quickie-id-99");
   assert.equal(createdFolders.length, 1);
-  assert.equal(moved.length, 2);
-  assert.deepEqual(moved[0], { id: "loose-1", parentId: "quickie-id-99" });
-  assert.deepEqual(moved[1], { id: "loose-2", parentId: "quickie-id-99" });
-  assert.equal(storage.raw.quickieMigrated, true);
+  assert.equal(moved.length, 0, "loose bookmarks should NOT be relocated on first install");
   assert.equal(storage.raw.quickieFolderId, "quickie-id-99");
 
-  // 2nd run: does NOT re-create or re-migrate (idempotent)
+  // 2nd run: does NOT re-create (idempotent)
   moved.length = 0;
   createdFolders.length = 0;
   const id2 = await useCase.execute();
@@ -180,3 +177,28 @@ test("EnsureQuickieFolderUseCase: creates Quickie folder, migrates loose bookmar
   assert.equal(createdFolders.length, 0);
   assert.equal(moved.length, 0);
 });
+
+test("Add to Collection: adds both bookmark IDs and shortcut IDs to target collection", async () => {
+  const storage = createMockStorage();
+  const repo = new ChromeBookmarkCollectionRepository({ storage });
+  const events = new EventBus();
+  const ids = { generate: () => "coll-curated" };
+  const sanitizer = new BasicSanitizer();
+
+  const createUC = new CreateBookmarkCollectionUseCase({ repository: repo, ids, sanitizer, events });
+  const updateMembersUC = new UpdateCollectionMembersUseCase({ repository: repo, events });
+
+  const coll = await createUC.execute({ name: "Reading List" });
+  assert.deepEqual(coll.bookmarkIds, []);
+
+  // Add bookmark ID from right-click context menu
+  await updateMembersUC.execute({ collectionId: "coll-curated", add: ["bm-card-1"] });
+  let saved = await repo.findById("coll-curated");
+  assert.deepEqual(saved.bookmarkIds, ["bm-card-1"]);
+
+  // Add shortcut ID from right-click shortcut context menu
+  await updateMembersUC.execute({ collectionId: "coll-curated", add: ["sc-tile-2"] });
+  saved = await repo.findById("coll-curated");
+  assert.deepEqual(saved.bookmarkIds, ["bm-card-1", "sc-tile-2"]);
+});
+

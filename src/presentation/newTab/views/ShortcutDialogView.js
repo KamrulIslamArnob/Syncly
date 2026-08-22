@@ -5,7 +5,7 @@
 import { el } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 
-function guessTitleFromUrl(urlStr) {
+export function guessTitleFromUrl(urlStr) {
   try {
     const u = new URL(urlStr.startsWith("http") ? urlStr : `https://${urlStr}`);
     const host = u.hostname.replace(/^www\./, "");
@@ -14,7 +14,7 @@ function guessTitleFromUrl(urlStr) {
       const name = parts[0];
       return name.charAt(0).toUpperCase() + name.slice(1);
     }
-    return host;
+    return host ? host.charAt(0).toUpperCase() + host.slice(1) : "";
   } catch {
     return "";
   }

@@ -1,6 +1,6 @@
 import { el } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
-import { initial, websiteFaviconUrl, websitePreviewUrl } from "../../shared/favicon.js";
+import { initial, websiteFaviconUrl } from "../../shared/favicon.js";
 import { buildBookmarkTree, isSafeUrl, countLeaves } from "./TreeView.js";
 import { GroupProfileButtonsView } from "./GroupProfileButtonsView.js";
 import { GroupDialogView } from "./GroupDialogView.js";
@@ -10,8 +10,8 @@ import { ConfirmDialogView } from "./ConfirmDialogView.js";
 import { BookmarkTagsDialogView } from "./BookmarkTagsDialogView.js";
 import { BookmarkPickerModalView } from "./BookmarkPickerModalView.js";
 import { CategoryDialogView } from "./CategoryDialogView.js";
-import { ShortcutDialogView } from "./ShortcutDialogView.js";
-import { ProfileDialogView } from "./ProfileDialogView.js";
+import { ShortcutDialogView, guessTitleFromUrl } from "./ShortcutDialogView.js";
+import { BookmarkEditDialogView } from "./BookmarkEditDialogView.js";
 import { CombinedClockView } from "./CombinedClockView.js";
 import { GreetingView } from "./GreetingView.js";
 import { getThumbGradient, getFolderColor } from "../../shared/colorHash.js";
@@ -52,87 +52,6 @@ const PALETTE_COLORS = [
   "#8A919C",
   "#E8EAEE",
 ];
-
-// In-memory cache for screenshot preview statuses with bounded FIFO eviction to prevent memory leak
-const MAX_CACHE_SIZE = 150;
-const previewSuccessCache = new Set();
-const previewFailedCache = new Set();
-
-function addBoundedCache(set, item) {
-  if (set.size >= MAX_CACHE_SIZE) {
-    const first = set.values().next().value;
-    if (first !== undefined) set.delete(first);
-  }
-  set.add(item);
-}
-
-class PreviewQueue {
-  constructor(concurrency = 2) {
-    this.concurrency = concurrency;
-    this.running = 0;
-    this.queue = [];
-  }
-
-  add(coverEl, previewUrl) {
-    if (!previewUrl || previewFailedCache.has(previewUrl)) return;
-    this.queue.push({ coverEl, previewUrl });
-    this.next();
-  }
-
-  next() {
-    while (this.running < this.concurrency && this.queue.length > 0) {
-      const item = this.queue.shift();
-      if (!item || !item.coverEl.isConnected) continue;
-      this.running++;
-      this.load(item);
-    }
-  }
-
-  load({ coverEl, previewUrl }) {
-    if (!coverEl.isConnected) {
-      this.running--;
-      this.next();
-      return;
-    }
-
-    const previewImg = el("img", {
-      className: "raindrop-card-preview",
-      src: previewUrl,
-      alt: "",
-      decoding: "async",
-    });
-
-    const done = () => {
-      this.running--;
-      this.next();
-    };
-
-    if (previewSuccessCache.has(previewUrl)) {
-      previewImg.classList.add("is-loaded");
-      coverEl.appendChild(previewImg);
-      done();
-    } else {
-      previewImg.addEventListener("load", () => {
-        addBoundedCache(previewSuccessCache, previewUrl);
-        previewImg.classList.add("is-loaded");
-        done();
-      });
-      previewImg.addEventListener("error", () => {
-        addBoundedCache(previewFailedCache, previewUrl);
-        previewImg.remove();
-        done();
-      });
-      coverEl.appendChild(previewImg);
-    }
-  }
-
-  clear() {
-    this.queue = [];
-    this.running = 0;
-  }
-}
-
-const previewQueue = new PreviewQueue(2);
 
 // Re-exported for callers/tests that imported these from this module
 // before the color-hash helpers moved to shared/colorHash.js.
@@ -270,7 +189,6 @@ export class BookmarkDeckView {
     this._query = "";
     this._viewMode = "compact"; // "compact" | "list" | "grid" (defaults to compact density)
     this._settings = null;
-    this._previewObserver = null;
     this._activeSelection = { type: "all" }; // { type: "all" | "quickie" | "collections" | "collection" | "folder", id, title }
     this._activeTag = null;
     this._expandedFolders = new Set();
@@ -290,20 +208,18 @@ export class BookmarkDeckView {
       toast,
       onCollapse: () => this.toggleSidebar(),
     });
-    this.groupButtons.setOnGroupSelect(() => this._load());
+    this.groupButtons.setOnGroupSelect(() => this._scheduleLoad());
     this.groupButtons.setOnGroupCreate((group) => {
       if (group) this.groupDialog.openForEdit(group);
       else this.groupDialog.openForCreate();
     });
 
-    this.profileDialog = new ProfileDialogView({ useCases, toast: this.toast, events: this.events });
-
     this.groupDialog = new GroupDialogView({ useCases, getTree: this.getTree, toast });
-    this.groupDialog.onSave = () => this._load();
-    this.groupDialog.onDelete = () => this._load();
+    this.groupDialog.onSave = () => this._scheduleLoad();
+    this.groupDialog.onDelete = () => this._scheduleLoad();
 
     this.newFolderDialog = new NewFolderDialogView({ getTree: this.getTree, toast: this.toast });
-    this.newFolderDialog.onCreate = () => this._load();
+    this.newFolderDialog.onCreate = () => this._scheduleLoad();
 
     this.collectionDialog = new CollectionDialogView({ useCases, toast: this.toast });
     this.confirmDialog = new ConfirmDialogView({ toast: this.toast });
@@ -311,6 +227,7 @@ export class BookmarkDeckView {
     this.bookmarkPicker = new BookmarkPickerModalView({ useCases, toast: this.toast });
     this.categoryDialog = new CategoryDialogView({ useCases, toast: this.toast });
     this.shortcutDialog = new ShortcutDialogView({ useCases, toast: this.toast });
+    this.bookmarkEditDialog = new BookmarkEditDialogView({ getTree: this.getTree, useCases, toast: this.toast });
 
     this._categories = [];
     this._shortcuts = [];
@@ -355,10 +272,10 @@ export class BookmarkDeckView {
 
     if (this.events) {
       this._unsubEvents.push(
-        this.events.on("categories:changed", () => this._load()),
-        this.events.on("bookmarks:changed", () => this._load()),
-        this.events.on("bookmarkCollections:changed", () => this._load()),
-        this.events.on("bookmarkTags:changed", () => this._load()),
+        this.events.on("categories:changed", () => this._scheduleLoad()),
+        this.events.on("bookmarks:changed", () => this._scheduleLoad()),
+        this.events.on("bookmarkCollections:changed", () => this._scheduleLoad()),
+        this.events.on("bookmarkTags:changed", () => this._scheduleLoad()),
         this.events.on("settings:changed", (newSettings) => {
           const oldSettings = this._settings;
           if (newSettings) {
@@ -437,11 +354,40 @@ export class BookmarkDeckView {
     this._load();
   }
 
+  /**
+   * Coalesced trailing-edge reload scheduler (PERF-T02).
+   * Mutations from many sources (EventBus, chrome.bookmarks events, dialog
+   * callbacks) collapse into ONE _load() per ~200 ms window instead of
+   * re-rendering sidebar+header+content N times. Returns the shared promise
+   * so `await` call sites keep their sequencing semantics.
+   */
+  _scheduleLoad(delayMs = 200) {
+    if (this._scheduledLoadPromise && this._scheduledLoadDelay === delayMs) {
+      return this._scheduledLoadPromise;
+    }
+    clearTimeout(this._scheduledLoadTimer);
+    this._scheduledLoadDelay = delayMs;
+    this._scheduledLoadPromise = (async () => {
+      await new Promise((resolve) => { this._scheduledLoadTimer = setTimeout(resolve, delayMs); });
+      // Clear refs BEFORE running so a write emitted during _load() can
+      // schedule a follow-up pass instead of being swallowed.
+      this._scheduledLoadTimer = null;
+      this._scheduledLoadPromise = null;
+      this._scheduledLoadDelay = null;
+      await this._load();
+    })();
+    this._scheduledLoadPromise.catch(() => {});
+    return this._scheduledLoadPromise;
+  }
+
   async _load() {
-    const [raw, quickieId, shortcutsFolderId, collections, , usage, tags, settings, folderColors] = await Promise.all([
-      this.getTree().catch(() => []),
-      this.useCases?.ensureQuickieFolder ? this.useCases.ensureQuickieFolder.execute().catch(() => null) : Promise.resolve(null),
-      this.useCases?.ensureShortcutsFolder ? this.useCases.ensureShortcutsFolder.execute().catch(() => null) : Promise.resolve(null),
+    // PERF-T01: single bookmark-tree fetch per reload. The tree is shared
+    // with both ensure use cases (same-tick contract) instead of each one
+    // issuing its own chrome.bookmarks.getTree() IPC round-trip.
+    const raw = await this.getTree().catch(() => []);
+    const [quickieId, shortcutsFolderId, collections, , usage, tags, settings, folderColors] = await Promise.all([
+      this.useCases?.ensureQuickieFolder ? this.useCases.ensureQuickieFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
+      this.useCases?.ensureShortcutsFolder ? this.useCases.ensureShortcutsFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
       this.useCases?.listBookmarkCollections ? this.useCases.listBookmarkCollections.execute().catch(() => []) : Promise.resolve([]),
       this.groupButtons.loadState().catch(() => null),
       this.storage ? this.storage.get([USAGE_KEY, LAST_KEY]).then((d) => d?.[USAGE_KEY] || {}).catch(() => ({})) : Promise.resolve({}),
@@ -646,7 +592,7 @@ export class BookmarkDeckView {
     if (typeof chrome === "undefined" || !chrome.bookmarks || this._bookmarkEventHandler) return;
 
     this._bookmarkEventHandler = () => {
-      this._load();
+      this._scheduleLoad();
     };
 
     this._bookmarkEventNames = [
@@ -774,7 +720,7 @@ export class BookmarkDeckView {
     const current = this._tags[bookmark.id] || [];
     this.tagsDialog.open(bookmark, {
       currentTags: current,
-      onSuccess: () => this._load(),
+      onSuccess: () => this._scheduleLoad(),
     });
   }
 
@@ -785,6 +731,7 @@ export class BookmarkDeckView {
   _bindFolderDropTarget(node, folderId) {
     node.addEventListener("dragover", (e) => {
       if (!this._drag) return;
+      if (this._drag.parentId === folderId) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       node.classList.add("is-drop-target");
@@ -794,10 +741,17 @@ export class BookmarkDeckView {
       e.preventDefault();
       node.classList.remove("is-drop-target");
       const drag = this._drag;
-      if (!drag) return;
+      if (!drag || drag.parentId === folderId) return;
       try {
-        await chrome.bookmarks.move(drag.id, { parentId: folderId });
-        this.toast?.show("Bookmark moved");
+        if (typeof chrome !== "undefined" && chrome.bookmarks?.move) {
+          await chrome.bookmarks.move(drag.id, { parentId: folderId });
+        }
+        await this._scheduleLoad();
+        if (drag.isShortcut) {
+          this.toast?.show(`Moved shortcut "${drag.title || 'link'}" to folder ✓`);
+        } else {
+          this.toast?.show("Bookmark moved");
+        }
       } catch (err) {
         this.toast?.show(err.message || "Could not move bookmark", { error: true });
       }
@@ -823,7 +777,7 @@ export class BookmarkDeckView {
           add: [drag.id],
         });
         this.toast?.show("Added bookmark to collection");
-        await this._load();
+        await this._scheduleLoad();
       } catch (err) {
         this.toast?.show(err.message || "Could not add to collection", { error: true });
       }
@@ -854,12 +808,21 @@ export class BookmarkDeckView {
             title: activeGroup.name,
             isFolder: true,
           };
+        } else if (this._activeSelection.type === "all") {
+          const rootNode = this._roots.find((r) => r.id === "1" || /bookmarks bar|favorites bar/i.test(r.title)) || this._roots[0];
+          if (rootNode) {
+            finalTarget = {
+              id: rootNode.id,
+              title: rootNode.title || "Bookmarks Bar",
+              isFolder: true,
+            };
+          }
         }
       }
     }
     if (!finalTarget) return;
     this.bookmarkPicker.open(finalTarget, this._unscopedLeaves, {
-      onSuccess: () => this._load(),
+      onSuccess: () => this._scheduleLoad(),
     });
   }
 
@@ -1452,7 +1415,7 @@ export class BookmarkDeckView {
           selection.title = newTitle;
           this.toast?.show(`Collection renamed to "${newTitle}"`);
         }
-        await this._load();
+        await this._scheduleLoad();
       } catch (err) {
         this.toast?.show(err.message || "Failed to rename", { error: true });
         input.replaceWith(titleEl);
@@ -1502,8 +1465,14 @@ export class BookmarkDeckView {
   _renderShortcutCategoryBar() {
     if (!this._categories || this._categories.length === 0) return null;
 
-    const bar = el("div", { className: "shortcut-category-bar", role: "tablist", "aria-label": "Shortcut categories" });
-    
+    const isTwoLayers = this._categories.length > 6;
+    const bar = el("div", {
+      className: "shortcut-category-bar" + (isTwoLayers ? " is-two-layers" : ""),
+      role: "tablist",
+      "aria-label": "Shortcut categories",
+    });
+
+    const categoryButtons = [];
     for (const cat of this._categories) {
       const catId = cat.id?.value || cat.id;
       const isActive = catId === this._activeCategoryId;
@@ -1559,7 +1528,7 @@ export class BookmarkDeckView {
               await chrome.bookmarks.move(draggedId, { parentId: catId });
             }
             this._activeCategoryId = catId;
-            await this._load();
+            await this._scheduleLoad();
             this.toast?.show("Shortcut moved");
           } catch (err) {
             this.toast?.show(err.message || "Failed to move", { error: true });
@@ -1576,14 +1545,14 @@ export class BookmarkDeckView {
           if (typeof chrome !== "undefined" && chrome.bookmarks?.move) {
             await chrome.bookmarks.move(draggedId, { index: toIdx });
           }
-          await this._load();
+          await this._scheduleLoad();
           this.toast?.show("Category reordered");
         } catch (err) {
           this.toast?.show(err.message || "Failed to reorder", { error: true });
         }
       });
 
-      bar.appendChild(btn);
+      categoryButtons.push(btn);
     }
 
     const addBtn = el("button", {
@@ -1595,11 +1564,19 @@ export class BookmarkDeckView {
 
     addBtn.addEventListener("click", () => {
       this.categoryDialog.openForCreate({
-        onSuccess: () => this._load(),
+        onSuccess: () => this._scheduleLoad(),
       });
     });
 
-    bar.appendChild(addBtn);
+    if (isTwoLayers) {
+      const mid = Math.ceil(categoryButtons.length / 2);
+      const row1 = el("div", { className: "shortcut-category-row" }, ...categoryButtons.slice(0, mid));
+      const row2 = el("div", { className: "shortcut-category-row" }, ...categoryButtons.slice(mid), addBtn);
+      bar.append(row1, row2);
+    } else {
+      bar.append(...categoryButtons, addBtn);
+    }
+
     return bar;
   }
 
@@ -1678,18 +1655,37 @@ export class BookmarkDeckView {
       this._showShortcutContextMenu(e, item);
     });
 
-    // Drag to reorder shortcuts by serial (within same category)
+    // Drag to reorder shortcuts by serial or drop to sidebar folder/collection
     tile.addEventListener("dragstart", (e) => {
       this._dragShortcutId = shortcutId;
       this._dragShortcutCatId = itemCatId;
+      this._drag = {
+        id: shortcutId,
+        parentId: itemCatId,
+        title: item.title || item.title?.value || "",
+        url: rawUrl,
+        isShortcut: true,
+      };
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", shortcutId);
+      if (rawUrl) {
+        e.dataTransfer.setData("text/uri-list", rawUrl);
+      }
+      try {
+        e.dataTransfer.setData("application/json", JSON.stringify({
+          id: shortcutId,
+          title: item.title || "",
+          url: rawUrl,
+          isShortcut: true,
+        }));
+      } catch {}
       setTimeout(() => tile.classList.add("is-dragging"), 0);
     });
     tile.addEventListener("dragend", () => {
       tile.classList.remove("is-dragging");
       this._dragShortcutId = null;
       this._dragShortcutCatId = null;
+      this._drag = null;
       document.querySelectorAll(".shortcut-circular-item.is-drag-over").forEach((el) => el.classList.remove("is-drag-over"));
     });
     tile.addEventListener("dragover", (e) => {
@@ -1714,7 +1710,7 @@ export class BookmarkDeckView {
         if (typeof chrome !== "undefined" && chrome.bookmarks?.move) {
           await chrome.bookmarks.move(draggedId, { index: toIdx });
         }
-        await this._load();
+        await this._scheduleLoad();
         this.toast?.show("Shortcut reordered");
       } catch (err) {
         this.toast?.show(err.message || "Failed to reorder", { error: true });
@@ -1742,19 +1738,176 @@ export class BookmarkDeckView {
     const addTile = el("button", {
       type: "button",
       className: "shortcut-circular-item shortcut-circular-add-item",
-      title: "Add direct URL shortcut to this category",
+      title: "Add direct URL shortcut (or drag bookmarks here)",
+      "aria-label": "Add shortcut",
     }, addDisc, addLabel);
 
     addTile.addEventListener("click", () => {
       this.shortcutDialog.openForCreate({
         categoryId: this._activeCategoryId,
         categories: this._categories,
-        onSuccess: () => this._load(),
+        onSuccess: () => this._scheduleLoad(),
       });
+    });
+
+    addTile.addEventListener("dragenter", (e) => {
+      e.preventDefault();
+      addTile.classList.add("is-drop-target");
+    });
+
+    addTile.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
+      }
+      addTile.classList.add("is-drop-target");
+    });
+
+    addTile.addEventListener("dragleave", (e) => {
+      if (!addTile.contains(e.relatedTarget)) {
+        addTile.classList.remove("is-drop-target");
+      }
+    });
+
+    addTile.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      addTile.classList.remove("is-drop-target");
+      await this._handleDropOnAddShortcut(e);
     });
 
     grid.appendChild(addTile);
     return grid;
+  }
+
+  async _handleDropOnAddShortcut(e) {
+    let url = "";
+    let title = "";
+
+    // 1. Internal drag state
+    if (this._drag) {
+      if (this._drag.url) url = this._drag.url;
+      if (this._drag.title) title = this._drag.title;
+      if (!url && this._drag.id) {
+        const leaf = this._leafIndex?.get(this._drag.id);
+        if (leaf) {
+          url = leaf.url?.href || leaf.url || "";
+          if (!title) title = leaf.title || "";
+        }
+      }
+    }
+
+    // 2. DragTransfer data payloads
+    if (!url && e.dataTransfer) {
+      try {
+        const jsonStr = e.dataTransfer.getData("application/json");
+        if (jsonStr) {
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.url) {
+            url = parsed.url;
+            if (parsed.title) title = parsed.title;
+          }
+        }
+      } catch {}
+    }
+
+    if (!url && e.dataTransfer) {
+      const uriList = e.dataTransfer.getData("text/uri-list");
+      if (uriList) {
+        const lines = uriList.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+        if (lines.length > 0) {
+          url = lines[0];
+        }
+      }
+    }
+
+    if (e.dataTransfer) {
+      const html = e.dataTransfer.getData("text/html");
+      if (html) {
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, "text/html");
+          const a = doc.querySelector("a[href]");
+          if (a) {
+            if (!url) url = a.getAttribute("href") || "";
+            if (!title) title = a.textContent.trim() || a.getAttribute("title") || "";
+          }
+        } catch {}
+      }
+    }
+
+    if (!url && e.dataTransfer) {
+      const plain = e.dataTransfer.getData("text/plain")?.trim();
+      if (plain) {
+        if (/^https?:\/\//i.test(plain) || /^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/.test(plain)) {
+          url = plain;
+        } else if (this._leafIndex?.has(plain)) {
+          const leaf = this._leafIndex.get(plain);
+          url = leaf.url?.href || leaf.url || "";
+          if (!title) title = leaf.title || "";
+        }
+      }
+    }
+
+    if (!url) {
+      this.toast?.show("No valid URL found to create shortcut", { error: true });
+      return;
+    }
+
+    // Normalize URL
+    if (!/^https?:\/\//i.test(url)) {
+      url = `https://${url}`;
+    }
+
+    try {
+      const parsed = new URL(url);
+      if (!/^https?:$/.test(parsed.protocol)) {
+        throw new Error("Only http(s) URLs allowed");
+      }
+      url = parsed.href;
+    } catch {
+      this.toast?.show("Invalid URL — only http(s) shortcuts supported", { error: true });
+      return;
+    }
+
+    if (!title) {
+      title = guessTitleFromUrl(url) || "Shortcut";
+    }
+
+    // Determine target category: active category or default "Quick Access"
+    let targetCatId = this._activeCategoryId;
+    if (!targetCatId || !this._categories.some((c) => (c.id?.value || c.id) === targetCatId)) {
+      const qaCat = this._categories.find((c) => /^quick access$/i.test(c.name || ""));
+      if (qaCat) {
+        targetCatId = qaCat.id?.value || qaCat.id;
+      } else if (this._categories.length > 0) {
+        targetCatId = this._categories[0].id?.value || this._categories[0].id;
+      }
+    }
+
+    try {
+      if (this._shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
+        if (!targetCatId) {
+          const created = await chrome.bookmarks.create({ parentId: this._shortcutsFolderId, title: "Quick Access" });
+          targetCatId = created.id;
+        }
+        await chrome.bookmarks.create({
+          parentId: targetCatId,
+          title,
+          url,
+        });
+      } else if (this.useCases?.createBookmark) {
+        await this.useCases.createBookmark.execute({
+          title,
+          url,
+          categoryId: targetCatId,
+        });
+      }
+
+      this.toast?.show(`Added shortcut "${title}"`);
+      await this._scheduleLoad();
+    } catch (err) {
+      this.toast?.show(err.message || "Failed to create shortcut", { error: true });
+    }
   }
 
   _showCategoryContextMenu(e, category) {
@@ -1767,7 +1920,7 @@ export class BookmarkDeckView {
     );
     renameBtn.addEventListener("click", () => {
       this._closeContextMenu();
-      this.categoryDialog.openForRename(category, { onSuccess: () => this._load() });
+      this.categoryDialog.openForRename(category, { onSuccess: () => this._scheduleLoad() });
     });
     menu.appendChild(renameBtn);
 
@@ -1792,7 +1945,7 @@ export class BookmarkDeckView {
                 await this.useCases.deleteCategory.execute({ id: catId });
               }
               this.toast?.show(`Deleted category "${category.name}"`);
-              await this._load();
+              await this._scheduleLoad();
             } catch (err) {
               this.toast?.show(err.message || "Failed to delete category", { error: true });
             }
@@ -1835,10 +1988,15 @@ export class BookmarkDeckView {
       this._closeContextMenu();
       this.shortcutDialog.openForEdit(shortcut, {
         categories: this._categories,
-        onSuccess: () => this._load(),
+        onSuccess: () => this._scheduleLoad(),
       });
     });
     menu.appendChild(editBtn);
+
+    // 3. Add to Collection
+    const isNearRightEdge = e.clientX > window.innerWidth - 380;
+    const addToCollItem = this._renderAddToCollectionMenuItem(shortcut, isNearRightEdge);
+    menu.appendChild(addToCollItem);
 
     const deleteBtn = el("button", { type: "button", className: "raindrop-context-item is-danger" },
       icon("trash"),
@@ -1860,7 +2018,7 @@ export class BookmarkDeckView {
               await this.useCases.deleteBookmark.execute({ id });
             }
             this.toast?.show(`Deleted shortcut "${shortcut.title}"`);
-            await this._load();
+            await this._scheduleLoad();
           } catch (err) {
             this.toast?.show(err.message || "Failed to delete shortcut", { error: true });
           }
@@ -1957,7 +2115,7 @@ export class BookmarkDeckView {
             chrome.bookmarks.update(realFolderId, { title: trimmed })
               .then(() => {
                 this.toast?.show(`Renamed folder to "${trimmed}"`);
-                this._load();
+                this._scheduleLoad();
               })
               .catch((err) => {
                 this.toast?.show(err.message || "Failed to rename folder", { error: true });
@@ -1998,7 +2156,7 @@ export class BookmarkDeckView {
             })
           ).then(() => {
             this.toast?.show(`Added #${rawTag} to ${count} bookmark${count === 1 ? "" : "s"}`);
-            this._load();
+            this._scheduleLoad();
           }).catch((err) => {
             this.toast?.show(err.message || "Failed to add tag", { error: true });
           });
@@ -2029,7 +2187,7 @@ export class BookmarkDeckView {
               if (this._activeSelection.type === "folder" && this._activeSelection.id === node.id) {
                 this._activeSelection = { type: "all", title: "Home" };
               }
-              await this._load();
+              await this._scheduleLoad();
             } catch (err) {
               this.toast?.show(err.message || "Failed to delete folder", { error: true });
             }
@@ -2046,6 +2204,192 @@ export class BookmarkDeckView {
     const y = Math.min(window.innerHeight - 240, e.clientY);
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
+  }
+
+  _renderAddToCollectionMenuItem(targetItem, isNearRightEdge = false) {
+    const itemId = targetItem.id?.value || targetItem.id;
+    const itemTitle = targetItem.title || "item";
+    const collections = this._getVisibleCollections();
+
+    const parentBtn = el("div", {
+      className: "raindrop-context-item raindrop-context-parent" + (isNearRightEdge ? " submenu-left" : ""),
+    },
+      el("div", { className: "raindrop-context-parent-label" },
+        icon("layers"),
+        el("span", {}, "Add to Collection")
+      ),
+      el("span", { className: "raindrop-context-arrow" }, "›")
+    );
+
+    const submenu = el("div", { className: "raindrop-context-submenu" });
+
+    if (collections.length > 0) {
+      for (const coll of collections) {
+        const isMember = (coll.bookmarkIds || []).includes(itemId);
+        const collBtn = el("button", {
+          type: "button",
+          className: "raindrop-context-item" + (isMember ? " is-member" : ""),
+        },
+          el("span", { className: "raindrop-coll-sub-bullet" }, isMember ? "✓" : "•"),
+          el("span", {}, coll.name),
+          el("span", { className: "raindrop-nav-count", style: "margin-left: auto; font-size: 11px; opacity: 0.6;" }, String((coll.bookmarkIds || []).length))
+        );
+
+        collBtn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          this._closeContextMenu();
+          if (isMember) {
+            this.toast?.show(`Already in collection "${coll.name}"`);
+            return;
+          }
+          try {
+            await this.useCases.updateCollectionMembers.execute({
+              collectionId: coll.id,
+              add: [itemId],
+            });
+            this.toast?.show(`Added "${itemTitle}" to "${coll.name}" ✓`);
+            await this._scheduleLoad();
+          } catch (err) {
+            this.toast?.show(err.message || "Failed to add to collection", { error: true });
+          }
+        });
+
+        submenu.appendChild(collBtn);
+      }
+      submenu.appendChild(el("div", { className: "raindrop-context-divider" }));
+    } else {
+      submenu.appendChild(el("div", { className: "raindrop-context-empty" }, "No collections yet"));
+      submenu.appendChild(el("div", { className: "raindrop-context-divider" }));
+    }
+
+    const createBtn = el("button", {
+      type: "button",
+      className: "raindrop-context-item is-create",
+    },
+      icon("plus"),
+      el("span", {}, "New Collection...")
+    );
+
+    createBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this._closeContextMenu();
+      const activeGroup = this.groupButtons.activeGroup;
+      this.collectionDialog.openForCreate({
+        initialBookmarkIds: [itemId],
+        workspaceId: activeGroup?.id || null,
+        onSuccess: () => this._scheduleLoad(),
+      });
+    });
+
+    submenu.appendChild(createBtn);
+    parentBtn.appendChild(submenu);
+    return parentBtn;
+  }
+
+  _showBookmarkContextMenu(e, bookmark, { inCollection = false } = {}) {
+    this._closeContextMenu();
+
+    const menu = el("div", { className: "raindrop-context-menu" });
+
+    // 1. Open in New Tab
+    const openNewTabBtn = el("button", { type: "button", className: "raindrop-context-item" },
+      icon("external"),
+      el("span", {}, "Open in New Tab")
+    );
+    openNewTabBtn.addEventListener("click", () => {
+      this._closeContextMenu();
+      this._open(bookmark, true);
+    });
+    menu.appendChild(openNewTabBtn);
+
+    // 2. Edit Bookmark
+    const editBtn = el("button", { type: "button", className: "raindrop-context-item" },
+      icon("edit"),
+      el("span", {}, "Edit Bookmark")
+    );
+    editBtn.addEventListener("click", () => {
+      this._closeContextMenu();
+      this.bookmarkEditDialog.open(bookmark, {
+        onSuccess: () => this._scheduleLoad(),
+      });
+    });
+    menu.appendChild(editBtn);
+
+    // 3. Edit Tags
+    const editTagsBtn = el("button", { type: "button", className: "raindrop-context-item" },
+      icon("tag"),
+      el("span", {}, "Edit Tags")
+    );
+    editTagsBtn.addEventListener("click", () => {
+      this._closeContextMenu();
+      this._editTags(bookmark);
+    });
+    menu.appendChild(editTagsBtn);
+
+    // 4. Add to Collection
+    const isNearRightEdge = e.clientX > window.innerWidth - 380;
+    const addToCollItem = this._renderAddToCollectionMenuItem(bookmark, isNearRightEdge);
+    menu.appendChild(addToCollItem);
+
+    // 5. Remove from Collection (if in a collection)
+    if (inCollection && this._activeSelection.type === "collection") {
+      const removeCollBtn = el("button", { type: "button", className: "raindrop-context-item" },
+        icon("x"),
+        el("span", {}, "Remove from Collection")
+      );
+      removeCollBtn.addEventListener("click", async () => {
+        this._closeContextMenu();
+        try {
+          await this.useCases.updateCollectionMembers.execute({
+            collectionId: this._activeSelection.id,
+            remove: [bookmark.id],
+          });
+          this.toast?.show("Removed from collection");
+          await this._scheduleLoad();
+        } catch (err) {
+          this.toast?.show(err.message || "Could not remove bookmark", { error: true });
+        }
+      });
+      menu.appendChild(removeCollBtn);
+    }
+
+    // 5. Delete Bookmark
+    const deleteBtn = el("button", { type: "button", className: "raindrop-context-item is-danger" },
+      icon("trash"),
+      el("span", {}, "Delete Bookmark")
+    );
+    deleteBtn.addEventListener("click", () => {
+      this._closeContextMenu();
+      this.confirmDialog.open({
+        title: `Delete Bookmark "${bookmark.title || 'Bookmark'}"?`,
+        message: "Are you sure you want to permanently delete this bookmark? This cannot be undone.",
+        confirmLabel: "Delete Bookmark",
+        isDanger: true,
+        onConfirm: async () => {
+          try {
+            if (typeof chrome !== "undefined" && chrome.bookmarks && typeof chrome.bookmarks.remove === "function") {
+              await chrome.bookmarks.remove(bookmark.id);
+            }
+            if (this.useCases?.deleteBookmark) {
+              try { await this.useCases.deleteBookmark.execute({ id: bookmark.id }); } catch (_) {}
+            }
+            this.toast?.show(`Deleted "${bookmark.title || 'bookmark'}"`);
+            await this._scheduleLoad();
+          } catch (err) {
+            this.toast?.show(err.message || "Could not delete bookmark", { error: true });
+          }
+        },
+      });
+    });
+    menu.appendChild(deleteBtn);
+
+    document.body.appendChild(menu);
+    this._activeContextMenu = menu;
+
+    const x = Math.min(window.innerWidth - 190, e.clientX);
+    const y = Math.min(window.innerHeight - 200, e.clientY);
+    menu.style.left = `${Math.max(8, x)}px`;
+    menu.style.top = `${Math.max(8, y)}px`;
   }
 
   _closeContextMenu() {
@@ -2308,33 +2652,6 @@ export class BookmarkDeckView {
           this._content.appendChild(bookmarksHeader);
         }
 
-        if (this._previewObserver) {
-          this._previewObserver.disconnect();
-          this._previewObserver = null;
-        }
-        previewQueue.clear();
-
-        const isGridView = this._viewMode === "grid";
-        const previewsEnabled = this._settings ? this._settings.showWebsitePreviews !== false : true;
-
-        if (isGridView && previewsEnabled && typeof IntersectionObserver !== "undefined") {
-          this._previewObserver = new IntersectionObserver((entries) => {
-            for (const entry of entries) {
-              if (entry.isIntersecting) {
-                const coverEl = entry.target;
-                this._previewObserver?.unobserve(coverEl);
-                const previewUrl = coverEl.dataset.previewUrl;
-                if (previewUrl) {
-                  previewQueue.add(coverEl, previewUrl);
-                }
-              }
-            }
-          }, {
-            root: this._content,
-            rootMargin: "150px 0px",
-          });
-        }
-
         const grid = el("div", { className: `raindrop-layout raindrop-${this._viewMode}` });
         const fragment = document.createDocumentFragment();
         for (const b of matchingBookmarks) {
@@ -2342,13 +2659,6 @@ export class BookmarkDeckView {
         }
         grid.appendChild(fragment);
         this._content.appendChild(grid);
-
-        if (this._previewObserver) {
-          const pendingCovers = grid.querySelectorAll(".raindrop-card-cover.is-pending-preview");
-          for (const cover of pendingCovers) {
-            this._previewObserver.observe(cover);
-          }
-        }
       }
 
       if (this._selectMode && this._selectedIds.size > 0) {
@@ -2376,6 +2686,9 @@ export class BookmarkDeckView {
 
     // Universal Top Category Selector (Layer 1) and Quick Click Shortcut Grid (Layer 2)
     // Rendered on Home view when not searching or tag filtering.
+    let sectionHeader = null;
+    let caret = null;
+
     if (isHomeSelection && !this._query && !this._activeTag) {
       // In Focus Mode, render Greeting + Clock widget + Centered search bar at the top
       if (this._layoutStyle === "focus") {
@@ -2447,7 +2760,7 @@ export class BookmarkDeckView {
       const activeGroup = this.groupButtons.activeGroup;
       const sectionTitle = activeGroup ? `${activeGroup.name} / All Bookmarks` : "All Bookmarks";
 
-      const caret = el("span", {
+      caret = el("span", {
         className: "bookmarks-section-caret" + (!this._allBookmarksCollapsed ? " is-open" : ""),
       }, icon("chevronRight"));
 
@@ -2468,7 +2781,7 @@ export class BookmarkDeckView {
         });
       }
 
-      const sectionHeader = el("div", {
+      sectionHeader = el("div", {
         className: "bookmarks-section-header" + (this._allBookmarksCollapsed ? " is-collapsed" : ""),
         role: "button",
         tabIndex: 0,
@@ -2477,12 +2790,6 @@ export class BookmarkDeckView {
         el("div", { className: "bookmarks-section-left" }, caret, titleEl, countEl),
         settingsBtn
       );
-
-      sectionHeader.addEventListener("click", () => {
-        this._allBookmarksCollapsed = !this._allBookmarksCollapsed;
-        try { localStorage.setItem("neptab_all_bookmarks_collapsed", String(this._allBookmarksCollapsed)); } catch {}
-        this._renderContent();
-      });
       this._content.appendChild(sectionHeader);
     }
 
@@ -2515,7 +2822,7 @@ export class BookmarkDeckView {
         el("p", { className: "raindrop-empty-desc" }, emptyDesc)
       );
 
-      if ((activeGroup || this._activeSelection.type === "folder") && !isCollection && !this._query && !this._activeTag) {
+      if ((activeGroup || this._activeSelection.type === "folder" || isHomeSelection) && !isCollection && !this._query && !this._activeTag) {
         const addBmBtn = el("button", {
           type: "button",
           className: "btn btn-primary",
@@ -2545,7 +2852,7 @@ export class BookmarkDeckView {
           const coll = this._getActiveCollection();
           if (coll) {
             this.bookmarkPicker.open(coll, this._unscopedLeaves, {
-              onSuccess: () => this._load(),
+              onSuccess: () => this._scheduleLoad(),
             });
             const newTabBtn = this.bookmarkPicker.dialog?.querySelector(".picker-tab:last-child");
             if (newTabBtn) newTabBtn.click();
@@ -2558,33 +2865,6 @@ export class BookmarkDeckView {
 
       this._content.appendChild(emptyState);
       return;
-    }
-
-    if (this._previewObserver) {
-      this._previewObserver.disconnect();
-      this._previewObserver = null;
-    }
-    previewQueue.clear();
-
-    const isGridView = this._viewMode === "grid";
-    const previewsEnabled = this._settings ? this._settings.showWebsitePreviews !== false : true;
-
-    if (isGridView && previewsEnabled && typeof IntersectionObserver !== "undefined") {
-      this._previewObserver = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const coverEl = entry.target;
-            this._previewObserver?.unobserve(coverEl);
-            const previewUrl = coverEl.dataset.previewUrl;
-            if (previewUrl) {
-              previewQueue.add(coverEl, previewUrl);
-            }
-          }
-        }
-      }, {
-        root: this._content,
-        rootMargin: "150px 0px",
-      });
     }
 
     // Subfolder grid when inside a folder that has child folders
@@ -2616,24 +2896,41 @@ export class BookmarkDeckView {
       this._content.appendChild(subfolderGrid);
     }
 
-    const shouldShowGrid = !(isHomeSelection && !this._query && !this._activeTag && this._allBookmarksCollapsed);
-
-    if (pool.length > 0 && shouldShowGrid) {
+    if (pool.length > 0) {
       const grid = el("div", { className: `raindrop-layout raindrop-${this._viewMode}` });
       const fragment = document.createDocumentFragment();
       for (const b of pool) {
         fragment.appendChild(this._renderCard(b, { inCollection: isCollection }));
       }
       grid.appendChild(fragment);
-      this._content.appendChild(grid);
 
-      // Observe pending covers only after the entire grid is mounted in the document
-      if (this._previewObserver) {
-        const pendingCovers = grid.querySelectorAll(".raindrop-card-cover.is-pending-preview");
-        for (const cover of pendingCovers) {
-          this._previewObserver.observe(cover);
+      if (isHomeSelection && !this._query && !this._activeTag) {
+        const collapsibleWrapper = el("div", {
+          className: "bookmarks-collapsible-wrapper" + (this._allBookmarksCollapsed ? " is-collapsed" : ""),
+        }, el("div", { className: "bookmarks-collapsible-inner" }, grid));
+        this._content.appendChild(collapsibleWrapper);
+
+        if (sectionHeader) {
+          sectionHeader.addEventListener("click", () => {
+            this._allBookmarksCollapsed = !this._allBookmarksCollapsed;
+            try { localStorage.setItem("neptab_all_bookmarks_collapsed", String(this._allBookmarksCollapsed)); } catch {}
+            sectionHeader.classList.toggle("is-collapsed", this._allBookmarksCollapsed);
+            caret?.classList.toggle("is-open", !this._allBookmarksCollapsed);
+            sectionHeader.title = this._allBookmarksCollapsed ? "Click to expand bookmarks" : "Click to collapse bookmarks";
+            collapsibleWrapper.classList.toggle("is-collapsed", this._allBookmarksCollapsed);
+          });
         }
+      } else {
+        this._content.appendChild(grid);
       }
+    } else if (sectionHeader) {
+      sectionHeader.addEventListener("click", () => {
+        this._allBookmarksCollapsed = !this._allBookmarksCollapsed;
+        try { localStorage.setItem("neptab_all_bookmarks_collapsed", String(this._allBookmarksCollapsed)); } catch {}
+        sectionHeader.classList.toggle("is-collapsed", this._allBookmarksCollapsed);
+        caret?.classList.toggle("is-open", !this._allBookmarksCollapsed);
+        sectionHeader.title = this._allBookmarksCollapsed ? "Click to expand bookmarks" : "Click to collapse bookmarks";
+      });
     }
 
     // Floating Bulk Action Bar (when in select mode and at least 1 bookmark selected)
@@ -2794,7 +3091,7 @@ export class BookmarkDeckView {
           this.toast?.show(`Added ${selected.length} bookmark${selected.length === 1 ? "" : "s"} to ${coll.name}`);
           this._selectedIds.clear();
           this._selectMode = false;
-          await this._load();
+          await this._scheduleLoad();
         } catch (err) {
           this.toast?.show(err.message || "Could not add to collection", { error: true });
         }
@@ -2813,7 +3110,7 @@ export class BookmarkDeckView {
         onSuccess: async () => {
           this._selectedIds.clear();
           this._selectMode = false;
-          await this._load();
+          await this._scheduleLoad();
         },
       });
     });
@@ -2846,7 +3143,7 @@ export class BookmarkDeckView {
         this.toast?.show(`Deleted ${selected.length} bookmark${selected.length === 1 ? "" : "s"}`);
         this._selectedIds.clear();
         this._selectMode = false;
-        await this._load();
+        await this._scheduleLoad();
       } catch (err) {
         this.toast?.show(err.message || "Could not delete bookmarks", { error: true });
       }
@@ -2867,9 +3164,6 @@ export class BookmarkDeckView {
     const domain = cleanDomain(bookmark.url);
     const cover = getThumbGradient(domain || bookmark.title);
     const glyph = (domain ? domain.charAt(0) : initial(bookmark.title)).toUpperCase();
-    const isGridView = this._viewMode === "grid";
-    const previewsEnabled = this._settings ? this._settings.showWebsitePreviews !== false : true;
-    const previewUrl = isGridView && previewsEnabled ? websitePreviewUrl(bookmark.url) : null;
     const tags = this._tags[bookmark.id] || [];
     const breadcrumb = bookmark.path && bookmark.path.length ? bookmark.path.join(" / ") : "";
     const isSelected = this._selectedIds.has(bookmark.id);
@@ -2899,11 +3193,6 @@ export class BookmarkDeckView {
       el("span", { className: "raindrop-card-glyph" }, glyph)
     );
 
-    if (previewUrl && !previewFailedCache.has(previewUrl)) {
-      coverEl.dataset.previewUrl = previewUrl;
-      coverEl.classList.add("is-pending-preview");
-    }
-
     const body = el("div", { className: "raindrop-card-body" });
 
     const heading = el("div", { className: "raindrop-card-heading" },
@@ -2924,77 +3213,6 @@ export class BookmarkDeckView {
       for (const tag of tags) tagRow.appendChild(el("span", { className: "raindrop-card-tag" }, `#${tag}`));
       body.append(tagRow);
     }
-
-    // Card action buttons container
-    const actionsWrap = el("div", { className: "raindrop-card-actions" });
-
-    // Tag edit button
-    const editTagsBtn = el("button", {
-      type: "button",
-      className: "raindrop-card-action-btn is-tag",
-      title: "Edit tags",
-      "aria-label": `Edit tags for ${bookmark.title}`,
-    }, icon("tag"));
-    editTagsBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this._editTags(bookmark);
-    });
-    actionsWrap.appendChild(editTagsBtn);
-
-    // Remove from collection button (if viewed inside a Collection)
-    if (inCollection && !this._selectMode) {
-      const removeCollBtn = el("button", {
-        type: "button",
-        className: "raindrop-card-action-btn is-remove",
-        title: "Remove from collection",
-        "aria-label": `Remove ${bookmark.title} from collection`,
-      }, icon("x"));
-      removeCollBtn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        try {
-          await this.useCases.updateCollectionMembers.execute({
-            collectionId: this._activeSelection.id,
-            remove: [bookmark.id],
-          });
-          this.toast?.show("Removed from collection");
-          await this._load();
-        } catch (err) {
-          this.toast?.show(err.message || "Could not remove bookmark", { error: true });
-        }
-      });
-      actionsWrap.appendChild(removeCollBtn);
-    }
-
-    // Delete bookmark button (permanent delete)
-    if (!this._selectMode) {
-      const deleteBtn = el("button", {
-        type: "button",
-        className: "raindrop-card-action-btn is-delete",
-        title: "Delete bookmark",
-        "aria-label": `Delete ${bookmark.title}`,
-      }, icon("trash"));
-      deleteBtn.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        try {
-          if (typeof chrome !== "undefined" && chrome.bookmarks && typeof chrome.bookmarks.remove === "function") {
-            await chrome.bookmarks.remove(bookmark.id);
-          }
-          if (this.useCases?.deleteBookmark) {
-            try { await this.useCases.deleteBookmark.execute({ id: bookmark.id }); } catch (_) {}
-          }
-          this.toast?.show(`Deleted "${bookmark.title || 'bookmark'}"`);
-          await this._load();
-        } catch (err) {
-          this.toast?.show(err.message || "Could not delete bookmark", { error: true });
-        }
-      });
-      actionsWrap.appendChild(deleteBtn);
-    }
-
-    body.append(actionsWrap);
 
     card.append(coverEl, body);
 
@@ -3019,11 +3237,24 @@ export class BookmarkDeckView {
       }
     });
 
+    card.addEventListener("contextmenu", (e) => {
+      if (this._selectMode) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this._showBookmarkContextMenu(e, bookmark, { inCollection });
+    });
+
     if (!this._selectMode) {
       card.addEventListener("dragstart", (e) => {
-        this._drag = { id: bookmark.id, parentId: bookmark.parentId };
-        e.dataTransfer.effectAllowed = "move";
+        this._drag = { id: bookmark.id, parentId: bookmark.parentId, title: bookmark.title, url: bookmark.url };
+        e.dataTransfer.effectAllowed = "copyMove";
         e.dataTransfer.setData("text/plain", bookmark.id);
+        if (bookmark.url) {
+          e.dataTransfer.setData("text/uri-list", bookmark.url);
+        }
+        try {
+          e.dataTransfer.setData("application/json", JSON.stringify({ id: bookmark.id, title: bookmark.title, url: bookmark.url }));
+        } catch {}
         card.classList.add("is-dragging");
       });
       card.addEventListener("dragend", () => {
@@ -3090,13 +3321,13 @@ export class BookmarkDeckView {
     const activeGroup = this.groupButtons?.activeGroup;
     this.collectionDialog.openForCreate({
       workspaceId: activeGroup ? activeGroup.id : null,
-      onSuccess: () => this._load(),
+      onSuccess: () => this._scheduleLoad(),
     });
   }
 
   _promptRenameCollection(coll) {
     this.collectionDialog.openForRename(coll, {
-      onSuccess: () => this._load(),
+      onSuccess: () => this._scheduleLoad(),
     });
   }
 
@@ -3113,7 +3344,7 @@ export class BookmarkDeckView {
           if (this._activeSelection.type === "collection" && this._activeSelection.id === coll.id) {
             this._activeSelection = { type: "collections", title: "Collections" };
           }
-          await this._load();
+          await this._scheduleLoad();
         } catch (err) {
           this.toast?.show(err.message || "Could not delete collection", { error: true });
         }
@@ -3179,7 +3410,7 @@ export class BookmarkDeckView {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         this.focusSearch();
-      } else if ((e.key === "[" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b")) && !["INPUT", "TEXTAREA"].includes(e.target.tagName)) {
+      } else if (e.key === "[" && !["INPUT", "TEXTAREA"].includes(e.target.tagName)) {
         e.preventDefault();
         this.toggleSidebar();
       }
@@ -3206,10 +3437,10 @@ export class BookmarkDeckView {
    *  (another tab, the popup, the browser's own bookmark manager). */
   _bindBookmarkEvents() {
     if (typeof chrome === "undefined" || !chrome.bookmarks || this._bookmarkEventHandler) return;
-    let pending = null;
+    // Bursts of native bookmark events (e.g. drag-reorder, import) collapse
+    // through the same coalescing window as every other reload source.
     this._bookmarkEventHandler = () => {
-      clearTimeout(pending);
-      pending = setTimeout(() => this._load(), 150);
+      this._scheduleLoad();
     };
     this._bookmarkEventNames = ["onCreated", "onRemoved", "onChanged", "onMoved", "onChildrenReordered", "onImportEnded"];
     for (const name of this._bookmarkEventNames) {
@@ -3233,6 +3464,10 @@ export class BookmarkDeckView {
   destroy() {
     this._closeContextMenu();
     if (this._activeColorPopover) { this._activeColorPopover.remove(); this._activeColorPopover = null; }
+    clearTimeout(this._scheduledLoadTimer);
+    this._scheduledLoadTimer = null;
+    this._scheduledLoadPromise = null;
+    this._scheduledLoadDelay = null;
     if (this._escHandler) { document.removeEventListener("keydown", this._escHandler); this._escHandler = null; }
     if (this._keyHandler) { document.removeEventListener("keydown", this._keyHandler); this._keyHandler = null; }
     if (this._docClickHandler) { document.removeEventListener("click", this._docClickHandler); this._docClickHandler = null; }
@@ -3244,6 +3479,7 @@ export class BookmarkDeckView {
       try { unsub(); } catch {}
     });
     this._unsubEvents = [];
+    this.bookmarkEditDialog?.hide?.();
     this._clockView?.destroy?.();
     this.groupButtons?.destroy?.();
     this.root = null;
