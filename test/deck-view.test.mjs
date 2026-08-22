@@ -88,6 +88,16 @@ test("resolveCollectionLeaves: resolves members, preserves order, filters stale 
   assert.equal(staleResolved.length, 2);
   assert.equal(staleResolved[0].id, "111");
   assert.equal(staleResolved[1].id, "100");
+
+  // Cross-device synced collection: IDs are from Device A, but URLs resolve matching leaves on Device B
+  const crossDeviceResolved = resolveCollectionLeaves(
+    ["device-a-id-999"],
+    leafIndex,
+    ["https://developer.mozilla.org/"]
+  );
+  assert.equal(crossDeviceResolved.length, 1);
+  assert.equal(crossDeviceResolved[0].title, "MDN");
+  assert.equal(crossDeviceResolved[0].id, "111");
 });
 
 /* ── websitePreviewUrl (website screenshot preview generation) ─── */

@@ -15,7 +15,7 @@ export class UpdateCollectionMembersUseCase {
     this.#events = events;
   }
 
-  async execute({ collectionId, add = [], remove = [] }) {
+  async execute({ collectionId, add = [], remove = [], urls = [], removeUrls = [] }) {
     if (!collectionId) {
       throw new Error("collectionId is required");
     }
@@ -25,12 +25,12 @@ export class UpdateCollectionMembersUseCase {
       throw new Error(`Collection not found: ${collectionId}`);
     }
 
-    if (Array.isArray(add) && add.length > 0) {
-      collection.addBookmarkIds(add);
+    if ((Array.isArray(add) && add.length > 0) || (Array.isArray(urls) && urls.length > 0)) {
+      collection.addBookmarkIds(add, urls);
     }
 
-    if (Array.isArray(remove) && remove.length > 0) {
-      collection.removeBookmarkIds(remove);
+    if ((Array.isArray(remove) && remove.length > 0) || (Array.isArray(removeUrls) && removeUrls.length > 0)) {
+      collection.removeBookmarkIds(remove, removeUrls);
     }
 
     const saved = await this.#repository.save(collection);

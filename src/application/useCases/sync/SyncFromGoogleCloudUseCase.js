@@ -113,6 +113,53 @@ export class SyncFromGoogleCloudUseCase {
       }
     }
 
+    // Auto-remap bookmarkCollections member IDs by URL after pull
+    if (res.pulledKeys && res.pulledKeys.includes("bookmarkCollections") && typeof chrome !== "undefined" && chrome.bookmarks && chrome.storage?.local) {
+      try {
+        const stored = await chrome.storage.local.get("bookmarkCollections");
+        const collectionsMap = stored.bookmarkCollections;
+        if (collectionsMap && typeof collectionsMap === "object") {
+          const tree = await chrome.bookmarks.getTree().catch(() => []);
+          const urlToLocalId = new Map();
+          const walkBookmarks = (nodes) => {
+            for (const n of nodes) {
+              if (n.url) {
+                if (!urlToLocalId.has(n.url)) urlToLocalId.set(n.url, n.id);
+              }
+              if (n.children) walkBookmarks(n.children);
+            }
+          };
+          walkBookmarks(tree);
+
+          let collChanged = false;
+          for (const coll of Object.values(collectionsMap)) {
+            if (!coll || typeof coll !== "object") continue;
+            const currentIds = Array.isArray(coll.bookmarkIds) ? coll.bookmarkIds : [];
+            const urls = Array.isArray(coll.bookmarkUrls) ? coll.bookmarkUrls : [];
+            const remappedIds = new Set(currentIds);
+
+            for (const url of urls) {
+              const localId = urlToLocalId.get(url);
+              if (localId) remappedIds.add(localId);
+            }
+
+            const newIdArr = Array.from(remappedIds);
+            if (JSON.stringify(newIdArr) !== JSON.stringify(coll.bookmarkIds)) {
+              coll.bookmarkIds = newIdArr;
+              coll.updatedAt = Date.now();
+              collChanged = true;
+            }
+          }
+
+          if (collChanged) {
+            await chrome.storage.local.set({ bookmarkCollections: collectionsMap });
+          }
+        }
+      } catch (err) {
+        console.warn("[Sync] collections remap failed:", err);
+      }
+    }
+
     if (this.#events && Array.isArray(res.pulledKeys)) {
       for (const key of res.pulledKeys) {
         if (key === "categories") this.#events.emit("categories:changed", undefined);

@@ -20,10 +20,10 @@ export class PushBackupToGitHubUseCase {
   }
 
   /**
-   * @param {{ filename: string, description?: string }} args
+   * @param {{ filename?: string, description?: string, gistId?: string }} [args]
    * @returns {Promise<{ gistId: string }>}
    */
-  async execute({ filename, description }) {
+  async execute({ filename, description, gistId } = {}) {
     // 1. Gather all extension data from local storage.
     //    ChromeStorageClient wraps chrome.storage.local but exposes
     //    only per-key accessors, so we read everything in one call —
@@ -35,15 +35,16 @@ export class PushBackupToGitHubUseCase {
 
     // 3. Serialize and push to the remote gist.
     const data = JSON.stringify(safe, null, 2);
-    const gistId = await this.#github.pushBackup({
+    const resultGistId = await this.#github.pushBackup({
       data,
       filename,
       description,
+      gistId,
     });
 
     // 4. Notify the rest of the app.
-    this.#events.emit("backup:pushed", { gistId, timestamp: Date.now() });
+    this.#events.emit("backup:pushed", { gistId: resultGistId, timestamp: Date.now() });
 
-    return { gistId };
+    return { gistId: resultGistId };
   }
 }

@@ -21,7 +21,7 @@ export class CreateBookmarkCollectionUseCase {
     this.#events = events;
   }
 
-  async execute({ name, bookmarkIds = [], workspaceId = null }) {
+  async execute({ name, bookmarkIds = [], bookmarkUrls = [], workspaceId = null }) {
     const rawClean = this.#sanitizer ? this.#sanitizer.text(String(name || "")) : String(name || "").trim();
     const validatedName = BookmarkCollection.validateName(rawClean);
 
@@ -31,6 +31,7 @@ export class CreateBookmarkCollectionUseCase {
       id,
       name: validatedName,
       bookmarkIds,
+      bookmarkUrls,
       workspaceId,
       createdAt: Date.now(),
       updatedAt: Date.now(),

@@ -32,6 +32,7 @@ export const SENSITIVE_KEYS = Object.freeze([
   "aiQuotaPAT",
   "githubBackupPAT",
   "githubBackupGistId",
+  "githubBackupFilename",
 ]);
 
 // Coarse type expectations for validating imported payloads.

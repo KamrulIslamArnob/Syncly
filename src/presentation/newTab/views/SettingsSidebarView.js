@@ -89,6 +89,52 @@ export class SettingsSidebarView {
     }
   }
 
+  _createCard({ id, iconName, title, isDanger = false, children = [] }) {
+    const card = el("div", { className: `settings-card${isDanger ? " is-danger-card" : ""}` });
+
+    const storageKey = `syncly_settings_collapsed_${id}`;
+    let isCollapsed = false;
+    try {
+      isCollapsed = localStorage.getItem(storageKey) === "true";
+    } catch {}
+    if (isCollapsed) card.classList.add("is-collapsed");
+
+    const caret = el("span", { className: "settings-card-caret" }, icon("chevronDown"));
+    const headerLeft = el("div", { className: "settings-card-header-left" },
+      icon(iconName, "settings-card-icon"),
+      el("span", {}, title)
+    );
+    const header = el("div", {
+      className: "settings-card-header",
+      role: "button",
+      tabIndex: 0,
+      title: "Click to minimize / expand section",
+      "aria-expanded": String(!isCollapsed),
+    }, headerLeft, caret);
+
+    header.addEventListener("click", () => {
+      const willCollapse = !card.classList.contains("is-collapsed");
+      card.classList.toggle("is-collapsed", willCollapse);
+      header.setAttribute("aria-expanded", String(!willCollapse));
+      try {
+        localStorage.setItem(storageKey, String(willCollapse));
+      } catch {}
+    });
+
+    header.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        header.click();
+      }
+    });
+
+    const body = el("div", { className: "settings-card-body" }, ...children);
+    const collapsible = el("div", { className: "settings-card-collapsible" }, body);
+
+    card.append(header, collapsible);
+    return { card, body, header };
+  }
+
   render() {
     if (this.root) return this.root;
 
@@ -146,11 +192,11 @@ export class SettingsSidebarView {
     // ═══════════════════════════════════════════════════════════
     // 1. APPEARANCE CARD
     // ═══════════════════════════════════════════════════════════
-    const appearanceCard = el("div", { className: "settings-card" });
-    const appearanceHeader = el("div", { className: "settings-card-header" },
-      icon("sparkle", "settings-card-icon"),
-      el("span", {}, "Appearance & Theme")
-    );
+    const { card: appearanceCard, body: appearanceBody } = this._createCard({
+      id: "appearance",
+      iconName: "sparkle",
+      title: "Appearance & Theme",
+    });
 
     const scopeBadge = el("div", { className: "settings-theme-scope-badge" },
       icon(activeGroup ? (activeGroup.icon || "folder") : "layers", "scope-badge-icon"),
@@ -360,8 +406,7 @@ export class SettingsSidebarView {
       previewToggle
     );
 
-    appearanceCard.append(
-      appearanceHeader,
+    appearanceBody.append(
       scopeBadge,
       themeSegmented,
       accentBlock,
@@ -372,11 +417,11 @@ export class SettingsSidebarView {
     // ═══════════════════════════════════════════════════════════
     // 2. FOCUS HERO & GREETING CARD
     // ═══════════════════════════════════════════════════════════
-    const focusCard = el("div", { className: "settings-card" });
-    const focusHeader = el("div", { className: "settings-card-header" },
-      icon("zap", "settings-card-icon"),
-      el("span", {}, "Focus Mode & Clock")
-    );
+    const { card: focusCard, body: focusBody } = this._createCard({
+      id: "focus",
+      iconName: "zap",
+      title: "Focus Mode & Clock",
+    });
 
     // Name / Greeting text
     const nameInput = el("input", {
@@ -486,8 +531,7 @@ export class SettingsSidebarView {
       el("div", { className: "settings-segmented" }, fmt12Btn, fmt24Btn)
     );
 
-    focusCard.append(
-      focusHeader,
+    focusBody.append(
       nameBlock,
       taglineBlock,
       timelineBlock,
@@ -497,11 +541,11 @@ export class SettingsSidebarView {
     // ═══════════════════════════════════════════════════════════
     // 2b. SHORTCUTS & BOOKMARK BAR CARD
     // ═══════════════════════════════════════════════════════════
-    const shortcutsCard = el("div", { className: "settings-card" });
-    const shortcutsHeader = el("div", { className: "settings-card-header" },
-      icon("grid", "settings-card-icon"),
-      el("span", {}, "Shortcuts & Bookmarks")
-    );
+    const { card: shortcutsCard, body: shortcutsBody } = this._createCard({
+      id: "shortcuts",
+      iconName: "grid",
+      title: "Shortcuts & Bookmarks",
+    });
 
     const moveBookmarksCheckbox = el("input", {
       type: "checkbox",
@@ -540,16 +584,16 @@ export class SettingsSidebarView {
       moveBookmarksToggle
     );
 
-    shortcutsCard.append(shortcutsHeader, moveBookmarksRow);
+    shortcutsBody.append(moveBookmarksRow);
 
     // ═══════════════════════════════════════════════════════════
     // 3. BACKUP & RESTORE CARD
     // ═══════════════════════════════════════════════════════════
-    const backupCard = el("div", { className: "settings-card" });
-    const backupHeader = el("div", { className: "settings-card-header" },
-      icon("download", "settings-card-icon"),
-      el("span", {}, "Backup & Restore")
-    );
+    const { card: backupCard, body: backupBody } = this._createCard({
+      id: "backup",
+      iconName: "download",
+      title: "Backup & Restore",
+    });
 
     const exportBtn = el("button", {
       type: "button",
@@ -626,20 +670,22 @@ export class SettingsSidebarView {
       autoBackupBtn
     );
 
-    backupCard.append(backupHeader, backupRow, autoBackupRow);
+    backupBody.append(backupRow, autoBackupRow);
 
     // ═══════════════════════════════════════════════════════════
     // 3b. GITHUB GIST SYNC CARD
     // ═══════════════════════════════════════════════════════════
     const githubService = this.internals?.githubBackupService;
-    const githubCard = el("div", { className: "settings-card" });
-    const githubHeader = el("div", { className: "settings-card-header" },
-      icon("github", "settings-card-icon"),
-      el("span", {}, "GitHub Gist Sync")
-    );
+    const { card: githubCard, body: githubBody } = this._createCard({
+      id: "github",
+      iconName: "github",
+      title: "GitHub Gist Sync",
+    });
     const githubHint = el("span", { className: "settings-option-hint" },
-      "Private gist backup. PAT never leaves device except as Bearer to api.github.com (encrypted at rest)."
+      "Sync and continuously update a backup JSON file in your private GitHub Gist (encrypted PAT at rest)."
     );
+
+    // 1. Personal Access Token
     const patInput = el("input", {
       type: "password",
       className: "settings-input",
@@ -649,7 +695,7 @@ export class SettingsSidebarView {
     });
     const patStatus = el("span", { className: "settings-option-hint" }, "Checking...");
     const patSaveBtn = el("button", { type: "button", className: "settings-btn settings-btn-primary" }, icon("check"), el("span", {}, "Save Token"));
-    const patClearBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("trash"), el("span", {}, "Clear"));
+    const patClearBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("trash"), el("span", {}, "Clear All"));
     const patRow = el("div", { className: "settings-option-block" },
       el("div", { className: "settings-option-meta" },
         el("span", { className: "settings-option-label" }, "Personal Access Token"),
@@ -658,17 +704,62 @@ export class SettingsSidebarView {
       patInput,
       el("div", { className: "settings-btn-row", style: "margin-top:8px;" }, patSaveBtn, patClearBtn)
     );
-    const gistPushBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("upload"), el("span", {}, "Push to Gist"));
+
+    // 2. Target Gist ID & Target Filename
+    const gistIdInput = el("input", {
+      type: "text",
+      className: "settings-input",
+      placeholder: "Gist ID or URL (e.g. 6c85e263... / optional)",
+      autocomplete: "off",
+      spellcheck: "false",
+    });
+    const gistIdStatus = el("span", { className: "settings-option-hint" }, "Checking...");
+    const gistLinkBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("check"), el("span", {}, "Link Gist ID"));
+    const gistOpenLink = el("a", {
+      className: "settings-btn settings-btn-secondary",
+      target: "_blank",
+      rel: "noopener noreferrer",
+      style: "display: none; text-decoration: none;",
+      title: "View Gist on GitHub",
+    }, icon("external"), el("span", {}, "View Gist"));
+
+    const filenameInput = el("input", {
+      type: "text",
+      className: "settings-input",
+      placeholder: "Syncly-backup.json",
+      value: "Syncly-backup.json",
+      autocomplete: "off",
+      spellcheck: "false",
+    });
+    const filenameSaveBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("check"), el("span", {}, "Save Name"));
+
+    const configRow = el("div", { className: "settings-option-block" },
+      el("div", { className: "settings-option-meta" },
+        el("span", { className: "settings-option-label" }, "Target Gist ID"),
+        gistIdStatus
+      ),
+      gistIdInput,
+      el("div", { className: "settings-btn-row", style: "margin-top:8px;" }, gistLinkBtn, gistOpenLink),
+      el("div", { className: "settings-option-meta", style: "margin-top:12px;" },
+        el("span", { className: "settings-option-label" }, "Backup File Name"),
+        el("span", { className: "settings-option-hint" }, "File continuously updated inside the Gist")
+      ),
+      filenameInput,
+      el("div", { className: "settings-btn-row", style: "margin-top:8px;" }, filenameSaveBtn)
+    );
+
+    // 3. Gist Operations
+    const gistPushBtn = el("button", { type: "button", className: "settings-btn settings-btn-primary" }, icon("upload"), el("span", {}, "Push / Update Gist"));
     const gistPullBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("download"), el("span", {}, "Pull from Gist"));
     const gistBtnRow = el("div", { className: "settings-btn-row" }, gistPushBtn, gistPullBtn);
     const gistRow = el("div", { className: "settings-option-block" },
       el("div", { className: "settings-option-meta" },
         el("span", { className: "settings-option-label" }, "Gist Operations"),
-        el("span", { className: "settings-option-hint" }, "Push = upload allowlisted data (PAT+gists excluded). Pull = download & merge.")
+        el("span", { className: "settings-option-hint" }, "Push will update the specified file in your linked Gist. Pull merges it.")
       ),
       gistBtnRow
     );
-    githubCard.append(githubHeader, githubHint, patRow, gistRow);
+    githubBody.append(githubHint, patRow, configRow, gistRow);
 
     const refreshGithubStatus = async () => {
       if (!githubService) { patStatus.textContent = "Unavailable"; return; }
@@ -679,6 +770,24 @@ export class SettingsSidebarView {
         gistPushBtn.disabled = !ok;
         gistPullBtn.disabled = !ok;
         patInput.placeholder = ok ? "•••••••• (saved)" : "ghp_... or github_pat_... (needs gist scope)";
+
+        const currentGistId = await githubService.getGistId();
+        const currentFilename = await githubService.getFilename();
+        if (currentFilename) {
+          filenameInput.value = currentFilename;
+        }
+
+        if (currentGistId) {
+          gistIdStatus.textContent = `Linked: ${currentGistId.slice(0, 8)}… ✓`;
+          gistIdStatus.style.color = "var(--success)";
+          gistIdInput.value = currentGistId;
+          gistOpenLink.href = `https://gist.github.com/${currentGistId}`;
+          gistOpenLink.style.display = "inline-flex";
+        } else {
+          gistIdStatus.textContent = "Auto-creates and links on first push";
+          gistIdStatus.style.color = "var(--muted)";
+          gistOpenLink.style.display = "none";
+        }
       } catch { patStatus.textContent = "Error"; }
     };
     refreshGithubStatus();
@@ -696,39 +805,84 @@ export class SettingsSidebarView {
         this.toast.show(err.message || "Could not save token", { error: true });
       } finally { patSaveBtn.disabled = false; }
     });
+
     patClearBtn.addEventListener("click", async () => {
       this.confirmDialog.open({
-        title: "Clear GitHub Token",
-        message: "Remove stored PAT and gist id? Existing gist on GitHub will remain but sync stops.",
-        confirmLabel: "Clear Token",
+        title: "Clear GitHub Sync",
+        message: "Remove stored PAT, Gist ID, and settings? Existing Gists on GitHub will remain untouched.",
+        confirmLabel: "Clear All",
         isDanger: true,
         onConfirm: async () => {
           await githubService.clearSetup();
           patInput.value = "";
-          this.toast.show("GitHub sync cleared");
+          gistIdInput.value = "";
+          filenameInput.value = "Syncly-backup.json";
+          this.toast.show("GitHub sync settings cleared");
           await refreshGithubStatus();
         },
       });
     });
+
+    gistLinkBtn.addEventListener("click", async () => {
+      const raw = gistIdInput.value.trim();
+      gistLinkBtn.disabled = true;
+      try {
+        const id = await githubService.setGistId(raw);
+        if (id) {
+          this.toast.show(`Linked to Gist ${id.slice(0, 8)}… ✓`);
+        } else {
+          this.toast.show("Unlinked Gist ID (will auto-create on next push)");
+        }
+        await refreshGithubStatus();
+      } catch (err) {
+        this.toast.show(err.message || "Invalid Gist ID or URL", { error: true });
+      } finally {
+        gistLinkBtn.disabled = false;
+      }
+    });
+
+    filenameSaveBtn.addEventListener("click", async () => {
+      const raw = filenameInput.value.trim();
+      filenameSaveBtn.disabled = true;
+      try {
+        const saved = await githubService.setFilename(raw);
+        filenameInput.value = saved;
+        this.toast.show(`Target file set to ${saved} ✓`);
+        await refreshGithubStatus();
+      } catch (err) {
+        this.toast.show(err.message || "Invalid filename", { error: true });
+      } finally {
+        filenameSaveBtn.disabled = false;
+      }
+    });
+
     gistPushBtn.addEventListener("click", async () => {
       gistPushBtn.disabled = true;
       try {
-        const res = await this.useCases.pushBackupToGitHub.execute({ filename: "Syncly-backup.json", description: "Syncly backup" });
-        this.toast.show(`Pushed to gist ${res.gistId.slice(0,8)}… ✓`);
+        const targetFilename = filenameInput.value.trim() || undefined;
+        const res = await this.useCases.pushBackupToGitHub.execute({
+          filename: targetFilename,
+          description: "Syncly backup",
+        });
+        const currentFile = await githubService.getFilename();
+        this.toast.show(`Updated ${currentFile} in Gist ${res.gistId.slice(0, 8)}… ✓`);
       } catch (err) {
         this.toast.show(err.message || "Push failed", { error: true });
       } finally { gistPushBtn.disabled = false; await refreshGithubStatus(); }
     });
+
     gistPullBtn.addEventListener("click", async () => {
       gistPullBtn.disabled = true;
       try {
-        const content = await githubService.pullBackup();
+        const targetFilename = filenameInput.value.trim() || undefined;
+        const content = await githubService.pullBackup({ filename: targetFilename });
         const raw = JSON.parse(content);
         const validated = validateImportData(raw);
         if (!validated.ok) throw new Error(validated.error);
+        const currentFile = await githubService.getFilename();
         this.confirmDialog.open({
           title: "Apply Gist Backup",
-          message: `Pull will merge ${Object.keys(validated.data).length} keys from gist. Continue?`,
+          message: `Pull will merge ${Object.keys(validated.data).length} keys from "${currentFile}" in Gist. Continue?`,
           confirmLabel: "Pull & Merge",
           onConfirm: async () => {
             await chrome.storage.local.set(validated.data);
@@ -745,11 +899,11 @@ export class SettingsSidebarView {
     // 3c. GOOGLE CLOUD SYNC CARD (chrome.storage.sync)
     // ═══════════════════════════════════════════════════════════
     const googleService = this.internals?.googleSyncService;
-    const googleCard = el("div", { className: "settings-card" });
-    const googleHeader = el("div", { className: "settings-card-header" },
-      icon("cloud", "settings-card-icon"),
-      el("span", {}, "Google Cloud Sync")
-    );
+    const { card: googleCard, body: googleBody } = this._createCard({
+      id: "google",
+      iconName: "cloud",
+      title: "Google Cloud Sync",
+    });
     const googleHint = el("span", { className: "settings-option-hint" },
       "Uses chrome.storage.sync (same Google account). Mirrors categories, bookmarks, settings, workspaces, collections, tags. Auto-sync on every local save."
     );
@@ -765,7 +919,7 @@ export class SettingsSidebarView {
       ),
       googleBtnRow
     );
-    googleCard.append(googleHeader, googleHint, googleBlock);
+    googleBody.append(googleHint, googleBlock);
 
     const refreshGoogleStatus = async () => {
       if (!googleService) { googleStatus.textContent = "Unavailable"; return; }
@@ -813,11 +967,11 @@ export class SettingsSidebarView {
     // ═══════════════════════════════════════════════════════════
     // 4. CUSTOM CSS CARD
     // ═══════════════════════════════════════════════════════════
-    const cssCard = el("div", { className: "settings-card" });
-    const cssHeader = el("div", { className: "settings-card-header" },
-      icon("code", "settings-card-icon"),
-      el("span", {}, "Custom CSS Override")
-    );
+    const { card: cssCard, body: cssBody } = this._createCard({
+      id: "css",
+      iconName: "code",
+      title: "Custom CSS Override",
+    });
 
     const cssArea = el("textarea", {
       className: "settings-css-editor",
@@ -866,8 +1020,7 @@ export class SettingsSidebarView {
 
     const cssToolbar = el("div", { className: "settings-btn-row" }, cssSaveBtn, cssClearBtn);
 
-    cssCard.append(
-      cssHeader,
+    cssBody.append(
       cssArea,
       cssToolbar
     );
@@ -875,11 +1028,12 @@ export class SettingsSidebarView {
     // ═══════════════════════════════════════════════════════════
     // 5. RESET & DANGER ZONE
     // ═══════════════════════════════════════════════════════════
-    const dangerCard = el("div", { className: "settings-card is-danger-card" });
-    const dangerHeader = el("div", { className: "settings-card-header" },
-      icon("trash", "settings-card-icon"),
-      el("span", {}, "Danger Zone")
-    );
+    const { card: dangerCard, body: dangerBody } = this._createCard({
+      id: "danger",
+      iconName: "trash",
+      title: "Danger Zone",
+      isDanger: true,
+    });
 
     const resetBtn = el("button", {
       type: "button",
@@ -909,7 +1063,7 @@ export class SettingsSidebarView {
       resetBtn
     );
 
-    dangerCard.append(dangerHeader, dangerRow);
+    dangerBody.append(dangerRow);
 
     // ── Footer ─────────────────────────────────────────────────
     const footer = el("div", { className: "settings-footer" },

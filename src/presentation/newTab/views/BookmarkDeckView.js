@@ -108,10 +108,44 @@ export function rankByUsage(pool, usage, max = FREQ_MAX) {
     .slice(0, max);
 }
 
-/** Resolve collection member bookmark leaves against the full leaf map. */
-export function resolveCollectionLeaves(bookmarkIds, leafIndex) {
-  if (!Array.isArray(bookmarkIds) || !leafIndex) return [];
-  return bookmarkIds.map((id) => leafIndex.get(id)).filter(Boolean);
+/** Resolve collection member bookmark leaves against the full leaf map with cross-device URL resolution. */
+export function resolveCollectionLeaves(bookmarkIds, leafIndex, bookmarkUrls = []) {
+  if (!leafIndex) return [];
+  const results = [];
+  const seenIds = new Set();
+
+  // 1. Resolve by native Chrome bookmark ID
+  if (Array.isArray(bookmarkIds)) {
+    for (const id of bookmarkIds) {
+      const leaf = leafIndex.get(id);
+      if (leaf) {
+        results.push(leaf);
+        seenIds.add(leaf.id);
+      }
+    }
+  }
+
+  // 2. Cross-device URL resolution fallback when native IDs differ per machine
+  if (Array.isArray(bookmarkUrls) && bookmarkUrls.length > 0) {
+    if (results.length < bookmarkUrls.length) {
+      const urlToLeaf = new Map();
+      for (const leaf of leafIndex.values()) {
+        const u = leaf.url?.href || leaf.url;
+        if (u && !urlToLeaf.has(u)) {
+          urlToLeaf.set(u, leaf);
+        }
+      }
+      for (const url of bookmarkUrls) {
+        const leaf = urlToLeaf.get(url);
+        if (leaf && !seenIds.has(leaf.id)) {
+          results.push(leaf);
+          seenIds.add(leaf.id);
+        }
+      }
+    }
+  }
+
+  return results;
 }
 
 /** Find a folder node anywhere in the tree by native id. */
@@ -860,7 +894,7 @@ export class BookmarkDeckView {
       const collSubWrap = el("div", { className: "raindrop-coll-sub-list" });
       for (const coll of visibleCollections) {
         const isCollActive = this._activeSelection.type === "collection" && this._activeSelection.id === coll.id;
-        const leaves = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex);
+        const leaves = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
         const collRow = el("button", {
           type: "button",
           className: "raindrop-nav-row raindrop-coll-sub-row" + (isCollActive ? " is-active" : ""),
@@ -1240,16 +1274,14 @@ export class BookmarkDeckView {
     const kbd = el("span", { className: "raindrop-search-kbd" }, isMac ? "⌘K" : "Ctrl K");
     const searchWrap = el("div", { className: "raindrop-search-bar" }, icon("search", "raindrop-search-icon"), this._searchInput, kbd);
 
-    // Select mode toggle button
+    // Select mode toggle button (icon-only checkmark)
     const selectBtn = el("button", {
       type: "button",
       className: "raindrop-select-btn" + (this._selectMode ? " is-active" : ""),
       title: this._selectMode ? "Exit selection mode" : "Select bookmarks",
+      "aria-label": this._selectMode ? "Exit selection mode" : "Select bookmarks",
       "aria-pressed": this._selectMode ? "true" : "false",
-    },
-      icon("check"),
-      el("span", { className: "raindrop-select-btn-label" }, "Select")
-    );
+    }, icon("check"));
     selectBtn.addEventListener("click", () => {
       this._selectMode = !this._selectMode;
       if (!this._selectMode) this._selectedIds.clear();
@@ -1257,32 +1289,62 @@ export class BookmarkDeckView {
       this._renderContent();
     });
 
-    const viewSwitch = el("div", { className: "raindrop-view-switch" });
+    // View mode switch: single active view icon + dropdown on hover/click
     const views = [
       { id: "compact", name: "grip", label: "Compact" },
       { id: "list", name: "sliders", label: "List" },
       { id: "grid", name: "grid", label: "Grid" },
     ];
+    const currentView = views.find((v) => v.id === this._viewMode) || views[0];
+
+    const currentViewBtn = el("button", {
+      type: "button",
+      className: "raindrop-view-current-btn",
+      title: `View: ${currentView.label} (click or hover for options)`,
+      "aria-label": `View: ${currentView.label}`,
+      "aria-haspopup": "true",
+    }, icon(currentView.name));
+
+    const viewDropdownMenu = el("div", { className: "raindrop-view-dropdown-menu", role: "menu" });
     for (const v of views) {
-      const btn = el("button", {
+      const optBtn = el("button", {
         type: "button",
-        className: "raindrop-view-btn" + (this._viewMode === v.id ? " is-active" : ""),
+        className: "raindrop-view-option" + (this._viewMode === v.id ? " is-active" : ""),
         title: `${v.label} view`,
-      }, icon(v.name));
-      btn.addEventListener("click", () => { this._viewMode = v.id; this._renderHeader(); this._renderContent(); });
-      viewSwitch.appendChild(btn);
+        role: "menuitem",
+      },
+        icon(v.name, "raindrop-view-option-icon"),
+        el("span", { className: "raindrop-view-option-label" }, v.label)
+      );
+      optBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._viewMode = v.id;
+        this._renderHeader();
+        this._renderContent();
+      });
+      viewDropdownMenu.appendChild(optBtn);
     }
+
+    const viewSwitch = el("div", { className: "raindrop-view-dropdown-wrap" }, currentViewBtn, viewDropdownMenu);
+    currentViewBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      viewSwitch.classList.toggle("is-open");
+    });
+    document.addEventListener("click", (e) => {
+      if (!viewSwitch.contains(e.target)) {
+        viewSwitch.classList.remove("is-open");
+      }
+    }, { passive: true });
 
     const isFocus = this._layoutStyle === "focus";
     const zapIcon = icon("zap", "focus-btn-icon");
-    const labelSpan = el("span", { className: "raindrop-layout-mode-label" }, "Focus");
 
     const layoutModeBtn = el("button", {
       type: "button",
       className: "raindrop-layout-mode-btn" + (isFocus ? " is-active" : ""),
       title: isFocus ? "Switch to Standard View" : "Switch to Focus Mode (Clock, Search & Shortcuts)",
-      "aria-label": "Toggle Focus Layout Mode",
-    }, zapIcon, labelSpan);
+      "aria-label": isFocus ? "Switch to Standard View" : "Switch to Focus Mode",
+    }, zapIcon);
 
     layoutModeBtn.addEventListener("click", () => {
       this._layoutStyle = this._layoutStyle === "focus" ? "standard" : "focus";
@@ -1447,7 +1509,7 @@ export class BookmarkDeckView {
     else if (this._activeSelection.type === "quickie") pool = this._quickieLeaves;
     else if (this._activeSelection.type === "collection") {
       const coll = this._collections.find((c) => c.id === this._activeSelection.id);
-      pool = coll ? resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex) : [];
+      pool = coll ? resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls) : [];
     } else if (this._activeSelection.type === "folder") {
       pool = flattenLeaves(this._activeSelection.folder?.children || []);
     }
@@ -2209,6 +2271,8 @@ export class BookmarkDeckView {
   _renderAddToCollectionMenuItem(targetItem, isNearRightEdge = false) {
     const itemId = targetItem.id?.value || targetItem.id;
     const itemTitle = targetItem.title || "item";
+    const rawUrl = targetItem.url?.href || targetItem.url?.raw || targetItem.url || "";
+    const isShortcut = Boolean(targetItem.categoryId || targetItem.isShortcut || targetItem.nativeId);
     const collections = this._getVisibleCollections();
 
     const parentBtn = el("div", {
@@ -2225,7 +2289,7 @@ export class BookmarkDeckView {
 
     if (collections.length > 0) {
       for (const coll of collections) {
-        const isMember = (coll.bookmarkIds || []).includes(itemId);
+        const isMember = (coll.bookmarkIds || []).includes(itemId) || (rawUrl && (coll.bookmarkUrls || []).includes(rawUrl));
         const collBtn = el("button", {
           type: "button",
           className: "raindrop-context-item" + (isMember ? " is-member" : ""),
@@ -2246,7 +2310,15 @@ export class BookmarkDeckView {
             await this.useCases.updateCollectionMembers.execute({
               collectionId: coll.id,
               add: [itemId],
+              urls: rawUrl ? [rawUrl] : [],
             });
+            // If adding from shortcuts, move out of Shortcuts category folder into main bookmarks
+            if (isShortcut && typeof chrome !== "undefined" && chrome.bookmarks && typeof chrome.bookmarks.move === "function") {
+              try {
+                const targetParentId = this._roots[0]?.id || "1";
+                await chrome.bookmarks.move(itemId, { parentId: targetParentId });
+              } catch (_) {}
+            }
             this.toast?.show(`Added "${itemTitle}" to "${coll.name}" ✓`);
             await this._scheduleLoad();
           } catch (err) {
@@ -2276,8 +2348,17 @@ export class BookmarkDeckView {
       const activeGroup = this.groupButtons.activeGroup;
       this.collectionDialog.openForCreate({
         initialBookmarkIds: [itemId],
+        initialBookmarkUrls: rawUrl ? [rawUrl] : [],
         workspaceId: activeGroup?.id || null,
-        onSuccess: () => this._scheduleLoad(),
+        onSuccess: async () => {
+          if (isShortcut && typeof chrome !== "undefined" && chrome.bookmarks && typeof chrome.bookmarks.move === "function") {
+            try {
+              const targetParentId = this._roots[0]?.id || "1";
+              await chrome.bookmarks.move(itemId, { parentId: targetParentId });
+            } catch (_) {}
+          }
+          await this._scheduleLoad();
+        },
       });
     });
 
@@ -2975,7 +3056,7 @@ export class BookmarkDeckView {
 
     const grid = el("div", { className: "raindrop-collections-grid" });
     for (const coll of visibleCollections) {
-      const leaves = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex);
+      const leaves = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
       const count = leaves.length;
 
       const previewFavs = el("div", { className: "raindrop-collection-preview" });

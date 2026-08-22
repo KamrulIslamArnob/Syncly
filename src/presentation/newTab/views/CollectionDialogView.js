@@ -23,13 +23,15 @@ export class CollectionDialogView {
     this.isRename = false;
     this.targetCollection = null;
     this.initialBookmarkIds = [];
+    this.initialBookmarkUrls = [];
     this.onSuccess = null;
   }
 
-  openForCreate({ initialBookmarkIds = [], workspaceId = null, onSuccess } = {}) {
+  openForCreate({ initialBookmarkIds = [], initialBookmarkUrls = [], workspaceId = null, onSuccess } = {}) {
     this.isRename = false;
     this.targetCollection = null;
     this.initialBookmarkIds = Array.isArray(initialBookmarkIds) ? initialBookmarkIds : [];
+    this.initialBookmarkUrls = Array.isArray(initialBookmarkUrls) ? initialBookmarkUrls : [];
     this.workspaceId = workspaceId;
     this.onSuccess = onSuccess;
 
@@ -145,6 +147,7 @@ export class CollectionDialogView {
         const created = await this.useCases.createBookmarkCollection.execute({
           name,
           bookmarkIds: this.initialBookmarkIds,
+          bookmarkUrls: this.initialBookmarkUrls,
           workspaceId: this.workspaceId || null,
         });
         this.toast?.show(`Collection "${created.name}" created!`);
