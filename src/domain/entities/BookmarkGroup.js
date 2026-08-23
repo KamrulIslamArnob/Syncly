@@ -31,7 +31,7 @@ export class BookmarkGroup {
   get updatedAt() { return this.#updatedAt; }
 
   // Reserved folder names that are central/system (cannot be used as workspace name)
-  static RESERVED_NAMES = ["Quickie", "Shortcuts", "Bookmarks bar", "Other Bookmarks", "Mobile Bookmarks", "All Bookmarks"];
+  static RESERVED_NAMES = ["Quickie", "Shortcuts", "Collections", "Bookmarks bar", "Other Bookmarks", "Mobile Bookmarks", "All Bookmarks"];
 
   // Validation
   static validateName(name) {

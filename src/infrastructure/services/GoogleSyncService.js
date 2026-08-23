@@ -308,14 +308,15 @@ export class GoogleSyncService {
     if (!this.isAvailable() || !this._local) return false;
 
     try {
-      const localData = await this._local.get(["categories", "bookmarks", "bookmarkGroups"]);
+      const localData = await this._local.get(["categories", "bookmarks", "bookmarkGroups", "bookmarkCollections"]);
       const hasLocalCategories = Array.isArray(localData.categories) && localData.categories.length > 0;
       const hasLocalBookmarks = Array.isArray(localData.bookmarks) && localData.bookmarks.length > 0;
       const hasLocalGroups = Array.isArray(localData.bookmarkGroups) && localData.bookmarkGroups.length > 0;
+      const hasLocalCollections = localData.bookmarkCollections && typeof localData.bookmarkCollections === "object" && Object.keys(localData.bookmarkCollections).length > 0;
 
       // If local already has custom data, don't overwrite blindly on start —
       // run a bidirectional MERGE instead so neither device loses items.
-      if (hasLocalCategories || hasLocalBookmarks || hasLocalGroups) {
+      if (hasLocalCategories || hasLocalBookmarks || hasLocalGroups || hasLocalCollections) {
         this.reconcile().catch(() => {});
         return false;
       }

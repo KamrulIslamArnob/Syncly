@@ -202,3 +202,47 @@ test("Add to Collection: adds both bookmark IDs and shortcut IDs to target colle
   assert.deepEqual(saved.bookmarkIds, ["bm-card-1", "sc-tile-2"]);
 });
 
+test("EnsureCollectionsFolderUseCase: creates and idempotently manages native Collections folder under Other Bookmarks", async () => {
+  const { EnsureCollectionsFolderUseCase } = await import("../src/application/useCases/bookmarks/EnsureCollectionsFolderUseCase.js");
+  const storage = createMockStorage();
+  const createdFolders = [];
+  const fakeTree = [
+    {
+      id: "0",
+      title: "",
+      children: [
+        { id: "1", title: "Bookmarks Bar", children: [] },
+        { id: "2", title: "Other Bookmarks", children: [] },
+      ],
+    },
+  ];
+
+  const bookmarksMock = {
+    async getTree() {
+      return JSON.parse(JSON.stringify(fakeTree));
+    },
+    async create({ parentId, title }) {
+      const folder = { id: "collections-id-88", title, parentId, children: [] };
+      createdFolders.push(folder);
+      fakeTree[0].children[1].children.push(folder);
+      return folder;
+    },
+  };
+
+  const useCase = new EnsureCollectionsFolderUseCase({ storage, bookmarks: bookmarksMock });
+
+  // 1st run: creates native folder under Other Bookmarks (id 2)
+  const id1 = await useCase.execute();
+  assert.equal(id1, "collections-id-88");
+  assert.equal(createdFolders.length, 1);
+  assert.equal(createdFolders[0].parentId, "2");
+  assert.equal(createdFolders[0].title, "Collections");
+  assert.equal(storage.raw.collectionsFolderId, "collections-id-88");
+
+  // 2nd run: does not recreate (idempotent)
+  createdFolders.length = 0;
+  const id2 = await useCase.execute();
+  assert.equal(id2, "collections-id-88");
+  assert.equal(createdFolders.length, 0);
+});
+

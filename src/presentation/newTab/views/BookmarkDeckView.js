@@ -110,23 +110,25 @@ export function rankByUsage(pool, usage, max = FREQ_MAX) {
 
 /** Resolve collection member bookmark leaves against the full leaf map with cross-device URL resolution. */
 export function resolveCollectionLeaves(bookmarkIds, leafIndex, bookmarkUrls = []) {
-  if (!leafIndex) return [];
   const results = [];
   const seenIds = new Set();
+  const seenUrls = new Set();
 
   // 1. Resolve by native Chrome bookmark ID
-  if (Array.isArray(bookmarkIds)) {
+  if (leafIndex && Array.isArray(bookmarkIds)) {
     for (const id of bookmarkIds) {
       const leaf = leafIndex.get(id);
       if (leaf) {
         results.push(leaf);
         seenIds.add(leaf.id);
+        const u = leaf.url?.href || leaf.url;
+        if (u) seenUrls.add(u);
       }
     }
   }
 
   // 2. Cross-device URL resolution fallback when native IDs differ per machine
-  if (Array.isArray(bookmarkUrls) && bookmarkUrls.length > 0) {
+  if (leafIndex && Array.isArray(bookmarkUrls) && bookmarkUrls.length > 0) {
     if (results.length < bookmarkUrls.length) {
       const urlToLeaf = new Map();
       for (const leaf of leafIndex.values()) {
@@ -136,12 +138,37 @@ export function resolveCollectionLeaves(bookmarkIds, leafIndex, bookmarkUrls = [
         }
       }
       for (const url of bookmarkUrls) {
+        if (!url) continue;
         const leaf = urlToLeaf.get(url);
         if (leaf && !seenIds.has(leaf.id)) {
           results.push(leaf);
           seenIds.add(leaf.id);
+          seenUrls.add(url);
         }
       }
+    }
+  }
+
+  // 3. Cross-device Synthetic Fallback: For any URLs not yet present in local Chrome bookmarks,
+  // synthesize a bookmark leaf object so the synced collection shows all items immediately.
+  if (Array.isArray(bookmarkUrls)) {
+    for (const url of bookmarkUrls) {
+      if (!url || typeof url !== "string") continue;
+      const cleanUrl = url.trim();
+      if (!cleanUrl || seenUrls.has(cleanUrl)) continue;
+
+      let domain = "";
+      try {
+        domain = new URL(cleanUrl).hostname.replace(/^www\./, "");
+      } catch {}
+
+      results.push({
+        id: `synced-${cleanUrl}`,
+        title: domain || cleanUrl,
+        url: cleanUrl,
+        isSyncedCollectionLeaf: true,
+      });
+      seenUrls.add(cleanUrl);
     }
   }
 
@@ -215,6 +242,7 @@ export class BookmarkDeckView {
     this._leafIndex = new Map();
     this._quickieFolderId = null;
     this._shortcutsFolderId = null;
+    this._collectionsFolderId = null;
     this._quickieLeaves = [];
     this._collections = [];
     this._collectionsExpanded = false;
@@ -421,9 +449,10 @@ export class BookmarkDeckView {
     // with both ensure use cases (same-tick contract) instead of each one
     // issuing its own chrome.bookmarks.getTree() IPC round-trip.
     const raw = await this.getTree().catch(() => []);
-    const [quickieId, shortcutsFolderId, collections, , usage, tags, settings, folderColors] = await Promise.all([
+    const [quickieId, shortcutsFolderId, collectionsFolderId, collections, , usage, tags, settings, folderColors] = await Promise.all([
       this.useCases?.ensureQuickieFolder ? this.useCases.ensureQuickieFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
       this.useCases?.ensureShortcutsFolder ? this.useCases.ensureShortcutsFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
+      this.useCases?.ensureCollectionsFolder ? this.useCases.ensureCollectionsFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
       this.useCases?.listBookmarkCollections ? this.useCases.listBookmarkCollections.execute().catch(() => []) : Promise.resolve([]),
       this.groupButtons.loadState().catch(() => null),
       this.storage ? this.storage.get([USAGE_KEY, LAST_KEY]).then((d) => d?.[USAGE_KEY] || {}).catch(() => ({})) : Promise.resolve({}),
@@ -433,6 +462,7 @@ export class BookmarkDeckView {
     ]);
 
     this._shortcutsFolderId = shortcutsFolderId || this._shortcutsFolderId;
+    this._collectionsFolderId = collectionsFolderId || this._collectionsFolderId;
 
     // Sync CategoryDialog/ShortcutDialog to native folder
     if (this.categoryDialog) this.categoryDialog.setShortcutsFolderId?.(this._shortcutsFolderId);
@@ -536,20 +566,25 @@ export class BookmarkDeckView {
     }
     const activeGroup = this.groupButtons.activeGroup;
 
+    const isSystemFolder = (f) =>
+      f.title === "Quickie" || f.id === this._quickieFolderId ||
+      f.title === "Shortcuts" || f.id === this._shortcutsFolderId ||
+      f.title === "Collections" || f.id === this._collectionsFolderId;
+
     if (activeGroup && Array.isArray(activeGroup.folderIds) && activeGroup.folderIds.length > 0) {
-      // Find each assigned folder or root workspace folder — skip central Quickie (never workspace-scoped)
+      // Find each assigned folder or root workspace folder — skip system folders (never workspace-scoped)
       const groupFolders = [];
       for (const id of activeGroup.folderIds) {
-        if (id === this._quickieFolderId) continue;
+        if (id === this._quickieFolderId || id === this._shortcutsFolderId || id === this._collectionsFolderId) continue;
         const found = findFolderById(this._roots, id);
         if (found) {
-          if (found.title === "Quickie") continue;
+          if (isSystemFolder(found)) continue;
           // If this is a dedicated workspace root folder, show its subfolders and loose bookmarks
           if (Array.isArray(found.children) && found.children.length > 0) {
             const loose = [];
             for (const child of found.children) {
               if (child.type === "folder") {
-                if (child.title === "Quickie" || child.id === this._quickieFolderId) continue;
+                if (isSystemFolder(child)) continue;
                 groupFolders.push(child);
               } else loose.push(child);
             }
@@ -567,14 +602,12 @@ export class BookmarkDeckView {
           }
         }
       }
-      this._folders = groupFolders;
+      this._folders = groupFolders.filter((f) => !isSystemFolder(f));
     } else {
-      this._folders = collectFolders(defaultRoots);
-      // Exclude central Quickie from All Bookmarks folder tree (pinned as quick access instead)
-      this._folders = this._folders.filter((f) => f.title !== "Quickie" && f.id !== this._quickieFolderId);
+      this._folders = collectFolders(defaultRoots).filter((f) => !isSystemFolder(f));
     }
-    // Final dedupe: ensure no Quickie folder sneaks into tree via duplicate names
-    this._folders = this._folders.filter((f) => f.title !== "Quickie" && f.id !== this._quickieFolderId);
+    // Final dedupe: ensure no system folder sneaks into tree via duplicate names
+    this._folders = this._folders.filter((f) => !isSystemFolder(f));
     this._leaves = flattenLeaves(this._folders);
 
     const visibleCollections = this._getVisibleCollections();
@@ -597,7 +630,7 @@ export class BookmarkDeckView {
   _getVisibleCollections() {
     const activeGroup = this.groupButtons?.activeGroup;
     if (!activeGroup) return this._collections || [];
-    return (this._collections || []).filter((c) => c.workspaceId === activeGroup.id);
+    return (this._collections || []).filter((c) => !c.workspaceId || c.workspaceId === activeGroup.id);
   }
 
   _getFolderColor(node) {
@@ -804,12 +837,13 @@ export class BookmarkDeckView {
     node.addEventListener("drop", async (e) => {
       e.preventDefault();
       node.classList.remove("is-drop-target");
-      const drag = this._drag;
       if (!drag) return;
       try {
+        const dragUrl = drag.url?.href || drag.url;
         await this.useCases.updateCollectionMembers.execute({
           collectionId,
           add: [drag.id],
+          urls: dragUrl ? [dragUrl] : [],
         });
         this.toast?.show("Added bookmark to collection");
         await this._scheduleLoad();
@@ -2313,10 +2347,17 @@ export class BookmarkDeckView {
               add: [itemId],
               urls: rawUrl ? [rawUrl] : [],
             });
-            // If adding from shortcuts, move out of Shortcuts category folder into main bookmarks
+            // If adding from shortcuts, move out of Shortcuts category folder into Collections native folder
             if (isShortcut && typeof chrome !== "undefined" && chrome.bookmarks && typeof chrome.bookmarks.move === "function") {
               try {
-                const targetParentId = this._roots[0]?.id || "1";
+                let targetParentId = this._collectionsFolderId;
+                if (!targetParentId && this.useCases?.ensureCollectionsFolder) {
+                  targetParentId = await this.useCases.ensureCollectionsFolder.execute().catch(() => null);
+                }
+                if (!targetParentId) {
+                  const otherRoot = this._roots.find((r) => r.id === "2" || /other bookmarks/i.test(r.title)) || this._roots.find((r) => r.id !== "1");
+                  targetParentId = otherRoot?.id || "2";
+                }
                 await chrome.bookmarks.move(itemId, { parentId: targetParentId });
               } catch (_) {}
             }
@@ -2354,7 +2395,14 @@ export class BookmarkDeckView {
         onSuccess: async () => {
           if (isShortcut && typeof chrome !== "undefined" && chrome.bookmarks && typeof chrome.bookmarks.move === "function") {
             try {
-              const targetParentId = this._roots[0]?.id || "1";
+              let targetParentId = this._collectionsFolderId;
+              if (!targetParentId && this.useCases?.ensureCollectionsFolder) {
+                targetParentId = await this.useCases.ensureCollectionsFolder.execute().catch(() => null);
+              }
+              if (!targetParentId) {
+                const otherRoot = this._roots.find((r) => r.id === "2" || /other bookmarks/i.test(r.title)) || this._roots.find((r) => r.id !== "1");
+                targetParentId = otherRoot?.id || "2";
+              }
               await chrome.bookmarks.move(itemId, { parentId: targetParentId });
             } catch (_) {}
           }
@@ -3165,10 +3213,15 @@ export class BookmarkDeckView {
       item.addEventListener("click", async (e) => {
         e.stopPropagation();
         const selected = Array.from(this._selectedIds);
+        const selectedUrls = selected.map((id) => {
+          const leaf = this._leafIndex?.get(id);
+          return leaf?.url?.href || leaf?.url;
+        }).filter(Boolean);
         try {
           await this.useCases.updateCollectionMembers.execute({
             collectionId: coll.id,
             add: selected,
+            urls: selectedUrls,
           });
           this.toast?.show(`Added ${selected.length} bookmark${selected.length === 1 ? "" : "s"} to ${coll.name}`);
           this._selectedIds.clear();

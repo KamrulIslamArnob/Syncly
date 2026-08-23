@@ -1006,11 +1006,19 @@ class PopupController {
     try {
       if (this.destinationType === "collection") {
         const collectionId = this.customCollectionHidden.value;
-        const created = await chrome.bookmarks.create({ parentId: "1", title, url });
+        let parentId = "2";
+        if (this.useCases?.ensureCollectionsFolder) {
+          parentId = (await this.useCases.ensureCollectionsFolder.execute()) || "2";
+        } else {
+          const otherFolder = this.folders.find((f) => f.id === "2" || /other bookmarks/i.test(f.title));
+          parentId = otherFolder?.id || "2";
+        }
+        const created = await chrome.bookmarks.create({ parentId, title, url });
         if (collectionId && this.useCases?.updateCollectionMembers && created?.id) {
           await this.useCases.updateCollectionMembers.execute({
             collectionId,
             add: [created.id],
+            urls: [url],
           });
         }
       } else {

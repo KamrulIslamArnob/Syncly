@@ -98,6 +98,18 @@ test("resolveCollectionLeaves: resolves members, preserves order, filters stale 
   assert.equal(crossDeviceResolved.length, 1);
   assert.equal(crossDeviceResolved[0].title, "MDN");
   assert.equal(crossDeviceResolved[0].id, "111");
+
+  // Cross-device synced collection: URL is not yet in Chrome bookmarks on Device B
+  // Should synthesize a leaf so collection is never empty
+  const unmappedResolved = resolveCollectionLeaves(
+    ["device-a-id-888"],
+    leafIndex,
+    ["https://linear.app/my-workspace"]
+  );
+  assert.equal(unmappedResolved.length, 1);
+  assert.equal(unmappedResolved[0].title, "linear.app");
+  assert.equal(unmappedResolved[0].url, "https://linear.app/my-workspace");
+  assert.equal(unmappedResolved[0].isSyncedCollectionLeaf, true);
 });
 
 /* ── websitePreviewUrl (website screenshot preview generation) ─── */

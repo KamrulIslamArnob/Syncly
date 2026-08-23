@@ -25,6 +25,7 @@ import { EventBus } from "../../application/ports/EventBus.js";
 
 import { EnsureQuickieFolderUseCase } from "../../application/useCases/bookmarks/EnsureQuickieFolderUseCase.js";
 import { EnsureShortcutsFolderUseCase } from "../../application/useCases/bookmarks/EnsureShortcutsFolderUseCase.js";
+import { EnsureCollectionsFolderUseCase } from "../../application/useCases/bookmarks/EnsureCollectionsFolderUseCase.js";
 import { MigrateBookmarkBarToQuickAccessUseCase } from "../../application/useCases/bookmarks/MigrateBookmarkBarToQuickAccessUseCase.js";
 import { ListBookmarkCollectionsUseCase } from "../../application/useCases/collections/ListBookmarkCollectionsUseCase.js";
 import { CreateBookmarkCollectionUseCase } from "../../application/useCases/collections/CreateBookmarkCollectionUseCase.js";
@@ -195,6 +196,7 @@ export function buildContainer() {
   const useCases = Object.freeze({
     ensureQuickieFolder: new EnsureQuickieFolderUseCase(),
     ensureShortcutsFolder: ensureShortcutsFolderUseCase,
+    ensureCollectionsFolder: new EnsureCollectionsFolderUseCase(),
     migrateBookmarkBarToQuickAccess: new MigrateBookmarkBarToQuickAccessUseCase({
       ensureShortcutsFolder: ensureShortcutsFolderUseCase,
     }),

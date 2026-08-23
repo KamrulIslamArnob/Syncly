@@ -311,10 +311,15 @@ export class BookmarkPickerModalView {
         this.toast?.show(`Added ${toAdd.length} bookmark(s) to "${this.target.title || "Folder"}"`);
       } else {
         if (toAdd.length > 0 || toRemove.length > 0) {
+          const leafMap = new Map((this.allLeaves || []).map((l) => [l.id, l.url?.href || l.url]));
+          const addUrls = toAdd.map((id) => leafMap.get(id)).filter(Boolean);
+          const removeUrls = toRemove.map((id) => leafMap.get(id)).filter(Boolean);
           await this.useCases.updateCollectionMembers.execute({
             collectionId: this.collection.id,
             add: toAdd,
             remove: toRemove,
+            urls: addUrls,
+            removeUrls: removeUrls,
           });
           this.toast?.show(`Updated "${this.collection.name}" (${newMembers.size} bookmarks)`);
         }
@@ -392,6 +397,8 @@ export class BookmarkPickerModalView {
         let parentId = "2";
         if (this.isFolderTarget && this.target?.id) {
           parentId = this.target.id;
+        } else if (this.collection?.id && this.useCases?.ensureCollectionsFolder) {
+          parentId = (await this.useCases.ensureCollectionsFolder.execute()) || "2";
         } else if (this.useCases?.ensureQuickieFolder) {
           parentId = (await this.useCases.ensureQuickieFolder.execute()) || "2";
         }
@@ -408,6 +415,7 @@ export class BookmarkPickerModalView {
           await this.useCases.updateCollectionMembers.execute({
             collectionId: this.collection.id,
             add: [created.id],
+            urls: [url],
           });
         }
 

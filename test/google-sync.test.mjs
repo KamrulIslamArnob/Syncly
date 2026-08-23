@@ -85,3 +85,37 @@ test("SyncFromGoogleCloudUseCase: pulls from cloud and emits changed events", as
   assert.ok(emitted.includes("settings:light"));
   assert.deepEqual(local.store.categories, [{ id: "cat-1", name: "Dev", order: 0 }]);
 });
+
+test("GoogleSyncService: syncs bookmarkCollections with bookmarkIds and bookmarkUrls across devices", async () => {
+  const localA = new MemoryStorageArea({
+    bookmarkCollections: {
+      "col-1": {
+        id: "col-1",
+        name: "Design Systems",
+        bookmarkIds: ["bm-100"],
+        bookmarkUrls: ["https://figma.com", "https://linear.app"],
+        workspaceId: null,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    },
+  });
+  const sync = new MemoryStorageArea({});
+
+  const serviceA = new GoogleSyncService({ local: localA, sync });
+  const pushRes = await serviceA.pushAll();
+  assert.equal(pushRes.success, true);
+  assert.ok(pushRes.count >= 1);
+  assert.ok(sync.store.bookmarkCollections?.["col-1"]);
+  assert.deepEqual(sync.store.bookmarkCollections["col-1"].bookmarkUrls, ["https://figma.com", "https://linear.app"]);
+
+  // Device B pulls the collection
+  const localB = new MemoryStorageArea({});
+  const serviceB = new GoogleSyncService({ local: localB, sync });
+  const pullRes = await serviceB.pullAll();
+  assert.equal(pullRes.success, true);
+  assert.ok(pullRes.pulledKeys.includes("bookmarkCollections"));
+  assert.ok(localB.store.bookmarkCollections?.["col-1"]);
+  assert.equal(localB.store.bookmarkCollections["col-1"].name, "Design Systems");
+  assert.deepEqual(localB.store.bookmarkCollections["col-1"].bookmarkUrls, ["https://figma.com", "https://linear.app"]);
+});
