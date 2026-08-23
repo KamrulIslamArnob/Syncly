@@ -837,6 +837,7 @@ export class BookmarkDeckView {
     node.addEventListener("drop", async (e) => {
       e.preventDefault();
       node.classList.remove("is-drop-target");
+      const drag = this._drag;
       if (!drag) return;
       try {
         const dragUrl = drag.url?.href || drag.url;
@@ -845,7 +846,7 @@ export class BookmarkDeckView {
           add: [drag.id],
           urls: dragUrl ? [dragUrl] : [],
         });
-        this.toast?.show("Added bookmark to collection");
+        this.toast?.show("Added bookmark to collection ✓");
         await this._scheduleLoad();
       } catch (err) {
         this.toast?.show(err.message || "Could not add to collection", { error: true });
@@ -1507,7 +1508,7 @@ export class BookmarkDeckView {
           this.toast?.show(`Folder renamed to "${newTitle}"`);
         } else if (selection.type === "collection") {
           if (this.useCases?.renameBookmarkCollection) {
-            await this.useCases.renameBookmarkCollection.execute({ id: selection.id, name: newTitle });
+            await this.useCases.renameBookmarkCollection.execute({ collectionId: selection.id, name: newTitle });
           }
           selection.title = newTitle;
           this.toast?.show(`Collection renamed to "${newTitle}"`);
@@ -1544,7 +1545,25 @@ export class BookmarkDeckView {
     else if (this._activeSelection.type === "quickie") pool = this._quickieLeaves;
     else if (this._activeSelection.type === "collection") {
       const coll = this._collections.find((c) => c.id === this._activeSelection.id);
-      pool = coll ? resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls) : [];
+      if (coll) {
+        const nativeFolder = coll.folderId ? findFolderById(this._roots, coll.folderId) : null;
+        if (nativeFolder && nativeFolder.children) {
+          const directLeaves = flattenLeaves(nativeFolder.children);
+          const resolved = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
+          const seen = new Set();
+          pool = [];
+          for (const l of [...directLeaves, ...resolved]) {
+            if (l && !seen.has(l.id)) {
+              seen.add(l.id);
+              pool.push(l);
+            }
+          }
+        } else {
+          pool = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
+        }
+      } else {
+        pool = [];
+      }
     } else if (this._activeSelection.type === "folder") {
       pool = flattenLeaves(this._activeSelection.folder?.children || []);
     }
@@ -2392,17 +2411,10 @@ export class BookmarkDeckView {
         initialBookmarkIds: [itemId],
         initialBookmarkUrls: rawUrl ? [rawUrl] : [],
         workspaceId: activeGroup?.id || null,
-        onSuccess: async () => {
+        onSuccess: async (createdColl) => {
           if (isShortcut && typeof chrome !== "undefined" && chrome.bookmarks && typeof chrome.bookmarks.move === "function") {
             try {
-              let targetParentId = this._collectionsFolderId;
-              if (!targetParentId && this.useCases?.ensureCollectionsFolder) {
-                targetParentId = await this.useCases.ensureCollectionsFolder.execute().catch(() => null);
-              }
-              if (!targetParentId) {
-                const otherRoot = this._roots.find((r) => r.id === "2" || /other bookmarks/i.test(r.title)) || this._roots.find((r) => r.id !== "1");
-                targetParentId = otherRoot?.id || "2";
-              }
+              const targetParentId = createdColl?.folderId || createdColl?.id || this._collectionsFolderId || "2";
               await chrome.bookmarks.move(itemId, { parentId: targetParentId });
             } catch (_) {}
           }
@@ -3108,15 +3120,7 @@ export class BookmarkDeckView {
       const leaves = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
       const count = leaves.length;
 
-      const previewFavs = el("div", { className: "raindrop-collection-preview" });
-      const sampleLeaves = leaves.slice(0, 4);
-      if (sampleLeaves.length > 0) {
-        for (const leaf of sampleLeaves) {
-          previewFavs.appendChild(this._favicon(leaf, "raindrop-collection-fav-dot"));
-        }
-      } else {
-        previewFavs.appendChild(el("span", { className: "raindrop-collection-empty-icon" }, icon("layers")));
-      }
+      const stage = this._renderCollectionFloatingStage(leaves);
 
       const addBtn = el("button", {
         type: "button",
@@ -3153,18 +3157,22 @@ export class BookmarkDeckView {
 
       const actions = el("div", { className: "raindrop-coll-actions" }, addBtn, renameBtn, deleteBtn);
 
+      const info = el("div", { className: "raindrop-coll-info" },
+        el("div", { className: "raindrop-coll-text" },
+          el("div", { className: "raindrop-coll-name", title: coll.name }, coll.name),
+          el("div", { className: "raindrop-coll-count" }, `${count} bookmark${count === 1 ? "" : "s"}`)
+        ),
+        actions
+      );
+
       const card = el("div", {
         className: "raindrop-collection-card",
         role: "button",
         tabIndex: 0,
         title: `${coll.name} (${count} bookmarks)`,
       },
-        previewFavs,
-        el("div", { className: "raindrop-coll-info" },
-          el("div", { className: "raindrop-coll-name", title: coll.name }, coll.name),
-          el("div", { className: "raindrop-coll-count" }, `${count} bookmark${count === 1 ? "" : "s"}`)
-        ),
-        actions
+        stage,
+        info
       );
 
       card.addEventListener("click", () => {
@@ -3182,6 +3190,50 @@ export class BookmarkDeckView {
 
     wrap.appendChild(grid);
     this._content.appendChild(wrap);
+  }
+
+  _renderCollectionFloatingStage(leaves) {
+    const stage = el("div", { className: "raindrop-coll-stage" });
+    const bgGrid = el("div", { className: "raindrop-coll-stage-grid" });
+    const aura = el("div", { className: "raindrop-coll-aura" });
+    const stack = el("div", { className: "raindrop-coll-icon-stack" });
+
+    const total = leaves.length;
+    if (total === 0) {
+      const emptyIcon = el("div", { className: "raindrop-coll-floating-icon is-empty" }, icon("layers"));
+      stack.appendChild(emptyIcon);
+    } else if (total <= 4) {
+      for (let i = 0; i < total; i++) {
+        const leaf = leaves[i];
+        const iconWrap = el("div", {
+          className: `raindrop-coll-floating-icon item-${i + 1} total-${total}`,
+          title: leaf.title || leaf.url || "",
+        }, this._favicon(leaf, "raindrop-coll-fav-img"));
+        stack.appendChild(iconWrap);
+      }
+    } else {
+      // 5+ items: multi-icon floating constellation (renders up to 7 distinct icons to fill the space)
+      const maxDisplay = Math.min(total, 7);
+      stack.classList.add("is-constellation", `count-${maxDisplay}`);
+      for (let i = 0; i < maxDisplay; i++) {
+        const leaf = leaves[i];
+        const iconWrap = el("div", {
+          className: `raindrop-coll-floating-icon constellation-item item-${i + 1}`,
+          title: leaf.title || leaf.url || "",
+        }, this._favicon(leaf, "raindrop-coll-fav-img"));
+        stack.appendChild(iconWrap);
+      }
+      if (total > maxDisplay) {
+        const extraPill = el("div", {
+          className: "raindrop-coll-floating-more",
+          title: `${total - maxDisplay} more bookmarks in this collection`,
+        }, `+${total - maxDisplay}`);
+        stack.appendChild(extraPill);
+      }
+    }
+
+    stage.append(bgGrid, aura, stack);
+    return stage;
   }
 
   /* ── 5. Bulk Action Bar ──────────────────────────────────── */

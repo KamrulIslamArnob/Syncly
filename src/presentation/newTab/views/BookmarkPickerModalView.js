@@ -397,6 +397,8 @@ export class BookmarkPickerModalView {
         let parentId = "2";
         if (this.isFolderTarget && this.target?.id) {
           parentId = this.target.id;
+        } else if (this.collection?.folderId || this.collection?.id) {
+          parentId = this.collection.folderId || this.collection.id;
         } else if (this.collection?.id && this.useCases?.ensureCollectionsFolder) {
           parentId = (await this.useCases.ensureCollectionsFolder.execute()) || "2";
         } else if (this.useCases?.ensureQuickieFolder) {

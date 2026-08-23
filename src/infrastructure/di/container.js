@@ -191,12 +191,13 @@ export function buildContainer() {
   // above; manual Push/Pull buttons call pushAll()/pullAll() directly.
 
   const ensureShortcutsFolderUseCase = new EnsureShortcutsFolderUseCase();
+  const ensureCollectionsFolderUseCase = new EnsureCollectionsFolderUseCase();
 
   // ---- use cases ----
   const useCases = Object.freeze({
     ensureQuickieFolder: new EnsureQuickieFolderUseCase(),
     ensureShortcutsFolder: ensureShortcutsFolderUseCase,
-    ensureCollectionsFolder: new EnsureCollectionsFolderUseCase(),
+    ensureCollectionsFolder: ensureCollectionsFolderUseCase,
     migrateBookmarkBarToQuickAccess: new MigrateBookmarkBarToQuickAccessUseCase({
       ensureShortcutsFolder: ensureShortcutsFolderUseCase,
     }),
@@ -208,6 +209,7 @@ export function buildContainer() {
       ids,
       sanitizer,
       events,
+      ensureCollectionsFolder: ensureCollectionsFolderUseCase,
     }),
     updateCollectionMembers: new UpdateCollectionMembersUseCase({
       repository: bookmarkCollectionRepo,

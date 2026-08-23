@@ -12,10 +12,11 @@ export class BookmarkCollection {
   #bookmarkIds;
   #bookmarkUrls;
   #workspaceId;
+  #folderId;
   #createdAt;
   #updatedAt;
 
-  constructor({ id, name, bookmarkIds = [], bookmarkUrls = [], workspaceId = null, createdAt, updatedAt }) {
+  constructor({ id, name, bookmarkIds = [], bookmarkUrls = [], workspaceId = null, folderId = null, createdAt, updatedAt }) {
     if (!id || typeof id !== "string") {
       throw new Error("BookmarkCollection id must be a non-empty string");
     }
@@ -24,6 +25,7 @@ export class BookmarkCollection {
     this.#bookmarkIds = BookmarkCollection.validateBookmarkIds(bookmarkIds);
     this.#bookmarkUrls = BookmarkCollection.validateBookmarkUrls(bookmarkUrls);
     this.#workspaceId = typeof workspaceId === "string" && workspaceId.trim() ? workspaceId.trim() : null;
+    this.#folderId = typeof folderId === "string" && folderId.trim() ? folderId.trim() : null;
     this.#createdAt = typeof createdAt === "number" ? createdAt : Date.now();
     this.#updatedAt = typeof updatedAt === "number" ? updatedAt : this.#createdAt;
   }
@@ -34,6 +36,7 @@ export class BookmarkCollection {
   get bookmarkIds() { return [...this.#bookmarkIds]; }
   get bookmarkUrls() { return [...this.#bookmarkUrls]; }
   get workspaceId() { return this.#workspaceId; }
+  get folderId() { return this.#folderId || this.#id; }
   get createdAt() { return this.#createdAt; }
   get updatedAt() { return this.#updatedAt; }
 
@@ -134,6 +137,7 @@ export class BookmarkCollection {
       bookmarkIds: this.#bookmarkIds,
       bookmarkUrls: this.#bookmarkUrls,
       workspaceId: this.#workspaceId,
+      folderId: this.#folderId || this.#id,
       createdAt: this.#createdAt,
       updatedAt: this.#updatedAt,
     };
@@ -149,6 +153,7 @@ export class BookmarkCollection {
       bookmarkIds: data.bookmarkIds || [],
       bookmarkUrls: data.bookmarkUrls || [],
       workspaceId: data.workspaceId || null,
+      folderId: data.folderId || data.id,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });

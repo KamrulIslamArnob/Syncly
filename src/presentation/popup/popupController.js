@@ -71,10 +71,6 @@ function hostnameOf(urlString) {
   }
 }
 
-/* ── Destination memory (UX redesign: zero-click repeat saves) ───────────────
-   The last-used folder/collection is restored on every popup open and the four
-   most recent folders render as one-tap chips inside the form. Repeat saves
-   into a favorite destination need NO picker trip at all. */
 const LAST_FOLDER_KEY = "popupLastFolder";
 const RECENT_FOLDERS_KEY = "popupRecentFolders";
 const LAST_COLLECTION_KEY = "popupLastCollection";
@@ -100,12 +96,12 @@ async function writeLocal(key, value) {
 class PopupController {
   constructor() {
     this.themeToggleBtn = document.getElementById("btn-theme-toggle");
-    this.quickieBtn = document.getElementById("btn-save-quickie");
-    this.shortcutBtn = document.getElementById("btn-save-shortcut");
     this.typeBtnBookmark = document.getElementById("type-btn-bookmark");
+    this.typeBtnShortcut = document.getElementById("type-btn-shortcut");
     this.typeBtnCollection = document.getElementById("type-btn-collection");
     this.fieldFolder = document.getElementById("field-folder");
     this.fieldCollection = document.getElementById("field-collection");
+    this.fieldWorkspace = document.getElementById("field-workspace");
 
     this.form = document.getElementById("add-form");
     this.titleInput = document.getElementById("bm-title");
@@ -118,59 +114,67 @@ class PopupController {
     this.submitBtn = document.getElementById("bm-submit");
     this.submitBtnText = document.getElementById("bm-submit-text");
 
-    // Main Form Triggers
-    this.workspaceTrigger = document.getElementById("bm-workspace-trigger");
-    this.workspaceHidden = document.getElementById("bm-workspace-value");
-    this.workspaceSwatch = document.getElementById("bm-workspace-swatch");
-    this.workspaceLabel = document.getElementById("bm-workspace-label");
-
+    // Folder Destination & Inline Dropdown
     this.folderTrigger = document.getElementById("bm-collection-trigger");
     this.folderHidden = document.getElementById("bm-collection-value");
     this.folderLabel = document.getElementById("bm-collection-label");
     this.folderQuickRow = document.getElementById("folder-quick-row");
+    this.folderDropdown = document.getElementById("folder-dropdown-panel");
+    this.folderSearchInput = document.getElementById("folder-search-input");
+    this.folderSearchClear = document.getElementById("folder-search-clear");
+    this.folderNewBtn = document.getElementById("folder-new-btn");
+    this.folderCreatorBox = document.getElementById("folder-creator-box");
+    this.folderCreatorInput = document.getElementById("folder-creator-input");
+    this.folderCreatorConfirm = document.getElementById("folder-creator-confirm");
+    this.folderCreatorCancel = document.getElementById("folder-creator-cancel");
+    this.folderList = document.getElementById("folder-dropdown-list");
 
+    // Collection Destination & Inline Dropdown
     this.customCollectionTrigger = document.getElementById("bm-custom-collection-trigger");
     this.customCollectionHidden = document.getElementById("bm-custom-collection-value");
     this.customCollectionLabel = document.getElementById("bm-custom-collection-label");
+    this.collectionDropdown = document.getElementById("collection-dropdown-panel");
+    this.collectionSearchInput = document.getElementById("collection-search-input");
+    this.collectionSearchClear = document.getElementById("collection-search-clear");
+    this.collectionNewBtn = document.getElementById("collection-new-btn");
+    this.collectionCreatorBox = document.getElementById("collection-creator-box");
+    this.collectionCreatorInput = document.getElementById("collection-creator-input");
+    this.collectionCreatorConfirm = document.getElementById("collection-creator-confirm");
+    this.collectionCreatorCancel = document.getElementById("collection-creator-cancel");
+    this.collectionList = document.getElementById("collection-dropdown-list");
 
-    // Full-Height Subview Elements
-    this.mainView = document.getElementById("main-view");
-    this.pickerSubview = document.getElementById("picker-subview");
-    this.subviewBackBtn = document.getElementById("subview-back-btn");
-    this.subviewTitle = document.getElementById("subview-title");
-    this.subviewActionBtn = document.getElementById("subview-action-btn");
-    this.subviewSearchBar = document.getElementById("subview-search-bar");
-    this.subviewSearchInput = document.getElementById("subview-search-input");
-    this.subviewSearchClear = document.getElementById("subview-search-clear");
-    this.subviewList = document.getElementById("subview-list");
+    // Workspace Destination & Inline Dropdown
+    this.workspaceTrigger = document.getElementById("bm-workspace-trigger");
+    this.workspaceHidden = document.getElementById("bm-workspace-value");
+    this.workspaceSwatch = document.getElementById("bm-workspace-swatch");
+    this.workspaceLabel = document.getElementById("bm-workspace-label");
+    this.workspaceDropdown = document.getElementById("workspace-dropdown-panel");
+    this.workspaceSearchInput = document.getElementById("workspace-search-input");
+    this.workspaceSearchClear = document.getElementById("workspace-search-clear");
+    this.workspaceList = document.getElementById("workspace-dropdown-list");
 
-    this.subviewCreator = document.getElementById("subview-inline-creator");
-    this.subviewCreatorInput = document.getElementById("subview-creator-input");
-    this.subviewCreatorConfirm = document.getElementById("subview-creator-confirm");
-    this.subviewCreatorCancel = document.getElementById("subview-creator-cancel");
-
-    this.subviewMode = null; // "folder" | "collection" | "workspace"
-    this.destinationType = "bookmark"; // "bookmark" | "collection"
+    this.destinationType = "bookmark"; // "bookmark" | "shortcut" | "collection"
+    this.activeDropdown = null; // "folder" | "collection" | "workspace" | null
     this.groups = [];
     this.folders = [];
     this.collections = [];
-    this.recentFolders = []; // [{ id, title }] — most recent first
+    this.recentFolders = [];
     this.activeTags = new Set();
     this.currentColorMode = "dark";
-    this.currentAccentColor = "#555B66";
+    this.currentAccentColor = "#3b82f6";
 
     this._bindEvents();
   }
 
   _bindEvents() {
     this.themeToggleBtn?.addEventListener("click", () => this.toggleTheme());
-    this.quickieBtn?.addEventListener("click", () => this.onSaveToQuickie());
-    this.shortcutBtn?.addEventListener("click", () => this.onSaveToShortcuts());
 
+    // Destination Switcher
     this.typeBtnBookmark?.addEventListener("click", () => this.setDestinationType("bookmark"));
+    this.typeBtnShortcut?.addEventListener("click", () => this.setDestinationType("shortcut"));
     this.typeBtnCollection?.addEventListener("click", () => this.setDestinationType("collection"));
 
-    // Real-time sync with settings and popup preferences in background/tabs
+    // Real-time sync with settings and popup preferences
     if (typeof chrome !== "undefined" && chrome.storage?.onChanged) {
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area === "local") {
@@ -179,49 +183,94 @@ class PopupController {
           }
           if (changes.settings?.newValue) {
             const s = changes.settings.newValue;
-            const accent = s.cssVarAccent || "#555B66";
+            const accent = s.cssVarAccent || "#3b82f6";
             this.applyTheme(this.currentColorMode, accent);
           }
         }
       });
     }
 
-    // Open Full-Height Subviews
+    // Toggle Dropdowns
     this.folderTrigger?.addEventListener("click", (e) => {
       e.preventDefault();
-      this.openPickerSubview("folder");
-    });
-    this.customCollectionTrigger?.addEventListener("click", (e) => {
-      e.preventDefault();
-      this.openPickerSubview("collection");
-    });
-    this.workspaceTrigger?.addEventListener("click", (e) => {
-      e.preventDefault();
-      this.openPickerSubview("workspace");
+      e.stopPropagation();
+      this.toggleDropdown("folder");
     });
 
-    // Subview Navigation
-    this.subviewBackBtn?.addEventListener("click", () => this.closePickerSubview());
-    this.subviewSearchInput?.addEventListener("input", () => this._onSubviewSearch());
-    this.subviewSearchClear?.addEventListener("click", () => {
-      if (this.subviewSearchInput) {
-        this.subviewSearchInput.value = "";
-        this._onSubviewSearch();
-        this.subviewSearchInput.focus();
+    this.customCollectionTrigger?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleDropdown("collection");
+    });
+
+    this.workspaceTrigger?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleDropdown("workspace");
+    });
+
+    // Dropdown Search - Folder
+    this.folderSearchInput?.addEventListener("input", () => this._onFolderSearch());
+    this.folderSearchClear?.addEventListener("click", () => {
+      if (this.folderSearchInput) {
+        this.folderSearchInput.value = "";
+        this._onFolderSearch();
+        this.folderSearchInput.focus();
       }
     });
 
-    // Subview Creator
-    this.subviewActionBtn?.addEventListener("click", () => this._openSubviewCreator());
-    this.subviewCreatorCancel?.addEventListener("click", () => this._closeSubviewCreator());
-    this.subviewCreatorConfirm?.addEventListener("click", () => this._submitSubviewCreator());
-    this.subviewCreatorInput?.addEventListener("keydown", (e) => {
+    // Dropdown Creator - Folder
+    this.folderNewBtn?.addEventListener("click", () => this._toggleFolderCreator());
+    this.folderCreatorCancel?.addEventListener("click", () => this._closeFolderCreator());
+    this.folderCreatorConfirm?.addEventListener("click", () => this._submitFolderCreator());
+    this.folderCreatorInput?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        this._submitSubviewCreator();
+        this._submitFolderCreator();
       } else if (e.key === "Escape") {
         e.preventDefault();
-        this._closeSubviewCreator();
+        this._closeFolderCreator();
+      }
+    });
+
+    // Dropdown Search - Collection
+    this.collectionSearchInput?.addEventListener("input", () => this._onCollectionSearch());
+    this.collectionSearchClear?.addEventListener("click", () => {
+      if (this.collectionSearchInput) {
+        this.collectionSearchInput.value = "";
+        this._onCollectionSearch();
+        this.collectionSearchInput.focus();
+      }
+    });
+
+    // Dropdown Creator - Collection
+    this.collectionNewBtn?.addEventListener("click", () => this._toggleCollectionCreator());
+    this.collectionCreatorCancel?.addEventListener("click", () => this._closeCollectionCreator());
+    this.collectionCreatorConfirm?.addEventListener("click", () => this._submitCollectionCreator());
+    this.collectionCreatorInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this._submitCollectionCreator();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this._closeCollectionCreator();
+      }
+    });
+
+    // Dropdown Search - Workspace
+    this.workspaceSearchInput?.addEventListener("input", () => this._onWorkspaceSearch());
+    this.workspaceSearchClear?.addEventListener("click", () => {
+      if (this.workspaceSearchInput) {
+        this.workspaceSearchInput.value = "";
+        this._onWorkspaceSearch();
+        this.workspaceSearchInput.focus();
+      }
+    });
+
+    // Dismiss open dropdown when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".picker-trigger-box")) {
+        this.closeAllDropdowns();
       }
     });
 
@@ -230,19 +279,20 @@ class PopupController {
       if (e.key === "Enter" || e.key === ",") {
         e.preventDefault();
         const val = this.tagsInput.value.replace(/,/g, "").trim();
-        if (val) { this.addTagChip(val, true); this.tagsInput.value = ""; }
+        if (val) {
+          this.addTagChip(val, true);
+          this.tagsInput.value = "";
+        }
       }
     });
 
-    // Live-sync to the active browser tab. Harmless in classic popup mode
-    // (the view closes on blur) and essential in side-panel mode, which
-    // stays open while the user switches tabs.
+    // Live-sync to active tab
     if (typeof chrome !== "undefined" && chrome.tabs?.onActivated) {
       chrome.tabs.onActivated.addListener(async ({ tabId }) => {
         try {
           const tab = await chrome.tabs.get(tabId);
           this._seedTab(tab);
-        } catch { /* tab gone before get() resolved */ }
+        } catch { /* non-fatal */ }
       });
       chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if (!tab || !tab.active) return;
@@ -256,16 +306,16 @@ class PopupController {
         try {
           const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
           if (tabs && tabs[0]) this._seedTab(tabs[0]);
-        } catch { /* no focused window (Chrome lost focus) */ }
+        } catch { /* non-fatal */ }
       });
     }
 
     // Keyboard shortcuts
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        if (this.pickerSubview && !this.pickerSubview.hidden) {
+        if (this.hasOpenDropdown()) {
           e.preventDefault();
-          this.closePickerSubview();
+          this.closeAllDropdowns();
         } else {
           window.close();
         }
@@ -279,232 +329,334 @@ class PopupController {
 
   setDestinationType(type) {
     this.destinationType = type;
-    if (type === "bookmark") {
-      this.typeBtnBookmark?.classList.add("is-active");
-      this.typeBtnBookmark?.setAttribute("aria-selected", "true");
-      this.typeBtnCollection?.classList.remove("is-active");
-      this.typeBtnCollection?.setAttribute("aria-selected", "false");
-      if (this.fieldFolder) this.fieldFolder.style.display = "";
-      if (this.fieldCollection) this.fieldCollection.style.display = "none";
-      if (this.submitBtnText) this.submitBtnText.textContent = "Save Bookmark";
-    } else {
-      this.typeBtnCollection?.classList.add("is-active");
-      this.typeBtnCollection?.setAttribute("aria-selected", "true");
-      this.typeBtnBookmark?.classList.remove("is-active");
-      this.typeBtnBookmark?.setAttribute("aria-selected", "false");
-      if (this.fieldFolder) this.fieldFolder.style.display = "none";
-      if (this.fieldCollection) this.fieldCollection.style.display = "";
-      if (this.submitBtnText) this.submitBtnText.textContent = "Add to Collection";
+    const isBm = type === "bookmark";
+    const isSc = type === "shortcut";
+    const isCol = type === "collection";
+
+    this.typeBtnBookmark?.classList.toggle("is-active", isBm);
+    this.typeBtnBookmark?.setAttribute("aria-selected", String(isBm));
+
+    this.typeBtnShortcut?.classList.toggle("is-active", isSc);
+    this.typeBtnShortcut?.setAttribute("aria-selected", String(isSc));
+
+    this.typeBtnCollection?.classList.toggle("is-active", isCol);
+    this.typeBtnCollection?.setAttribute("aria-selected", String(isCol));
+
+    if (this.fieldFolder) this.fieldFolder.style.display = isBm ? "" : "none";
+    if (this.fieldWorkspace) this.fieldWorkspace.style.display = isBm ? "" : "none";
+    if (this.fieldCollection) this.fieldCollection.style.display = isCol ? "" : "none";
+
+    this.closeAllDropdowns();
+
+    if (this.submitBtnText) {
+      if (isSc) this.submitBtnText.textContent = "Save to Shortcuts";
+      else if (isCol) this.submitBtnText.textContent = "Add to Collection";
+      else this.submitBtnText.textContent = "Save Bookmark";
     }
   }
 
   /* ============================================================
-     Full-Height Subview Lifecycle
+     Inline Dropdown Management
      ============================================================ */
-  openPickerSubview(mode) {
-    this.subviewMode = mode;
-    if (this.pickerSubview) this.pickerSubview.hidden = false;
-    this._closeSubviewCreator();
-
-    if (this.subviewSearchInput) {
-      this.subviewSearchInput.value = "";
-      this.subviewSearchClear.hidden = true;
-    }
-
-    if (mode === "folder") {
-      if (this.subviewTitle) this.subviewTitle.textContent = "Select Folder";
-      if (this.subviewActionBtn) {
-        this.subviewActionBtn.textContent = "+ New Folder";
-        this.subviewActionBtn.style.display = "";
-      }
-      if (this.subviewSearchInput) this.subviewSearchInput.placeholder = "Search folders...";
-      if (this.subviewSearchBar) this.subviewSearchBar.style.display = "";
-      this._renderSubviewFolders(this.folders);
-    } else if (mode === "collection") {
-      if (this.subviewTitle) this.subviewTitle.textContent = "Select Collection";
-      if (this.subviewActionBtn) {
-        this.subviewActionBtn.textContent = "+ New Collection";
-        this.subviewActionBtn.style.display = "";
-      }
-      if (this.subviewSearchInput) this.subviewSearchInput.placeholder = "Search collections...";
-      if (this.subviewSearchBar) this.subviewSearchBar.style.display = "";
-      this._renderSubviewCollections(this.collections);
-    } else if (mode === "workspace") {
-      if (this.subviewTitle) this.subviewTitle.textContent = "Select Workspace";
-      if (this.subviewActionBtn) this.subviewActionBtn.style.display = "none";
-      if (this.subviewSearchInput) this.subviewSearchInput.placeholder = "Search workspaces...";
-      if (this.subviewSearchBar) {
-        this.subviewSearchBar.style.display = (this.groups && this.groups.length > 4) ? "" : "none";
-      }
-      this._renderSubviewWorkspaces(this.groups);
-    }
-
-    // Scroll to selected element or focus search
-    setTimeout(() => {
-      const selected = this.subviewList?.querySelector(".subview-item.is-selected");
-      if (selected) {
-        selected.scrollIntoView({ block: "nearest" });
-      }
-      if (this.subviewSearchInput && (!this.subviewSearchBar || this.subviewSearchBar.style.display !== "none")) {
-        this.subviewSearchInput.focus();
-      }
-    }, 60);
+  hasOpenDropdown() {
+    return Boolean(this.activeDropdown);
   }
 
-  closePickerSubview() {
-    if (this.pickerSubview) this.pickerSubview.hidden = true;
-    this.subviewMode = null;
-    this._closeSubviewCreator();
+  closeAllDropdowns() {
+    this.activeDropdown = null;
+
+    if (this.folderDropdown) this.folderDropdown.hidden = true;
+    this.folderTrigger?.classList.remove("is-open");
+    this.folderTrigger?.setAttribute("aria-expanded", "false");
+    this._closeFolderCreator();
+
+    if (this.collectionDropdown) this.collectionDropdown.hidden = true;
+    this.customCollectionTrigger?.classList.remove("is-open");
+    this.customCollectionTrigger?.setAttribute("aria-expanded", "false");
+    this._closeCollectionCreator();
+
+    if (this.workspaceDropdown) this.workspaceDropdown.hidden = true;
+    this.workspaceTrigger?.classList.remove("is-open");
+    this.workspaceTrigger?.setAttribute("aria-expanded", "false");
   }
 
-  _onSubviewSearch() {
-    const q = this.subviewSearchInput?.value.trim().toLowerCase() || "";
-    if (this.subviewSearchClear) this.subviewSearchClear.hidden = !q;
+  toggleDropdown(type) {
+    if (this.activeDropdown === type) {
+      this.closeAllDropdowns();
+      return;
+    }
 
-    if (this.subviewMode === "folder") {
-      const filtered = this.folders.filter((f) => {
-        return !q || (f.title && f.title.toLowerCase().includes(q)) || (f.fullPath && f.fullPath.toLowerCase().includes(q));
-      });
-      this._renderSubviewFolders(filtered);
-    } else if (this.subviewMode === "collection") {
-      const filtered = this.collections.filter((c) => !q || (c.name && c.name.toLowerCase().includes(q)));
-      this._renderSubviewCollections(filtered);
-    } else if (this.subviewMode === "workspace") {
-      const filtered = this.groups.filter((g) => !q || (g.name && g.name.toLowerCase().includes(q)));
-      this._renderSubviewWorkspaces(filtered);
+    this.closeAllDropdowns();
+    this.activeDropdown = type;
+
+    if (type === "folder" && this.folderDropdown) {
+      this.folderDropdown.hidden = false;
+      this.folderTrigger?.classList.add("is-open");
+      this.folderTrigger?.setAttribute("aria-expanded", "true");
+      if (this.folderSearchInput) {
+        this.folderSearchInput.value = "";
+        this.folderSearchClear.hidden = true;
+      }
+      this._renderFolderList(this.folders);
+      setTimeout(() => {
+        const selected = this.folderList?.querySelector(".dropdown-item.is-selected");
+        if (selected) selected.scrollIntoView({ block: "nearest" });
+        this.folderSearchInput?.focus();
+      }, 50);
+    } else if (type === "collection" && this.collectionDropdown) {
+      this.collectionDropdown.hidden = false;
+      this.customCollectionTrigger?.classList.add("is-open");
+      this.customCollectionTrigger?.setAttribute("aria-expanded", "true");
+      if (this.collectionSearchInput) {
+        this.collectionSearchInput.value = "";
+        this.collectionSearchClear.hidden = true;
+      }
+      this._renderCollectionList(this.collections);
+      setTimeout(() => {
+        const selected = this.collectionList?.querySelector(".dropdown-item.is-selected");
+        if (selected) selected.scrollIntoView({ block: "nearest" });
+        this.collectionSearchInput?.focus();
+      }, 50);
+    } else if (type === "workspace" && this.workspaceDropdown) {
+      this.workspaceDropdown.hidden = false;
+      this.workspaceTrigger?.classList.add("is-open");
+      this.workspaceTrigger?.setAttribute("aria-expanded", "true");
+      if (this.workspaceSearchInput) {
+        this.workspaceSearchInput.value = "";
+        this.workspaceSearchClear.hidden = true;
+      }
+      this._renderWorkspaceList(this.groups);
+      setTimeout(() => {
+        const selected = this.workspaceList?.querySelector(".dropdown-item.is-selected");
+        if (selected) selected.scrollIntoView({ block: "nearest" });
+        this.workspaceSearchInput?.focus();
+      }, 50);
     }
   }
 
-  _renderSubviewFolders(folders) {
-    this.subviewList.replaceChildren();
+  /* ── Folder Dropdown Methods ────────────────────────────── */
+  _onFolderSearch() {
+    const q = this.folderSearchInput?.value.trim().toLowerCase() || "";
+    if (this.folderSearchClear) this.folderSearchClear.hidden = !q;
+    const filtered = this.folders.filter((f) => {
+      return !q || (f.title && f.title.toLowerCase().includes(q)) || (f.fullPath && f.fullPath.toLowerCase().includes(q));
+    });
+    this._renderFolderList(filtered);
+  }
+
+  _renderFolderList(folders) {
+    if (!this.folderList) return;
+    this.folderList.replaceChildren();
     if (!folders || folders.length === 0) {
       const empty = document.createElement("div");
-      empty.className = "subview-empty-msg";
+      empty.className = "dropdown-empty-msg";
       empty.textContent = "No matching folders found";
-      this.subviewList.appendChild(empty);
+      this.folderList.appendChild(empty);
       return;
     }
 
     const currentId = this.folderHidden?.value;
     for (const f of folders) {
       const li = document.createElement("li");
-      li.className = "subview-item";
+      li.className = "dropdown-item";
       li.dataset.value = f.id;
       if (f.id === currentId) li.classList.add("is-selected");
       li.title = f.fullPath || f.title;
 
       if (f.depth > 0) {
         const indent = document.createElement("span");
-        indent.className = "subview-item-indent";
+        indent.className = "dropdown-item-indent";
         indent.style.width = `${f.depth * 14}px`;
         li.appendChild(indent);
       }
 
       const icon = document.createElement("span");
-      icon.className = "subview-item-icon";
-      icon.textContent = f.depth === 0 ? "📁" : "↳";
+      icon.className = "dropdown-item-icon";
+      icon.innerHTML = f.depth === 0
+        ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5h6l2 2.5h10v9.5H3Z"></path></svg>`
+        : `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>`;
 
       const title = document.createElement("span");
-      title.className = "subview-item-title";
+      title.className = "dropdown-item-title";
       title.textContent = f.title;
 
       li.append(icon, title);
 
       if (f.path && f.path.length > 0) {
         const hint = document.createElement("span");
-        hint.className = "subview-item-hint";
+        hint.className = "dropdown-item-hint";
         hint.textContent = f.path[f.path.length - 1];
         li.appendChild(hint);
       }
 
       const check = document.createElement("span");
-      check.className = "subview-item-check";
+      check.className = "dropdown-item-check";
       check.textContent = "✓";
       li.appendChild(check);
 
       li.addEventListener("click", () => {
         this.selectFolder(f.id, f.title);
-        this.closePickerSubview();
+        this.closeAllDropdowns();
       });
 
-      this.subviewList.appendChild(li);
+      this.folderList.appendChild(li);
     }
   }
 
-  _renderSubviewCollections(collections) {
-    this.subviewList.replaceChildren();
+  _toggleFolderCreator() {
+    if (!this.folderCreatorBox) return;
+    const isHidden = this.folderCreatorBox.hidden;
+    this.folderCreatorBox.hidden = !isHidden;
+    if (isHidden && this.folderCreatorInput) {
+      this.folderCreatorInput.value = "";
+      setTimeout(() => this.folderCreatorInput.focus(), 40);
+    }
+  }
+
+  _closeFolderCreator() {
+    if (this.folderCreatorBox) {
+      this.folderCreatorBox.hidden = true;
+      if (this.folderCreatorInput) this.folderCreatorInput.value = "";
+    }
+  }
+
+  async _submitFolderCreator() {
+    const name = this.folderCreatorInput?.value.trim();
+    if (!name) return;
+    try {
+      const created = await chrome.bookmarks.create({ title: name, parentId: "1" });
+      await this.populateFolders();
+      if (created) this.selectFolder(created.id, created.title);
+      this.closeAllDropdowns();
+    } catch (err) {
+      this.showError(err.message || "Failed to create folder");
+    }
+  }
+
+  /* ── Collection Dropdown Methods ────────────────────────── */
+  _onCollectionSearch() {
+    const q = this.collectionSearchInput?.value.trim().toLowerCase() || "";
+    if (this.collectionSearchClear) this.collectionSearchClear.hidden = !q;
+    const filtered = this.collections.filter((c) => !q || (c.name && c.name.toLowerCase().includes(q)));
+    this._renderCollectionList(filtered);
+  }
+
+  _renderCollectionList(collections) {
+    if (!this.collectionList) return;
+    this.collectionList.replaceChildren();
     if (!collections || collections.length === 0) {
       const empty = document.createElement("div");
-      empty.className = "subview-empty-msg";
-      empty.textContent = "No collections found. Click '+ New Collection' to create one.";
-      this.subviewList.appendChild(empty);
+      empty.className = "dropdown-empty-msg";
+      empty.textContent = "No collections found. Click '+ New' to create one.";
+      this.collectionList.appendChild(empty);
       return;
     }
 
     const currentId = this.customCollectionHidden?.value;
     for (const c of collections) {
       const li = document.createElement("li");
-      li.className = "subview-item";
+      li.className = "dropdown-item";
       li.dataset.value = c.id;
       if (c.id === currentId) li.classList.add("is-selected");
 
       const icon = document.createElement("span");
-      icon.className = "subview-item-icon";
-      icon.textContent = "🗂️";
+      icon.className = "dropdown-item-icon";
+      icon.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 10 5-10 5L2 7l10-5Z"></path><path d="m2 17 10 5 10-5"></path><path d="m2 12 10 5 10-5"></path></svg>`;
 
       const title = document.createElement("span");
-      title.className = "subview-item-title";
+      title.className = "dropdown-item-title";
       title.textContent = c.name;
 
       const count = Array.isArray(c.bookmarkIds) ? c.bookmarkIds.length : 0;
       const hint = document.createElement("span");
-      hint.className = "subview-item-hint";
+      hint.className = "dropdown-item-hint";
       hint.textContent = `${count} item${count === 1 ? "" : "s"}`;
 
       const check = document.createElement("span");
-      check.className = "subview-item-check";
+      check.className = "dropdown-item-check";
       check.textContent = "✓";
 
       li.append(icon, title, hint, check);
       li.addEventListener("click", () => {
         this.selectCustomCollection(c.id, c.name);
-        this.closePickerSubview();
+        this.closeAllDropdowns();
       });
 
-      this.subviewList.appendChild(li);
+      this.collectionList.appendChild(li);
     }
   }
 
-  _renderSubviewWorkspaces(groups) {
-    this.subviewList.replaceChildren();
+  _toggleCollectionCreator() {
+    if (!this.collectionCreatorBox) return;
+    const isHidden = this.collectionCreatorBox.hidden;
+    this.collectionCreatorBox.hidden = !isHidden;
+    if (isHidden && this.collectionCreatorInput) {
+      this.collectionCreatorInput.value = "";
+      setTimeout(() => this.collectionCreatorInput.focus(), 40);
+    }
+  }
+
+  _closeCollectionCreator() {
+    if (this.collectionCreatorBox) {
+      this.collectionCreatorBox.hidden = true;
+      if (this.collectionCreatorInput) this.collectionCreatorInput.value = "";
+    }
+  }
+
+  async _submitCollectionCreator() {
+    const name = this.collectionCreatorInput?.value.trim();
+    if (!name) return;
+    try {
+      if (this.useCases?.createBookmarkCollection) {
+        const created = await this.useCases.createBookmarkCollection.execute({ name });
+        await this.populateCollections();
+        if (created) this.selectCustomCollection(created.id, created.name);
+      }
+      this.closeAllDropdowns();
+    } catch (err) {
+      this.showError(err.message || "Failed to create collection");
+    }
+  }
+
+  /* ── Workspace Dropdown Methods ─────────────────────────── */
+  _onWorkspaceSearch() {
+    const q = this.workspaceSearchInput?.value.trim().toLowerCase() || "";
+    if (this.workspaceSearchClear) this.workspaceSearchClear.hidden = !q;
+    const filtered = this.groups.filter((g) => !q || (g.name && g.name.toLowerCase().includes(q)));
+    this._renderWorkspaceList(filtered);
+  }
+
+  _renderWorkspaceList(groups) {
+    if (!this.workspaceList) return;
+    this.workspaceList.replaceChildren();
     const currentId = this.workspaceHidden?.value ?? "";
 
-    // All Bookmarks
+    // All Bookmarks option
     const allLi = document.createElement("li");
-    allLi.className = "subview-item";
+    allLi.className = "dropdown-item";
     if (!currentId) allLi.classList.add("is-selected");
 
     const allSwatch = document.createElement("span");
     allSwatch.className = "custom-select-swatch";
 
     const allTitle = document.createElement("span");
-    allTitle.className = "subview-item-title";
+    allTitle.className = "dropdown-item-title";
     allTitle.textContent = "All Bookmarks";
 
     const allCheck = document.createElement("span");
-    allCheck.className = "subview-item-check";
+    allCheck.className = "dropdown-item-check";
     allCheck.textContent = "✓";
 
     allLi.append(allSwatch, allTitle, allCheck);
     allLi.addEventListener("click", () => {
       this.selectWorkspace(null, "All Bookmarks", null);
-      this.closePickerSubview();
+      this.closeAllDropdowns();
     });
-    this.subviewList.appendChild(allLi);
+    this.workspaceList.appendChild(allLi);
 
     for (const g of groups) {
       const li = document.createElement("li");
-      li.className = "subview-item";
+      li.className = "dropdown-item";
       li.dataset.value = g.id;
       if (g.id === currentId) li.classList.add("is-selected");
 
@@ -513,64 +665,20 @@ class PopupController {
       if (g.color) swatch.style.background = g.color;
 
       const title = document.createElement("span");
-      title.className = "subview-item-title";
+      title.className = "dropdown-item-title";
       title.textContent = g.name;
 
       const check = document.createElement("span");
-      check.className = "subview-item-check";
+      check.className = "dropdown-item-check";
       check.textContent = "✓";
 
       li.append(swatch, title, check);
       li.addEventListener("click", () => {
         this.selectWorkspace(g.id, g.name, g.color);
-        this.closePickerSubview();
+        this.closeAllDropdowns();
       });
 
-      this.subviewList.appendChild(li);
-    }
-  }
-
-  _openSubviewCreator() {
-    if (!this.subviewCreator) return;
-    this.subviewCreator.hidden = false;
-    if (this.subviewCreatorInput) {
-      this.subviewCreatorInput.value = "";
-      this.subviewCreatorInput.placeholder = this.subviewMode === "folder" ? "New folder name..." : "New collection name...";
-      setTimeout(() => this.subviewCreatorInput.focus(), 50);
-    }
-  }
-
-  _closeSubviewCreator() {
-    if (this.subviewCreator) {
-      this.subviewCreator.hidden = true;
-      if (this.subviewCreatorInput) this.subviewCreatorInput.value = "";
-    }
-  }
-
-  async _submitSubviewCreator() {
-    const name = this.subviewCreatorInput?.value.trim();
-    if (!name) return;
-
-    if (this.subviewMode === "folder") {
-      try {
-        const created = await chrome.bookmarks.create({ title: name, parentId: "1" });
-        await this.populateFolders();
-        if (created) this.selectFolder(created.id, created.title);
-        this.closePickerSubview();
-      } catch (err) {
-        this.showError(err.message || "Failed to create folder");
-      }
-    } else if (this.subviewMode === "collection") {
-      try {
-        if (this.useCases?.createBookmarkCollection) {
-          const created = await this.useCases.createBookmarkCollection.execute({ name });
-          await this.populateCollections();
-          if (created) this.selectCustomCollection(created.id, created.name);
-        }
-        this.closePickerSubview();
-      } catch (err) {
-        this.showError(err.message || "Failed to create collection");
-      }
+      this.workspaceList.appendChild(li);
     }
   }
 
@@ -583,8 +691,6 @@ class PopupController {
     } catch (err) {
       this.showError("Failed to start: " + (err?.message || err));
       if (this.submitBtn) this.submitBtn.disabled = true;
-      if (this.quickieBtn) this.quickieBtn.disabled = true;
-      if (this.shortcutBtn) this.shortcutBtn.disabled = true;
       return;
     }
 
@@ -592,13 +698,13 @@ class PopupController {
 
     if (this.useCases.ensureQuickieFolder) {
       this.useCases.ensureQuickieFolder.execute().catch((err) => {
-        console.warn("Could not ensure quickie folder on popup open:", err);
+        console.warn("Could not ensure quickie folder:", err);
       });
     }
 
     if (this.useCases.ensureShortcutsFolder) {
       this.useCases.ensureShortcutsFolder.execute().catch((err) => {
-        console.warn("Could not ensure shortcuts folder on popup open:", err);
+        console.warn("Could not ensure shortcuts folder:", err);
       });
     }
 
@@ -625,18 +731,18 @@ class PopupController {
         s = await this.useCases.getSettings.execute();
       }
 
-      this.currentAccentColor = s?.cssVarAccent || "#555B66";
+      this.currentAccentColor = s?.cssVarAccent || "#3b82f6";
       this.currentColorMode = storedPopupMode || s?.colorMode || "dark";
     } catch {
       this.currentColorMode = "dark";
-      this.currentAccentColor = "#555B66";
+      this.currentAccentColor = "#3b82f6";
     }
     this.applyTheme(this.currentColorMode, this.currentAccentColor);
   }
 
   applyTheme(mode, accentHex) {
     this.currentColorMode = mode;
-    this.currentAccentColor = accentHex || "#555B66";
+    this.currentAccentColor = accentHex || "#3b82f6";
     document.documentElement.setAttribute("data-color-mode", mode);
     const accentVars = deriveAccentShades(this.currentAccentColor, mode);
     for (const [prop, val] of Object.entries(accentVars)) {
@@ -652,94 +758,8 @@ class PopupController {
         await chrome.storage.local.set({ popupColorMode: this.currentColorMode });
       }
     } catch (err) {
-      console.warn("Could not save popupColorMode preference:", err);
+      console.warn("Could not save popupColorMode:", err);
     }
-  }
-
-  async onSaveToQuickie() {
-    this.clearError();
-    const url = this.urlInput.value.trim();
-    const title = this.titleInput.value.trim() || hostnameOf(url) || "Bookmark";
-
-    if (!url) {
-      this.showError("URL is required.");
-      return;
-    }
-
-    if (this.quickieBtn) {
-      this.quickieBtn.disabled = true;
-      this.quickieBtn.querySelector(".popup-quickie-title")?.replaceChildren("Saving...");
-    }
-
-    try {
-      let quickieFolderId = null;
-      if (this.useCases?.ensureQuickieFolder) {
-        quickieFolderId = await this.useCases.ensureQuickieFolder.execute();
-      }
-      await chrome.bookmarks.create({
-        parentId: quickieFolderId || "2",
-        title,
-        url,
-      });
-    } catch (err) {
-      if (this.quickieBtn) {
-        this.quickieBtn.disabled = false;
-        const titleEl = this.quickieBtn.querySelector(".popup-quickie-title");
-        if (titleEl) titleEl.textContent = "Quick Save";
-      }
-      this.showError(err?.message || "Could not save to Quickie.");
-      return;
-    }
-
-    if (this.quickieBtn) {
-      const titleEl = this.quickieBtn.querySelector(".popup-quickie-title");
-      if (titleEl) titleEl.textContent = "Saved!";
-    }
-    setTimeout(() => window.close(), 350);
-  }
-
-  /** One-click save into the Shortcuts grid (reserved native folder). */
-  async onSaveToShortcuts() {
-    this.clearError();
-    const url = this.urlInput.value.trim();
-    const title = this.titleInput.value.trim() || hostnameOf(url) || "Shortcut";
-
-    if (!url) {
-      this.showError("URL is required.");
-      return;
-    }
-
-    if (this.shortcutBtn) {
-      this.shortcutBtn.disabled = true;
-      const titleEl = this.shortcutBtn.querySelector(".popup-quickie-title");
-      if (titleEl) titleEl.textContent = "Saving...";
-    }
-
-    try {
-      let shortcutsFolderId = null;
-      if (this.useCases?.ensureShortcutsFolder) {
-        shortcutsFolderId = await this.useCases.ensureShortcutsFolder.execute();
-      }
-      await chrome.bookmarks.create({
-        parentId: shortcutsFolderId || "2",
-        title,
-        url,
-      });
-    } catch (err) {
-      if (this.shortcutBtn) {
-        this.shortcutBtn.disabled = false;
-        const titleEl = this.shortcutBtn.querySelector(".popup-quickie-title");
-        if (titleEl) titleEl.textContent = "Quick Shortcut";
-      }
-      this.showError(err?.message || "Could not save shortcut.");
-      return;
-    }
-
-    if (this.shortcutBtn) {
-      const titleEl = this.shortcutBtn.querySelector(".popup-quickie-title");
-      if (titleEl) titleEl.textContent = "Saved!";
-    }
-    setTimeout(() => window.close(), 350);
   }
 
   async populateWorkspaces() {
@@ -749,12 +769,10 @@ class PopupController {
       if (this.useCases?.setActiveGroup?.getActive) {
         activeId = await this.useCases.setActiveGroup.getActive();
       }
-
       const active = this.groups.find((g) => g.id === activeId) || null;
       this.selectWorkspace(active ? active.id : null, active ? active.name : "All Bookmarks", active ? active.color : null);
-    } catch {
-      // Workspaces are a convenience filter — failure shouldn't block saving.
-    }
+      this._renderWorkspaceList(this.groups);
+    } catch { /* non-fatal */ }
   }
 
   selectWorkspace(id, name, color) {
@@ -765,7 +783,7 @@ class PopupController {
         this.workspaceSwatch.style.background = color;
         this.workspaceSwatch.style.display = "inline-block";
       } else {
-        this.workspaceSwatch.style.background = "var(--accent-gradient)";
+        this.workspaceSwatch.style.background = "var(--accent)";
       }
     }
     this.filterFoldersByWorkspace(id);
@@ -776,8 +794,6 @@ class PopupController {
       const raw = typeof chrome !== "undefined" && chrome.bookmarks ? await chrome.bookmarks.getTree() : [];
       this.folders = flattenFolders(raw);
 
-      // Restore memory: last-used folder wins; recents validated against the
-      // live tree so deleted folders never render.
       const [storedLast, storedRecents] = await Promise.all([
         readLocal(LAST_FOLDER_KEY),
         readLocal(RECENT_FOLDERS_KEY),
@@ -789,7 +805,7 @@ class PopupController {
 
       const last = (storedLast && validIds.has(String(storedLast.id))) ? storedLast : null;
       const bar = this.folders.find((f) => f.id === "1" || /bookmarks bar|favorites bar/i.test(f.title)) || this.folders[0];
-      // First-run seed so the quick-chip row isn't empty before the first save.
+
       if (this.recentFolders.length === 0 && bar) {
         this.recentFolders = [{ id: bar.id, title: bar.title }];
       }
@@ -799,6 +815,7 @@ class PopupController {
         this.selectFolder(bar.id, bar.title, { persist: false });
       }
       this._renderFolderQuickChips();
+      this._renderFolderList(this.folders);
     } catch {
       if (this.folderLabel) this.folderLabel.textContent = "No folders found";
     }
@@ -808,8 +825,6 @@ class PopupController {
     const group = this.groups.find((g) => g.id === groupId);
     if (!group) return;
     const scoped = this.folders.filter((f) => group.folderIds.includes(f.id));
-    // Workspace auto-scoping is not a user destination choice — don't
-    // overwrite the remembered last-used folder with it.
     if (scoped.length) this.selectFolder(scoped[0].id, scoped[0].title, { persist: false });
   }
 
@@ -820,7 +835,6 @@ class PopupController {
     this._renderFolderQuickChips();
   }
 
-  /** Push a folder to the front of recents, persist it as last-used, refresh chips. */
   async _rememberFolder(id, name) {
     if (!id) return;
     const entry = { id: String(id), title: String(name || "Folder") };
@@ -832,12 +846,9 @@ class PopupController {
     await writeLocal(LAST_FOLDER_KEY, entry);
   }
 
-  /** Render one-tap recent-destination chips under the Folder field. */
   _renderFolderQuickChips() {
     if (!this.folderQuickRow) return;
     const validIds = new Set(this.folders.map((f) => f.id));
-    // Recents that no longer exist in the live tree are dropped from view
-    // (they self-heal out of storage on the next _rememberFolder).
     const visible = this.recentFolders.filter((f) => validIds.has(f.id));
     const currentId = this.folderHidden?.value;
 
@@ -847,9 +858,10 @@ class PopupController {
       chip.type = "button";
       chip.className = "picker-quick-chip" + (f.id === currentId ? " is-active" : "");
       chip.title = f.title;
-      chip.textContent = `📁 ${f.title}`;
+      chip.innerHTML = `<svg class="picker-chip-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5h6l2 2.5h10v9.5H3Z"></path></svg><span>${f.title}</span>`;
       chip.addEventListener("click", () => {
         this.selectFolder(f.id, f.title);
+        this.closeAllDropdowns();
       });
       this.folderQuickRow.appendChild(chip);
     }
@@ -862,7 +874,6 @@ class PopupController {
       } else {
         this.collections = [];
       }
-      // Restore the last-used collection instead of always the first one.
       const stored = await readLocal(LAST_COLLECTION_KEY);
       const last = stored && this.collections.find((c) => c.id === stored.id);
       if (last) {
@@ -872,6 +883,7 @@ class PopupController {
       } else if (this.customCollectionLabel) {
         this.customCollectionLabel.textContent = "Select Collection";
       }
+      this._renderCollectionList(this.collections);
     } catch {
       if (this.customCollectionLabel) this.customCollectionLabel.textContent = "Create collection";
     }
@@ -891,9 +903,6 @@ class PopupController {
   async seedFromActiveTab({ focusTitle = true } = {}) {
     let tab = null;
     try {
-      // Side panels persist across tab switches and are per-window, so
-      // lastFocusedWindow is the reliable query; currentWindow is the
-      // fallback for classic anchored popups.
       let tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true }).catch(() => []);
       if (!tabs || tabs.length === 0) {
         tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -905,22 +914,19 @@ class PopupController {
     this._seedTab(tab, { focusTitle });
   }
 
-  /** Fill the form from a tab. Reused by initial open AND live tab-switch sync. */
   _seedTab(tab, { focusTitle = false } = {}) {
     if (tab && tab.url) {
       this.urlInput.value = tab.url;
       this.titleInput.value = tab.title || hostnameOf(tab.url) || "";
-      if (this.domainEl) this.domainEl.textContent = hostnameOf(tab.url);
+      if (this.domainEl) this.domainEl.textContent = hostnameOf(tab.url) || "New Bookmark";
       if (this.faviconEl) {
         if (tab.favIconUrl) {
           this.faviconEl.src = tab.favIconUrl;
           this.faviconEl.hidden = false;
         } else {
-          // Stale favicon from the previously seeded tab must not linger.
           this.faviconEl.hidden = true;
         }
       }
-      // Suggested tags belong to the page — clear chips from any prior seed.
       if (this.tagsList) this.tagsList.replaceChildren();
       this.activeTags.clear();
       const suggested = extractSuggestedTags(tab.title);
@@ -930,8 +936,6 @@ class PopupController {
       if (this.faviconEl) this.faviconEl.hidden = true;
     }
 
-    // Focus only when the view is first opened; auto-focusing on every
-    // tab switch would yank keyboard focus away from the web page.
     if (focusTitle) setTimeout(() => this.titleInput?.focus(), 80);
   }
 
@@ -981,10 +985,10 @@ class PopupController {
   async onSubmit(event) {
     if (event) event.preventDefault();
     this.clearError();
+    this.closeAllDropdowns();
 
     const title = this.titleInput.value.trim();
     const url = this.urlInput.value.trim();
-    const tags = this.getSelectedTags();
 
     if (!url) {
       this.showError("URL is required.");
@@ -1004,12 +1008,24 @@ class PopupController {
     }
 
     try {
-      if (this.destinationType === "collection") {
+      if (this.destinationType === "shortcut") {
+        let shortcutsFolderId = null;
+        if (this.useCases?.ensureShortcutsFolder) {
+          shortcutsFolderId = await this.useCases.ensureShortcutsFolder.execute();
+        }
+        await chrome.bookmarks.create({
+          parentId: shortcutsFolderId || "2",
+          title,
+          url,
+        });
+      } else if (this.destinationType === "collection") {
         const collectionId = this.customCollectionHidden.value;
-        let parentId = "2";
-        if (this.useCases?.ensureCollectionsFolder) {
+        const targetColl = Array.isArray(this.collections) ? this.collections.find((c) => c.id === collectionId) : null;
+        let parentId = targetColl?.folderId || targetColl?.id;
+        if (!parentId && this.useCases?.ensureCollectionsFolder) {
           parentId = (await this.useCases.ensureCollectionsFolder.execute()) || "2";
-        } else {
+        }
+        if (!parentId) {
           const otherFolder = this.folders.find((f) => f.id === "2" || /other bookmarks/i.test(f.title));
           parentId = otherFolder?.id || "2";
         }
@@ -1028,7 +1044,6 @@ class PopupController {
           title,
           url,
         });
-        // Keep destination memory truthful with what was actually saved.
         const usedFolder = this.folders.find((f) => f.id === String(parentId));
         if (usedFolder) await this._rememberFolder(usedFolder.id, usedFolder.title);
       }
@@ -1036,14 +1051,16 @@ class PopupController {
       if (this.submitBtn) {
         this.submitBtn.disabled = false;
         if (this.submitBtnText) {
-          this.submitBtnText.textContent = this.destinationType === "collection" ? "Add to Collection" : "Save Bookmark";
+          this.submitBtnText.textContent = this.destinationType === "shortcut"
+            ? "Save to Shortcuts"
+            : (this.destinationType === "collection" ? "Add to Collection" : "Save Bookmark");
         }
       }
       this.showError(err?.message || "Failed to save bookmark.");
       return;
     }
 
-    if (this.submitBtnText) this.submitBtnText.textContent = "Saved!";
+    if (this.submitBtnText) this.submitBtnText.textContent = "Saved ✓";
     setTimeout(() => window.close(), 350);
   }
 }

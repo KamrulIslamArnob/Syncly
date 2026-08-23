@@ -1030,7 +1030,129 @@ export class SettingsSidebarView {
     );
 
     // ═══════════════════════════════════════════════════════════
-    // 5. RESET & DANGER ZONE
+    // 5. EXTENSION UPDATES & DEVELOPER RELOAD
+    // ═══════════════════════════════════════════════════════════
+    const { card: updatesCard, body: updatesBody } = this._createCard({
+      id: "updates",
+      iconName: "refresh",
+      title: "Extension Updates & Reload",
+    });
+
+    const updatesHint = el("span", { className: "settings-option-hint" },
+      "Reload the unpacked extension directly from disk after running git pull, or check remote GitHub repository commits."
+    );
+
+    // 1. One-Click Reload Button
+    const reloadBtn = el("button", {
+      type: "button",
+      className: "settings-btn settings-btn-primary",
+      title: "Reload extension directly from disk (chrome.runtime.reload)",
+    },
+      icon("refresh", "settings-btn-icon"),
+      el("span", {}, "1-Click Reload Extension")
+    );
+
+    const reloadStatus = el("span", { className: "settings-option-hint" }, "Unpacked Dev Mode");
+
+    reloadBtn.addEventListener("click", () => {
+      reloadStatus.textContent = "Reloading extension...";
+      reloadStatus.style.color = "var(--accent)";
+      setTimeout(() => {
+        if (typeof chrome !== "undefined" && chrome.runtime?.reload) {
+          chrome.runtime.reload();
+        } else {
+          location.reload();
+        }
+      }, 150);
+    });
+
+    const reloadRow = el("div", { className: "settings-row-between" },
+      el("div", { className: "settings-option-meta" },
+        el("span", { className: "settings-option-label" }, "Reload from Disk"),
+        reloadStatus
+      ),
+      reloadBtn
+    );
+
+    // 2. GitHub Repository Updates Check
+    const repoInput = el("input", {
+      type: "text",
+      className: "settings-input",
+      value: "KamrulIslamArnob/Syncly-playground",
+      placeholder: "owner/repository",
+      autocomplete: "off",
+      spellcheck: "false",
+    });
+
+    const checkUpdatesBtn = el("button", {
+      type: "button",
+      className: "settings-btn settings-btn-secondary",
+    },
+      icon("search", "settings-btn-icon"),
+      el("span", {}, "Check GitHub")
+    );
+
+    const commitStatus = el("div", {
+      className: "settings-option-hint",
+      style: "margin-top:6px; font-family:var(--font-mono); font-size:11px; line-height:1.4;",
+    }, "Repository: https://github.com/KamrulIslamArnob/Syncly-playground");
+
+    checkUpdatesBtn.addEventListener("click", async () => {
+      const repo = repoInput.value.trim() || "KamrulIslamArnob/Syncly-playground";
+      commitStatus.textContent = "Checking GitHub commits...";
+      commitStatus.style.color = "var(--muted)";
+      checkUpdatesBtn.disabled = true;
+
+      try {
+        let headers = { Accept: "application/vnd.github+json" };
+        if (typeof chrome !== "undefined" && chrome.storage?.local) {
+          const stored = await chrome.storage.local.get(["githubBackupPAT"]);
+          if (stored?.githubBackupPAT) {
+            headers.Authorization = `Bearer ${stored.githubBackupPAT}`;
+          }
+        }
+
+        const res = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=1`, { headers });
+        if (!res.ok) {
+          if (res.status === 404) {
+            throw new Error("Repository not found or private (add Token in GitHub Gist Sync card above if private)");
+          }
+          throw new Error(`GitHub API HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const latest = Array.isArray(data) && data[0] ? data[0] : null;
+        if (latest) {
+          const sha = latest.sha ? latest.sha.substring(0, 7) : "unknown";
+          const msg = latest.commit?.message?.split("\n")[0] || "";
+          const date = latest.commit?.author?.date ? new Date(latest.commit.author.date).toLocaleString() : "";
+          commitStatus.textContent = `Latest commit [${sha}]: "${msg}" (${date})`;
+          commitStatus.style.color = "var(--success)";
+        } else {
+          commitStatus.textContent = "No commits found in repository.";
+        }
+      } catch (err) {
+        commitStatus.textContent = `Check failed: ${err.message || err}`;
+        commitStatus.style.color = "var(--danger)";
+      } finally {
+        checkUpdatesBtn.disabled = false;
+      }
+    });
+
+    const repoRow = el("div", { className: "settings-option-block" },
+      el("div", { className: "settings-option-meta" },
+        el("span", { className: "settings-option-label" }, "Git Repository"),
+        el("span", { className: "settings-option-hint" }, "Check latest remote commit")
+      ),
+      repoInput,
+      el("div", { className: "settings-btn-row", style: "margin-top:8px;" }, checkUpdatesBtn),
+      commitStatus
+    );
+
+    updatesBody.append(updatesHint, reloadRow, repoRow);
+
+    // ═══════════════════════════════════════════════════════════
+    // 6. RESET & DANGER ZONE
     // ═══════════════════════════════════════════════════════════
     const { card: dangerCard, body: dangerBody } = this._createCard({
       id: "danger",
@@ -1082,6 +1204,7 @@ export class SettingsSidebarView {
       githubCard,
       googleCard,
       cssCard,
+      updatesCard,
       dangerCard,
       footer
     );

@@ -13,26 +13,63 @@ export class CreateBookmarkCollectionUseCase {
   #ids;
   #sanitizer;
   #events;
+  #bookmarks;
+  #ensureCollectionsFolder;
 
-  constructor({ repository, ids, sanitizer, events }) {
+  constructor({ repository, ids, sanitizer, events, bookmarks, ensureCollectionsFolder } = {}) {
     this.#repository = repository;
     this.#ids = ids;
     this.#sanitizer = sanitizer;
     this.#events = events;
+    this.#bookmarks = bookmarks || (typeof chrome !== "undefined" && chrome.bookmarks ? chrome.bookmarks : null);
+    this.#ensureCollectionsFolder = ensureCollectionsFolder || null;
   }
 
   async execute({ name, bookmarkIds = [], bookmarkUrls = [], workspaceId = null }) {
     const rawClean = this.#sanitizer ? this.#sanitizer.text(String(name || "")) : String(name || "").trim();
     const validatedName = BookmarkCollection.validateName(rawClean);
 
-    const id = this.#ids?.generate ? this.#ids.generate() : (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+    let folderId = null;
+    let initialIds = Array.isArray(bookmarkIds) ? [...bookmarkIds] : [];
+    let initialUrls = Array.isArray(bookmarkUrls) ? [...bookmarkUrls] : [];
+
+    if (this.#bookmarks) {
+      try {
+        let parentId = "2";
+        if (this.#ensureCollectionsFolder) {
+          parentId = (await this.#ensureCollectionsFolder.execute()) || "2";
+        }
+        const createdFolder = await this.#bookmarks.create({
+          parentId,
+          title: validatedName,
+        });
+        folderId = String(createdFolder.id);
+
+        // If initial bookmarkUrls are provided, create them in the new folder
+        for (const url of initialUrls) {
+          try {
+            const leaf = await this.#bookmarks.create({
+              parentId: folderId,
+              title: validatedName,
+              url,
+            });
+            initialIds.push(String(leaf.id));
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.warn("Could not create native collection folder:", err);
+      }
+    }
+
+    const id = folderId || (this.#ids?.generate ? this.#ids.generate() : (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())));
 
     const collection = new BookmarkCollection({
       id,
       name: validatedName,
-      bookmarkIds,
-      bookmarkUrls,
+      bookmarkIds: initialIds,
+      bookmarkUrls: initialUrls,
       workspaceId,
+      folderId: folderId || id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });

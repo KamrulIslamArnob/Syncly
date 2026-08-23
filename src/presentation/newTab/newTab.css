@@ -6844,103 +6844,426 @@ html[data-color-mode="dark"] .bookmark-list {
 
 .raindrop-collections-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
   width: 100%;
 }
+
+/* ── Redesigned Premium Collection Card ────────────────────── */
 .raindrop-collection-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
+  flex-direction: column;
+  padding: 8px 8px 14px 8px;
+  border-radius: var(--radius-lg, 16px);
   background: var(--surface);
   border: 1px solid var(--border);
   cursor: pointer;
   position: relative;
-  transition: all var(--dur) var(--ease);
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 280ms ease, border-color 200ms ease, background 200ms ease;
+  user-select: none;
 }
 .raindrop-collection-card:hover {
   border-color: var(--border-strong);
-  background: var(--surface-2);
-  transform: translateY(-1px);
+  background: var(--surface);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--accent-subtle);
+  transform: translateY(-3px);
 }
-.raindrop-collection-preview {
+.raindrop-collection-card:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+/* Floating Stage Canvas */
+.raindrop-coll-stage {
+  position: relative;
+  height: 128px;
+  width: 100%;
+  border-radius: calc(var(--radius-lg, 16px) - 4px);
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.raindrop-collection-card:hover .raindrop-coll-stage {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Stage Micro-Grid Background */
+.raindrop-coll-stage-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 14px 14px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.raindrop-coll-aura {
+  position: absolute;
+  inset: -15px;
+  background: radial-gradient(circle at 50% 50%, var(--accent-subtle, rgba(59, 130, 246, 0.18)) 0%, transparent 68%);
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+.raindrop-collection-card:hover .raindrop-coll-aura {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+/* Floating Icon Stack Canvas */
+.raindrop-coll-icon-stack {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 94px;
+  width: 100%;
+  z-index: 2;
+}
+
+/* Individual Floating Icon Tile */
+.raindrop-coll-floating-icon {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.16));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24), inset 0 1px 1px rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 320ms ease, border-color 200ms ease;
+}
+.raindrop-coll-floating-icon:hover {
+  border-color: var(--accent);
+  z-index: 30 !important;
+}
+
+.raindrop-coll-fav-img {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.raindrop-coll-fav-img img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+/* 1 Item: Large Hero Centerpiece */
+.raindrop-coll-floating-icon.total-1 {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  transform: scale(1);
+}
+.raindrop-coll-floating-icon.total-1 .raindrop-coll-fav-img img {
+  width: 28px;
+  height: 28px;
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-1 {
+  transform: translateY(-4px) scale(1.1);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
+}
+
+/* 2 Items: Overlapping 3D Dynamic Duo */
+.raindrop-coll-floating-icon.total-2.item-1 {
+  width: 44px;
+  height: 44px;
+  transform: translateX(-26px) rotate(-8deg) scale(0.98);
+  z-index: 1;
+}
+.raindrop-coll-floating-icon.total-2.item-2 {
+  width: 44px;
+  height: 44px;
+  transform: translateX(26px) rotate(8deg) scale(1.02);
+  z-index: 2;
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-2.item-1 {
+  transform: translateX(-38px) rotate(-14deg) translateY(-3px) scale(1.02);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-2.item-2 {
+  transform: translateX(38px) rotate(14deg) translateY(-3px) scale(1.06);
+}
+
+/* 3 Items: 3-Way Fanned Spread */
+.raindrop-coll-floating-icon.total-3.item-1 {
+  width: 42px;
+  height: 42px;
+  transform: translateX(-48px) rotate(-12deg) scale(0.94);
+  z-index: 1;
+}
+.raindrop-coll-floating-icon.total-3.item-2 {
+  width: 44px;
+  height: 44px;
+  transform: translateX(0) translateY(-6px) scale(1.04);
+  z-index: 3;
+}
+.raindrop-coll-floating-icon.total-3.item-3 {
+  width: 42px;
+  height: 42px;
+  transform: translateX(48px) rotate(12deg) scale(0.94);
+  z-index: 2;
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-3.item-1 {
+  transform: translateX(-62px) rotate(-18deg) translateY(-3px) scale(0.98);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-3.item-2 {
+  transform: translateX(0) translateY(-12px) scale(1.1);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-3.item-3 {
+  transform: translateX(62px) rotate(18deg) translateY(-3px) scale(0.98);
+}
+
+/* 4 Items: Wide 4-Card Cascade */
+.raindrop-coll-floating-icon.total-4.item-1 {
+  width: 38px;
+  height: 38px;
+  transform: translateX(-64px) translateY(2px) rotate(-14deg) scale(0.9);
+  z-index: 1;
+}
+.raindrop-coll-floating-icon.total-4.item-2 {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  place-items: center;
-  padding: 3px;
-  gap: 2px;
-  flex-shrink: 0;
+  transform: translateX(-22px) translateY(-6px) rotate(-4deg) scale(1.02);
+  z-index: 3;
 }
-.raindrop-collection-fav-dot {
-  width: 14px;
-  height: 14px;
-  display: grid;
-  place-items: center;
-  font-size: 8px;
-  border-radius: 3px;
-  overflow: hidden;
+.raindrop-coll-floating-icon.total-4.item-3 {
+  width: 40px;
+  height: 40px;
+  transform: translateX(22px) translateY(-3px) rotate(6deg) scale(1);
+  z-index: 2;
 }
-.raindrop-collection-fav-dot img { width: 100%; height: 100%; object-fit: cover; }
-.raindrop-collection-empty-icon {
-  grid-column: span 2;
-  color: var(--muted);
-  display: grid;
-  place-items: center;
+.raindrop-coll-floating-icon.total-4.item-4 {
+  width: 38px;
+  height: 38px;
+  transform: translateX(64px) translateY(4px) rotate(14deg) scale(0.92);
+  z-index: 1;
 }
-.raindrop-collection-empty-icon svg { width: 18px; height: 18px; }
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-4.item-1 {
+  transform: translateX(-78px) rotate(-20deg) translateY(-2px) scale(0.94);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-4.item-2 {
+  transform: translateX(-26px) translateY(-12px) rotate(-6deg) scale(1.06);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-4.item-3 {
+  transform: translateX(26px) translateY(-10px) rotate(8deg) scale(1.06);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-4.item-4 {
+  transform: translateX(78px) translateY(0px) rotate(20deg) scale(0.96);
+}
 
+/* ── 5+ Items: Multi-Icon Spatial Constellation ─────────────── */
+.raindrop-coll-icon-stack.is-constellation {
+  width: 100%;
+}
+.raindrop-coll-floating-icon.constellation-item {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+.raindrop-coll-floating-icon.constellation-item .raindrop-coll-fav-img img {
+  width: 18px;
+  height: 18px;
+}
+
+/* Top Tier */
+.raindrop-coll-floating-icon.constellation-item.item-1 {
+  left: calc(50% - 84px);
+  top: 10px;
+  transform: rotate(-10deg) scale(0.9);
+  z-index: 2;
+}
+.raindrop-coll-floating-icon.constellation-item.item-2 {
+  left: calc(50% - 30px);
+  top: 4px;
+  transform: rotate(-2deg) scale(1.02);
+  z-index: 4;
+}
+.raindrop-coll-floating-icon.constellation-item.item-3 {
+  left: calc(50% + 24px);
+  top: 8px;
+  transform: rotate(8deg) scale(0.96);
+  z-index: 3;
+}
+
+/* Bottom Tier */
+.raindrop-coll-floating-icon.constellation-item.item-4 {
+  left: calc(50% - 96px);
+  bottom: 8px;
+  transform: rotate(-14deg) scale(0.86);
+  z-index: 1;
+}
+.raindrop-coll-floating-icon.constellation-item.item-5 {
+  left: calc(50% - 44px);
+  bottom: 4px;
+  transform: rotate(-4deg) scale(0.96);
+  z-index: 3;
+}
+.raindrop-coll-floating-icon.constellation-item.item-6 {
+  left: calc(50% + 10px);
+  bottom: 6px;
+  transform: rotate(6deg) scale(0.98);
+  z-index: 5;
+}
+.raindrop-coll-floating-icon.constellation-item.item-7 {
+  left: calc(50% + 64px);
+  bottom: 10px;
+  transform: rotate(14deg) scale(0.9);
+  z-index: 2;
+}
+
+/* Constellation Kinetic Hover Wave */
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-1 {
+  transform: translate(-6px, -4px) rotate(-16deg) scale(0.96);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-2 {
+  transform: translate(0px, -8px) rotate(-4deg) scale(1.08);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-3 {
+  transform: translate(6px, -6px) rotate(14deg) scale(1.02);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-4 {
+  transform: translate(-8px, 3px) rotate(-20deg) scale(0.92);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-5 {
+  transform: translate(-4px, 4px) rotate(-6deg) scale(1.02);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-6 {
+  transform: translate(4px, 4px) rotate(8deg) scale(1.04);
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-7 {
+  transform: translate(8px, 5px) rotate(20deg) scale(0.96);
+}
+
+/* More Badge Pill */
+.raindrop-coll-floating-more {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  z-index: 10;
+  backdrop-filter: blur(8px);
+  transition: transform 260ms ease, border-color 200ms ease, color 200ms ease;
+}
+.raindrop-collection-card:hover .raindrop-coll-floating-more {
+  transform: scale(1.08);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Empty icon state */
+.raindrop-coll-floating-icon.is-empty {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+}
+.raindrop-coll-floating-icon.is-empty svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Card Info Body (Lower Section) */
 .raindrop-coll-info {
-  flex: 1;
-  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 6px 0 6px;
+  gap: 8px;
+  min-height: 38px;
+  position: relative;
+}
+.raindrop-coll-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  flex: 1;
 }
 .raindrop-coll-name {
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 .raindrop-coll-count {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--muted-2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
+/* Lower Section Actions (Beside Name/Count on Hover) */
 .raindrop-coll-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   opacity: 0;
-  transition: opacity var(--dur) var(--ease);
+  pointer-events: none;
+  transform: translateX(4px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  flex-shrink: 0;
 }
-.raindrop-collection-card:hover .raindrop-coll-actions { opacity: 1; }
+.raindrop-collection-card:hover .raindrop-coll-actions,
+.raindrop-collection-card:focus-within .raindrop-coll-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
 .raindrop-coll-action-btn {
   width: 26px;
   height: 26px;
-  border-radius: 5px;
-  border: 0;
-  background: transparent;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
   color: var(--muted);
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: all var(--dur) var(--ease);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: all 160ms ease;
 }
 .raindrop-coll-action-btn svg { width: 12px; height: 12px; }
-.raindrop-coll-action-btn:hover { color: var(--fg); background: var(--fill-hover); }
-.raindrop-coll-action-btn.raindrop-coll-delete:hover { color: var(--danger); }
+.raindrop-coll-action-btn:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+  background: var(--surface);
+  transform: translateY(-1px);
+}
+.raindrop-coll-action-btn.raindrop-coll-delete:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
 
 /* Empty state */
 .raindrop-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; text-align: center; gap: 12px; }

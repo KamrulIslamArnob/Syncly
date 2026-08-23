@@ -246,3 +246,113 @@ test("EnsureCollectionsFolderUseCase: creates and idempotently manages native Co
   assert.equal(createdFolders.length, 0);
 });
 
+test("Create, Rename, Delete & Member Sync with native Chrome bookmark folders", async () => {
+  const storage = createMockStorage();
+  const repo = new ChromeBookmarkCollectionRepository({ storage });
+  const events = new EventBus();
+  const sanitizer = new BasicSanitizer();
+  const createdNodes = [];
+  const updatedNodes = [];
+  const removedTrees = [];
+  const removedNodes = [];
+
+  const fakeTree = [
+    {
+      id: "0",
+      title: "",
+      children: [
+        { id: "1", title: "Bookmarks Bar", children: [] },
+        {
+          id: "2",
+          title: "Other Bookmarks",
+          children: [
+            {
+              id: "coll-root-1",
+              title: "Collections",
+              children: [],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const bookmarksMock = {
+    async getTree() {
+      return JSON.parse(JSON.stringify(fakeTree));
+    },
+    async getSubTree(id) {
+      return [{ id, children: createdNodes.filter((n) => n.parentId === id) }];
+    },
+    async get(id) {
+      const node = createdNodes.find((n) => n.id === id) || { id, title: "Bookmark", url: "https://example.com" };
+      return [node];
+    },
+    async create({ parentId, title, url }) {
+      const node = { id: `node-${Date.now()}-${Math.random()}`, parentId, title, url, children: url ? undefined : [] };
+      createdNodes.push(node);
+      return node;
+    },
+    async update(id, { title }) {
+      updatedNodes.push({ id, title });
+      return { id, title };
+    },
+    async remove(id) {
+      removedNodes.push(id);
+    },
+    async removeTree(id) {
+      removedTrees.push(id);
+    },
+  };
+
+  const ensureCollectionsFolder = {
+    execute: async () => "coll-root-1",
+  };
+
+  const createUC = new CreateBookmarkCollectionUseCase({
+    repository: repo,
+    sanitizer,
+    events,
+    bookmarks: bookmarksMock,
+    ensureCollectionsFolder,
+  });
+
+  const renameUC = new RenameBookmarkCollectionUseCase({
+    repository: repo,
+    sanitizer,
+    events,
+    bookmarks: bookmarksMock,
+  });
+
+  const deleteUC = new DeleteBookmarkCollectionUseCase({
+    repository: repo,
+    events,
+    bookmarks: bookmarksMock,
+  });
+
+  const updateMembersUC = new UpdateCollectionMembersUseCase({
+    repository: repo,
+    events,
+    bookmarks: bookmarksMock,
+  });
+
+  // 1. Create collection with native folder
+  const coll = await createUC.execute({ name: "Design Inspo", bookmarkUrls: ["https://dribbble.com"] });
+  assert.equal(coll.name, "Design Inspo");
+  assert.ok(createdNodes.some((n) => n.title === "Design Inspo" && n.parentId === "coll-root-1"));
+  assert.ok(createdNodes.some((n) => n.url === "https://dribbble.com"));
+
+  // 2. Add member
+  await updateMembersUC.execute({ collectionId: coll.id, urls: ["https://behance.net"] });
+  assert.ok(createdNodes.some((n) => n.url === "https://behance.net"));
+
+  // 3. Rename collection
+  await renameUC.execute({ collectionId: coll.id, name: "Design Vault" });
+  assert.ok(updatedNodes.some((n) => n.title === "Design Vault"));
+
+  // 4. Delete collection
+  await deleteUC.execute({ collectionId: coll.id });
+  assert.ok(removedTrees.includes(coll.folderId));
+  assert.equal(await repo.findById(coll.id), null);
+});
+
