@@ -8,6 +8,10 @@
 [![Zero Build](https://img.shields.io/badge/Build-Zero%20Dependencies-orange.svg)](#architecture)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
+<p align="center">
+  <img src="public/screenshots/Homepage_dark.png" alt="Syncly New Tab Dashboard" width="100%" />
+</p>
+
 ---
 
 ## Overview
@@ -25,29 +29,46 @@ Syncly transforms your new tab page into a high-performance, two-pane workstatio
 
 ---
 
-## Features
+## Key Features & Visual Walkthrough
 
-- **Native Chrome Bookmarks Integration**: Directly syncs with Chrome's native bookmark tree (`chrome.bookmarks`) in real time. Changes made in the extension reflect in your browser, and vice versa.
-- **Contextual Workspaces**: Group and scope folders into dedicated workspace contexts (*Work*, *Development*, *Design*, *Personal*) to eliminate visual clutter.
-- **Cross-Folder Collections**: Bundle related bookmarks into themed collections without altering their physical folder hierarchy.
-- **Universal Category Shortcuts**: Top-level circular category strip (*Quick*, *AI*, *Development*, *Design*, *Marketing*) with direct one-click navigation.
-- **Instant Search & Tagging**: Full-library search with `#tag` filtering and keyboard shortcuts (`Ctrl+K` / `Cmd+K`).
-- **Zero-Build Vanilla Architecture**: Pure modern JavaScript (ES modules) and native CSS tokens. No Webpack, Vite, Babel, or runtime bundle bloat.
-- **Local-First Privacy**: All user data, tags, and workspace mappings are stored locally in `chrome.storage.local`. No external tracking or telemetry.
-- **Automated Local Backups**: File System Access API integration paired with IndexedDB for automatic, timestamped local JSON backups.
-- **Adaptive Color System**: Clean Light and Dark modes with custom accent color theming following minimalist design principles.
+### 1. Contextual Workspaces
+Group and scope your bookmark folders into dedicated contexts (*Work*, *Development*, *Design*, *Personal*) to eliminate visual noise. Workspace folders sync natively through your existing browser sync without quota restrictions.
+
+<p align="center">
+  <img src="public/screenshots/workspace.png" alt="Contextual Workspaces" width="90%" />
+</p>
+
+### 2. Themed Collections & Bookmark Deck
+Bundle related links into focused collections across different folder trees without restructuring your raw bookmarks. Enjoy clean, high-density card decks with rich metadata, auto-detected favicons, and usage statistics.
+
+<p align="center">
+  <img src="public/screenshots/collections.png" alt="Cross-Folder Collections" width="90%" />
+</p>
+
+### 3. Instant Omni-Search & Tag Filtering
+Hit `Ctrl+K` (or `Cmd+K`) from anywhere to launch instant fuzzy search across your entire bookmark library, collections, and custom tags (`#dev`, `#reading`, `#ai`).
+
+<p align="center">
+  <img src="public/screenshots/search.png" alt="Omni-Search with Tag Filtering" width="90%" />
+</p>
 
 ---
 
-## Demo & Visuals
+## Themes & Display Modes
 
-Syncly features a clean, two-pane workspace layout:
+Syncly adapts to your setup with refined dark and light modes, alongside a zero-distraction Clean Mode for focused browsing.
 
-| Light Mode | Dark Mode |
-| :--- | :--- |
-| ![Syncly Light Mode Dashboard](public/screenshot_dashboard.png) | ![Syncly Dark Mode Banner](public/banner.png) |
+### Standard Dashboard
 
-*(Note: Visual assets are located in `public/`.)*
+| Light Appearance | Dark Appearance |
+| :---: | :---: |
+| <img src="public/screenshots/Homepage_light.png" alt="Syncly Light Mode" width="100%" /> | <img src="public/screenshots/Homepage_dark.png" alt="Syncly Dark Mode" width="100%" /> |
+
+### Minimalist Clean Mode
+
+| Clean Mode (Light) | Clean Mode (Dark) |
+| :---: | :---: |
+| <img src="public/screenshots/Clean_mode.png" alt="Clean Mode Light" width="100%" /> | <img src="public/screenshots/cleanmode_dark.png" alt="Clean Mode Dark" width="100%" /> |
 
 ---
 
