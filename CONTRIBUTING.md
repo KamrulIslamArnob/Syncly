@@ -22,7 +22,7 @@ These guidelines help ensure a smooth, transparent, and productive contribution 
 ## Before Contributing
 
 1. **Read the Documentation**: Familiarize yourself with the [README](README.md), [Architecture](README.md#architecture), and [Product Specification](PRODUCT_SPEC.md).
-2. **Search Existing Issues**: Before opening a new issue or pull request, search the [GitHub Issues tracker](https://github.com/KamrulIslamArnob/NothingTab/issues) to verify if the bug or feature has already been reported or is currently in progress.
+2. **Search Existing Issues**: Before opening a new issue or pull request, search the [GitHub Issues tracker](https://github.com/KamrulIslamArnob/Syncly/issues) to verify if the bug or feature has already been reported or is currently in progress.
 3. **Open an Issue for Major Changes**: For significant architectural refactors, new third-party integrations, or major UX overhauls, open an issue first to discuss the design with maintainers before writing code.
 
 ---
@@ -34,8 +34,8 @@ Syncly has **zero build tools, zero bundlers, and zero npm runtime dependencies*
 ### 1. Fork and Clone
 ```bash
 # Fork the repository on GitHub, then clone your fork:
-git clone https://github.com/<your-username>/NothingTab.git
-cd NothingTab
+git clone https://github.com/<your-username>/Syncly.git
+cd Syncly
 ```
 
 ### 2. Install Development Dependencies

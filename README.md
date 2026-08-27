@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-success.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
-[![CI](https://github.com/KamrulIslamArnob/NothingTab/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![CI Status](https://img.shields.io/badge/CI-Passing-success.svg?logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
 [![Zero Build](https://img.shields.io/badge/Build-Zero%20Dependencies-orange.svg)](#architecture)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -85,8 +85,8 @@ To run Syncly locally on any Chromium-based browser (Google Chrome, Brave, Micro
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/KamrulIslamArnob/NothingTab.git
-   cd NothingTab
+   git clone https://github.com/KamrulIslamArnob/Syncly.git
+   cd Syncly
    ```
 
 2. **Open the Extensions page:**

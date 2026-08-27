@@ -22,7 +22,7 @@ We take the security and privacy of Syncly users seriously. If you discover a se
 1. **Do NOT open a public GitHub issue** for undisclosed security vulnerabilities.
 2. **GitHub Private Vulnerability Reporting (Recommended):**
    - Navigate to the **Security** tab of the repository.
-   - Click **Report a vulnerability** (or visit [Security Advisories](https://github.com/KamrulIslamArnob/NothingTab/security/advisories/new)).
+   - Click **Report a vulnerability** (or visit [Security Advisories](https://github.com/KamrulIslamArnob/Syncly/security/advisories/new)).
    - Fill out the advisory form with reproduction steps and potential impact.
 3. **Direct Maintainer Contact:**
    - If GitHub Private Vulnerability Reporting is unavailable, contact the project maintainer directly via GitHub profile: [@KamrulIslamArnob](https://github.com/KamrulIslamArnob).
