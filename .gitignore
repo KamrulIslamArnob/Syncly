@@ -24,7 +24,7 @@ Thumbs.db
 *.swo
 
 # ====================================================================
-# Node / Javascript (for development tooling)
+# Node / Javascript (Development & Tooling)
 # ====================================================================
 node_modules/
 jspm_packages/
@@ -45,11 +45,16 @@ pnpm-debug.log*
 dist/
 build/
 out/
+/.next/
+.next/
 coverage/
 .nyc_output/
+*.tsbuildinfo
+next-env.d.ts
+.vercel/
 
 # ====================================================================
-# Python (for helper scripts)
+# Python (Helper Scripts & Tooling)
 # ====================================================================
 __pycache__/
 *.pyc
@@ -63,36 +68,90 @@ ENV/
 .mypy_cache/
 
 # ====================================================================
-# Local Tool-specific Cache & Temp Files
+# AI Coding Assistants, Agents & Skill Directories
 # ====================================================================
+.agent/
+.agents/
+agent/
+.claude/
+.codex/
+.cursor/
+.gemini/
+.opencode/
+.antigravity/
+.agy/
+.continue/
+.cline/
+.roo/
+.windsurf/
+.aider*
 .puku/
 .kiro/
-base64.txt
-*.tmp
-*.temp
-scratch/
+.agnes/
+.github/skills/
+.github/agents/
+.github/hooks/
+skills-lock.json
 
-# Graphify knowledge-graph cache (regenerated, not source)
-graphify-out/
+# ====================================================================
+# Agent Memories, Memory Banks & Context Caches
+# ====================================================================
+*memory*/
+*memories*/
+agent-memories/
+agent-memory/
+.agent-memories/
+.agent-memory/
+ai-memories/
+.ai-memories/
+*.memory.json
+*.memories.json
+.serper/
+.supermaven/
 
-# Local dev screenshot/probe harnesses
+# ====================================================================
+# Impeccable Tool Artifacts & Audit Logs
+# ====================================================================
+.impeccable/
+.impeccable*/
+.impeccable*.json
 _shot.mjs
 _probe.mjs
+_shot*
+_probe*
 
-# Personal/cache folders (never commit)
-~/
-.opencode/
-.agents/
-.agnes/
+# ====================================================================
+# Performance, Benchmark & Quality Reports
+# ====================================================================
+perf-report*.json
+perf-report/
+*.perf.json
+*.benchmark.json
+*.report.json
+graphify-out/
+
+# ====================================================================
+# Local Scratch, Temporary & Personal Files
+# ====================================================================
+scratch/
+tmp/
+temp/
+.temp/
+*.tmp
+*.temp
+base64.txt
 Backup_of_shortcut/
 competitor-profiles/
 dashboard/
+~/
 
 # ====================================================================
 # Secrets & Environment Files — NEVER commit
 # ====================================================================
 *service-account*.json
 *serviceAccount*.json
+*.pem
+*.key
 .env
 .env.*
 !.env.example
