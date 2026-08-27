@@ -4,8 +4,6 @@
 
 # Syncly
 
-> A minimalist, privacy-first bookmark manager and new tab dashboard for Google Chrome.
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-success.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![CI Status](https://img.shields.io/badge/CI-Passing-success.svg?logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
