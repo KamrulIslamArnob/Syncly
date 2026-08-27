@@ -317,7 +317,7 @@ Each use case is a class with `execute(...)`, holds private deps, and emits the 
 ---
 
 ## 9. Manifest & Packaging (`manifest.json`)
-- `manifest_version: 3`, name **NothingTab**, version `0.2.0`, MIT.
+- `manifest_version: 3`, name **Syncly**, version `1.0.0`, MIT.
 - `chrome_url_overrides.newtab` → `src/presentation/newTab/newTab.html`.
 - `action`: default popup `popup.html`, default icon (16/32/48/128).
 - `options_ui`: `options.html`, `open_in_tab: true`.

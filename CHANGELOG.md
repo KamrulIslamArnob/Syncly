@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.2.0] - 2026-08-20
+## [1.0.0] - 2026-08-27
 
 ### Added
 - **Two-Pane Workspace Layout**: Introduced modern two-pane bookmark deck dashboard with collapsible sidebar.

@@ -11,7 +11,7 @@ This document contains metadata, permission justifications, and store listing as
   > Sync everywhere, stay local — A minimalist, privacy-first bookmark manager & new tab for Chrome.
 - **Primary Category:** Productivity
 - **Language:** English (United States)
-- **Current Version:** `0.2.0`
+- **Current Version:** `1.0.0`
 - **Chrome Web Store URL:** `TODO` *(Pending publication)*
 
 ---

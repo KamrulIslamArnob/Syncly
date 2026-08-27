@@ -8,8 +8,8 @@ Syncly is actively maintained. Security updates are applied to the latest develo
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.2.x   | :white_check_mark: |
-| < 0.2.0 | :x:                |
+| 1.0.x   | :white_check_mark: |
+| < 1.0.0 | :x:                |
 
 ---
 

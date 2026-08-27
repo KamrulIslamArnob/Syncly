@@ -24,7 +24,7 @@ What actually happened instead.
 ## Environment Details
 - **Browser:** (e.g. Google Chrome, Brave, Edge, Arc)
 - **Browser Version:** (e.g. 128.0.6613.85)
-- **Extension Version:** (e.g. 0.2.0)
+- **Extension Version:** (e.g. 1.0.0)
 - **Operating System:** (e.g. Windows 11, macOS Sonoma, Ubuntu 24.04)
 
 ## Screenshots or Console Logs
