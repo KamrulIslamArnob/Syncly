@@ -110,7 +110,6 @@ Syncly/
 │       ├── repositories/         # Concrete Bookmark, Collection, Tag & Group repos
 │       ├── services/             # GoogleSync, GitHubBackup, AutoBackup, patCrypto
 │       └── di/                   # Composition root (container.js)
-├── syncly-website/               # Next.js marketing and preview landing page
 ├── test/                         # Comprehensive unit test suite (273 tests)
 ├── public/                       # Extension icons, fonts (Plus Jakarta Sans, JetBrains Mono), screenshots
 ├── scripts/                      # Performance benchmarking & smoke test harnesses
