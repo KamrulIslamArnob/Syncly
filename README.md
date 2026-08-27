@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/banner.svg" alt="Syncly Banner" width="100%" />
+</p>
+
 # Syncly
 
 > A minimalist, privacy-first bookmark manager and new tab dashboard for Google Chrome.
