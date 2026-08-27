@@ -68,6 +68,9 @@
   --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-body:    "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono:    "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --screen-font-boost: 1;
+  --ui-font-scale: 1;
+  --font-scale-effective: calc(var(--ui-font-scale, 1) * var(--screen-font-boost, 1));
 
   /* ---- Radius ---- */
   --radius-sm: 6px;
@@ -182,4 +185,35 @@ html.no-transitions *,
 html.no-transitions *::before,
 html.no-transitions *::after {
   transition: none !important;
+}
+
+/* ---- User-controlled Interface Font Size Scale Modes ---- */
+html[data-font-size="small"] {
+  --ui-font-scale: 0.88;
+}
+html[data-font-size="default"] {
+  --ui-font-scale: 1;
+}
+html[data-font-size="large"] {
+  --ui-font-scale: 1.14;
+}
+html[data-font-size="xlarge"] {
+  --ui-font-scale: 1.28;
+}
+
+/* ---- Responsive Screen Multipliers (Fluid Display Adaptations) ---- */
+@media (min-width: 1440px) {
+  :root {
+    --screen-font-boost: 1.04;
+  }
+}
+@media (min-width: 1920px) {
+  :root {
+    --screen-font-boost: 1.08;
+  }
+}
+@media (min-width: 2560px) {
+  :root {
+    --screen-font-boost: 1.16;
+  }
 }

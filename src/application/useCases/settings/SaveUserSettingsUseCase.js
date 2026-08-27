@@ -32,7 +32,7 @@ export class SaveUserSettingsUseCase {
       "todoEnabled", "shortcutsEnabled", "quickNoteEnabled",
       "customCss", "greetingEnabled", "messageText", "clockEnabled", "showSeconds", "showDate",
       "cssVarBg", "cssVarText", "cssVarBorder", "cssVarAccent", "showWebsitePreviews", "avatarUrl",
-      "workspaceThemes", "moveBookmarksToQuickAccess"
+      "workspaceThemes", "moveBookmarksToQuickAccess", "fontSize"
     ];
 
     for (const field of simpleFields) {

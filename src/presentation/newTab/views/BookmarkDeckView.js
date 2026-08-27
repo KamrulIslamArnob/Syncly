@@ -310,9 +310,9 @@ export class BookmarkDeckView {
 
     let storedLayoutStyle = "standard"; // "standard" | "focus" (clock + centered search + shortcuts + bottom bookmarks)
     try {
-      const val = localStorage.getItem("neptab_home_layout_style");
+      const val = localStorage.getItem("syncly_home_layout_style") || localStorage.getItem("neptab_home_layout_style");
       if (val) storedLayoutStyle = val;
-    } catch {}
+    } catch { /* non-fatal */ }
     this._layoutStyle = storedLayoutStyle;
 
     if (this._layoutStyle === "standard") {
@@ -321,16 +321,16 @@ export class BookmarkDeckView {
     } else {
       let storedSidebar = true;
       try {
-        const val = localStorage.getItem("neptab_sidebar_collapsed");
+        const val = localStorage.getItem("syncly_sidebar_collapsed") ?? localStorage.getItem("neptab_sidebar_collapsed");
         if (val !== null) storedSidebar = val === "true";
-      } catch {}
+      } catch { /* non-fatal */ }
       this._sidebarCollapsed = storedSidebar;
 
       let storedAllBookmarks = true;
       try {
-        const val = localStorage.getItem("neptab_all_bookmarks_collapsed");
+        const val = localStorage.getItem("syncly_all_bookmarks_collapsed") ?? localStorage.getItem("neptab_all_bookmarks_collapsed");
         if (val !== null) storedAllBookmarks = val === "true";
-      } catch {}
+      } catch { /* non-fatal */ }
       this._allBookmarksCollapsed = storedAllBookmarks;
     }
 
@@ -378,7 +378,7 @@ export class BookmarkDeckView {
 
   toggleSidebar(forceState = null) {
     this._sidebarCollapsed = forceState !== null ? forceState : !this._sidebarCollapsed;
-    try { localStorage.setItem("neptab_sidebar_collapsed", String(this._sidebarCollapsed)); } catch {}
+    try { localStorage.setItem("syncly_sidebar_collapsed", String(this._sidebarCollapsed)); } catch { /* non-fatal */ }
     if (this.root) {
       this.root.classList.toggle("is-sidebar-collapsed", this._sidebarCollapsed);
     }
@@ -1384,7 +1384,7 @@ export class BookmarkDeckView {
 
     layoutModeBtn.addEventListener("click", () => {
       this._layoutStyle = this._layoutStyle === "focus" ? "standard" : "focus";
-      try { localStorage.setItem("neptab_home_layout_style", this._layoutStyle); } catch {}
+      try { localStorage.setItem("syncly_home_layout_style", this._layoutStyle); } catch { /* non-fatal */ }
       if (this.root) {
         this.root.classList.toggle("is-focus-mode", this._layoutStyle === "focus");
       }
@@ -1397,9 +1397,9 @@ export class BookmarkDeckView {
         this._allBookmarksCollapsed = false;
       }
       try {
-        localStorage.setItem("neptab_sidebar_collapsed", String(this._sidebarCollapsed));
-        localStorage.setItem("neptab_all_bookmarks_collapsed", String(this._allBookmarksCollapsed));
-      } catch {}
+        localStorage.setItem("syncly_sidebar_collapsed", String(this._sidebarCollapsed));
+        localStorage.setItem("syncly_all_bookmarks_collapsed", String(this._allBookmarksCollapsed));
+      } catch { /* non-fatal */ }
       if (this.root) {
         this.root.classList.toggle("is-sidebar-collapsed", this._sidebarCollapsed);
       }
@@ -3055,7 +3055,7 @@ export class BookmarkDeckView {
         if (sectionHeader) {
           sectionHeader.addEventListener("click", () => {
             this._allBookmarksCollapsed = !this._allBookmarksCollapsed;
-            try { localStorage.setItem("neptab_all_bookmarks_collapsed", String(this._allBookmarksCollapsed)); } catch {}
+            try { localStorage.setItem("syncly_all_bookmarks_collapsed", String(this._allBookmarksCollapsed)); } catch { /* non-fatal */ }
             sectionHeader.classList.toggle("is-collapsed", this._allBookmarksCollapsed);
             caret?.classList.toggle("is-open", !this._allBookmarksCollapsed);
             sectionHeader.title = this._allBookmarksCollapsed ? "Click to expand bookmarks" : "Click to collapse bookmarks";
@@ -3068,7 +3068,7 @@ export class BookmarkDeckView {
     } else if (sectionHeader) {
       sectionHeader.addEventListener("click", () => {
         this._allBookmarksCollapsed = !this._allBookmarksCollapsed;
-        try { localStorage.setItem("neptab_all_bookmarks_collapsed", String(this._allBookmarksCollapsed)); } catch {}
+        try { localStorage.setItem("syncly_all_bookmarks_collapsed", String(this._allBookmarksCollapsed)); } catch { /* non-fatal */ }
         sectionHeader.classList.toggle("is-collapsed", this._allBookmarksCollapsed);
         caret?.classList.toggle("is-open", !this._allBookmarksCollapsed);
         sectionHeader.title = this._allBookmarksCollapsed ? "Click to expand bookmarks" : "Click to collapse bookmarks";

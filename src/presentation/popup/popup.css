@@ -3,6 +3,8 @@
 }
 
 :root {
+  --ui-font-scale: 1;
+  --font-scale-effective: var(--ui-font-scale, 1);
   --dur: 150ms;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --accent: #3b82f6;
@@ -16,6 +18,11 @@
   --ring-focus: #3b82f6;
 }
 
+html[data-font-size="small"] { --ui-font-scale: 0.88; }
+html[data-font-size="default"] { --ui-font-scale: 1; }
+html[data-font-size="large"] { --ui-font-scale: 1.14; }
+html[data-font-size="xlarge"] { --ui-font-scale: 1.28; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -24,6 +31,7 @@ html, body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-body, "Plus Jakarta Sans", system-ui, sans-serif);
+  font-size: calc(14px * var(--font-scale-effective, 1));
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
@@ -549,6 +557,13 @@ html[data-color-mode="light"] .popup-logo {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.popup-save-btn.is-saved {
+  background: var(--success, #10b981);
+  border-color: var(--success, #10b981);
+  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.3);
+  color: #ffffff;
 }
 
 .popup-footer-hint {

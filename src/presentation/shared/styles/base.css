@@ -9,6 +9,7 @@ html, body {
   padding: 0;
   height: 100%;
   font-family: var(--font-body);
+  font-size: calc(15px * var(--font-scale-effective, 1));
   color: var(--fg);
   color-scheme: dark;
   /* Default background color so the first paint is never white.

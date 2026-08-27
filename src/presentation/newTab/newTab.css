@@ -7,7 +7,7 @@
 
 /* ── Base reset & body ──────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;min-height:100%;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+html,body{width:100%;min-height:100%;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:calc(15px * var(--font-scale-effective, 1));line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 body{position:relative}
 
 /* ── Image utility: minimal premium grayscale with shadow/overlay ── */
@@ -440,9 +440,30 @@ html[data-color-mode="dark"] .greeting-anim--night { color: #93C5FD; }
 @media (prefers-reduced-motion: reduce) {
   .greeting-anim * { animation: none !important; }
 }
-/* Day/Night toggle — exact component as provided, aligned to greeting text */
-.greeting-icon--toggle { width: 100px; height: 44px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: visible; vertical-align: middle; }
-.greeting-icon--toggle .wrapper { padding-top: 0; text-align: center; width: 100px; height: 44px; display: flex; align-items: center; justify-content: center; overflow: visible; }
+/* Day/Night toggle — compact inline component placed in the middle of Good and Morning */
+.greeting-icon--toggle {
+  width: 58px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: visible;
+  vertical-align: middle;
+  margin: 0 4px;
+}
+.greeting-icon--toggle .wrapper {
+  padding-top: 0;
+  text-align: center;
+  width: 100px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  transform: scale(0.58);
+  transform-origin: center center;
+}
 .greeting-icon--toggle .toggle { position: relative; display: inline-block; width: 100px; margin-left: 0; padding: 4px; border-radius: 40px; box-sizing: border-box; }
 .greeting-icon--toggle .toggle:before, .greeting-icon--toggle .toggle:after { content: ''; display: table; }
 .greeting-icon--toggle .toggle:after { clear: both; }
@@ -467,7 +488,7 @@ html[data-color-mode="dark"] .greeting-anim--night { color: #93C5FD; }
   line-height: 1.15;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   color: var(--fg);
 }
 .greeting-dot {
@@ -1582,6 +1603,43 @@ html[data-color-mode="light"] .settings-logo {
   color: var(--fg);
   font-weight: 600;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.settings-font-size-segmented {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  background: var(--surface-2);
+  padding: 3px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+}
+
+.settings-font-pill {
+  height: 32px;
+  font-size: 11.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm, 6px);
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+  user-select: none;
+}
+
+.settings-font-pill:hover {
+  color: var(--fg);
+}
+
+.settings-font-pill.is-active {
+  background: var(--surface);
+  color: var(--fg);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
 /* Accent Swatches */
@@ -5567,7 +5625,7 @@ html[data-color-mode="light"] .raindrop-dashboard.is-focus-mode .omni-section-co
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   font-family: var(--font-body);
   font-size: clamp(28px, 4vw, 40px);
   font-weight: 600;
@@ -5592,10 +5650,11 @@ html[data-color-mode="light"] .raindrop-dashboard.is-focus-mode .omni-section-co
   stroke-width: 2.2;
 }
 .home-focus-hero .greeting-icon--toggle {
-  width: 100px;
-  height: 44px;
+  width: 58px;
+  height: 28px;
+  margin: 0 4px;
 }
-.home-focus-hero .greeting h1:hover .greeting-icon {
+.home-focus-hero .greeting h1:hover .greeting-icon:not(.greeting-icon--toggle) {
   transform: rotate(12deg) scale(1.08);
 }
 .home-focus-hero .greeting .name {
@@ -6387,10 +6446,10 @@ html[data-color-mode="dark"] .bookmark-list {
 }
 
 .raindrop-card-body {
-  padding: 12px 13px 13px;
+  padding: calc(10px * var(--ui-font-scale, 1)) calc(12px * var(--ui-font-scale, 1)) calc(12px * var(--ui-font-scale, 1));
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: calc(7px * var(--ui-font-scale, 1));
   position: relative;
   flex: 1;
 }
@@ -6405,7 +6464,7 @@ html[data-color-mode="dark"] .bookmark-list {
   background: var(--fill-hover);
   border: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   font-weight: 400;
   color: var(--muted);
   max-width: 100%;
@@ -6416,8 +6475,8 @@ html[data-color-mode="dark"] .bookmark-list {
   transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 .raindrop-card-path-icon {
-  width: 11px;
-  height: 11px;
+  width: calc(11px * var(--ui-font-scale, 1));
+  height: calc(11px * var(--ui-font-scale, 1));
   flex-shrink: 0;
   margin-top: 2px;
   color: var(--muted-2);
@@ -6444,9 +6503,9 @@ html[data-color-mode="dark"] .bookmark-list {
   flex: 1;
   min-width: 0;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: calc(14px * var(--ui-font-scale, 1));
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.38;
   color: var(--fg);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -6454,15 +6513,15 @@ html[data-color-mode="dark"] .bookmark-list {
   overflow: hidden;
 }
 .raindrop-card-fav {
-  width: 18px;
-  height: 18px;
+  width: calc(18px * var(--ui-font-scale, 1));
+  height: calc(18px * var(--ui-font-scale, 1));
   margin-top: 1px;
   border-radius: 5px;
   overflow: hidden;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--ui-font-scale, 1));
   font-weight: 700;
   background: var(--surface);
   color: var(--muted);
@@ -6471,7 +6530,7 @@ html[data-color-mode="dark"] .bookmark-list {
 
 .raindrop-card-url {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 500;
   color: var(--muted);
   white-space: nowrap;
@@ -6598,7 +6657,7 @@ html[data-color-mode="dark"] .bookmark-list {
 }
 .raindrop-layout.raindrop-list .raindrop-card-title {
   font-family: var(--font-body);
-  font-size: 12.5px;
+  font-size: calc(13px * var(--ui-font-scale, 1));
   font-weight: 500;
   color: var(--fg);
   white-space: nowrap;
@@ -6613,7 +6672,7 @@ html[data-color-mode="dark"] .bookmark-list {
   margin-bottom: 0;
   padding: 3px 9px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
   color: var(--muted);
   background: var(--fill-hover);
   border: 1px solid var(--border);
@@ -6636,7 +6695,7 @@ html[data-color-mode="dark"] .bookmark-list {
   min-width: 90px;
   max-width: 160px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: calc(11.5px * var(--ui-font-scale, 1));
   color: var(--muted-2);
   white-space: nowrap;
   overflow: hidden;
@@ -6653,7 +6712,7 @@ html[data-color-mode="dark"] .bookmark-list {
   overflow: hidden;
 }
 .raindrop-layout.raindrop-list .raindrop-card-tag {
-  font-size: 9.5px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
   padding: 1px 5px;
   border-radius: 3px;
 }
@@ -7495,4 +7554,213 @@ html[data-color-mode="dark"] .bookmark-list {
 *::-webkit-scrollbar-thumb,
 *::-webkit-scrollbar-track {
   background: transparent !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DYNAMIC FONT SIZE SCALING (Applied live when font-size changes)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 1. Sidebar Navigation */
+.raindrop-sidebar {
+  font-size: calc(13px * var(--ui-font-scale, 1));
+}
+.workspace-section-title {
+  font-size: calc(13.5px * var(--ui-font-scale, 1)) !important;
+}
+.workspace-dotted-text {
+  font-size: calc(12.5px * var(--ui-font-scale, 1)) !important;
+}
+.workspace-dotted-count {
+  font-size: calc(10px * var(--ui-font-scale, 1)) !important;
+}
+.workspace-menu-row {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+}
+.workspace-menu-meta {
+  font-size: calc(10px * var(--ui-font-scale, 1)) !important;
+}
+.workspace-menu-count {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-nav-label {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-nav-count {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-section-title {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+.sidebar-tag-name {
+  font-size: calc(11.5px * var(--ui-font-scale, 1)) !important;
+}
+.sidebar-tag-hash {
+  font-size: calc(11.5px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-sidebar-settings-label {
+  font-size: calc(12.5px * var(--ui-font-scale, 1)) !important;
+}
+
+/* 2. Top Header & Search Bar */
+.raindrop-header-title {
+  font-size: calc(19px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-header-title.is-home {
+  font-size: calc(14px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-header-stats {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-search-input {
+  font-size: calc(13.5px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-search-kbd {
+  font-size: calc(10.5px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-tag-chip {
+  font-size: calc(11.5px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-view-option {
+  font-size: calc(12px * var(--ui-font-scale, 1)) !important;
+}
+
+/* 3. Focus Hero Mode */
+.ai-workspace-title {
+  font-size: calc(22px * var(--ui-font-scale, 1)) !important;
+}
+.ai-workspace-subtitle {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+.focus-greeting-text {
+  font-size: calc(28px * var(--ui-font-scale, 1)) !important;
+}
+.focus-tagline-text {
+  font-size: calc(14px * var(--ui-font-scale, 1)) !important;
+}
+.pomo-label, .pomo-time {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+
+/* 4. Shortcuts Grid & Categories */
+.shortcut-category-btn {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+}
+.shortcut-circular-label {
+  font-size: calc(12px * var(--ui-font-scale, 1)) !important;
+}
+.shortcut-category-tag {
+  font-size: calc(9.5px * var(--ui-font-scale, 1)) !important;
+}
+
+/* 5. Bookmarks Section (Cards, Grid, Tree, List, Collections, Quickbar) */
+.bookmarks-section-title {
+  font-size: calc(13.5px * var(--ui-font-scale, 1)) !important;
+}
+.bookmarks-section-count {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+.omni-section-title {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+}
+.omni-section-count {
+  font-size: calc(10.5px * var(--ui-font-scale, 1)) !important;
+}
+
+/* Bookmark Cards (All layouts: Grid, List, Compact) */
+.raindrop-card-title,
+.raindrop-layout.raindrop-grid .raindrop-card-title,
+.raindrop-layout.raindrop-compact .raindrop-card-title,
+.tile-row-title,
+.bookmark-row-title,
+.bookmark-card-title,
+.bookmark-table-title,
+.bookmark-list-title,
+.tree-title {
+  font-size: calc(14px * var(--ui-font-scale, 1)) !important;
+  line-height: 1.35 !important;
+}
+
+.raindrop-layout.raindrop-list .raindrop-card-title {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+}
+
+.raindrop-card-url,
+.raindrop-layout.raindrop-list .raindrop-card-url,
+.tile-row-domain,
+.bookmark-row-domain,
+.bookmark-card-domain,
+.bookmark-table-url,
+.bookmark-list-domain,
+.tree-url {
+  font-size: calc(11.5px * var(--ui-font-scale, 1)) !important;
+}
+
+.raindrop-card-path,
+.raindrop-layout.raindrop-list .raindrop-card-path {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+
+.raindrop-card-tag,
+.raindrop-layout.raindrop-list .raindrop-card-tag,
+.bookmark-card-tag,
+.bookmark-row-tag {
+  font-size: calc(10.5px * var(--ui-font-scale, 1)) !important;
+}
+
+.raindrop-card-glyph {
+  font-size: calc(24px * var(--ui-font-scale, 1)) !important;
+}
+
+/* Collections Cards & Floating Stages */
+.raindrop-coll-name {
+  font-size: calc(14.5px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-coll-count {
+  font-size: calc(11.5px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-collections-section-heading {
+  font-size: calc(16px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-collections-count-badge {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+
+/* Subfolder Quickbar */
+.raindrop-quick-tile-label {
+  font-size: calc(13.5px * var(--ui-font-scale, 1)) !important;
+}
+.raindrop-quick-tile-count {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+
+/* 6. Settings Sidebar & Dialogs */
+.settings-title {
+  font-size: calc(15px * var(--ui-font-scale, 1)) !important;
+}
+.settings-subtitle {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+.settings-card-header-left span {
+  font-size: calc(13.5px * var(--ui-font-scale, 1)) !important;
+}
+.settings-option-label {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+}
+.settings-option-hint {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+.settings-input,
+.settings-select,
+.settings-css-editor {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+}
+.settings-theme-pill,
+.settings-font-pill {
+  font-size: calc(12px * var(--ui-font-scale, 1)) !important;
+}
+.settings-bg-card-title {
+  font-size: calc(12px * var(--ui-font-scale, 1)) !important;
+}
+.settings-bg-card-hint {
+  font-size: calc(10.5px * var(--ui-font-scale, 1)) !important;
 }

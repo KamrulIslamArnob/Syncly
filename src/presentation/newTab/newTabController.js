@@ -268,6 +268,14 @@ export class NewTabController {
       document.documentElement.setAttribute("data-theme-preset", config.themePreset);
     }
 
+    const fontSize = settings?.fontSize || "default";
+    if (document.documentElement.getAttribute("data-font-size") !== fontSize) {
+      document.documentElement.setAttribute("data-font-size", fontSize);
+    }
+    const fontScales = { small: "0.88", default: "1", large: "1.14", xlarge: "1.28" };
+    const scale = fontScales[fontSize] || "1";
+    document.documentElement.style.setProperty("--ui-font-scale", scale);
+
     const accentVars = deriveAccentShades(config.cssVarAccent, config.colorMode);
     for (const [prop, val] of Object.entries(accentVars)) {
       document.documentElement.style.setProperty(prop, val);
@@ -280,9 +288,9 @@ export class NewTabController {
   }
 
   applyCustomCss(css) {
-    let styleTag = document.getElementById("neptab-custom-css");
+    let styleTag = document.getElementById("syncly-custom-css") || document.getElementById("neptab-custom-css");
     if (!styleTag) {
-      styleTag = el("style", { id: "neptab-custom-css" });
+      styleTag = el("style", { id: "syncly-custom-css" });
       document.head.appendChild(styleTag);
     }
     styleTag.textContent = sanitizeCss(css || "");

@@ -127,7 +127,47 @@
           <div class="picker-quick-row" id="folder-quick-row" role="group" aria-label="Recent folders"></div>
         </div>
 
-        <!-- Collection Selector with Inline Dropdown -->
+        <!-- Shortcut Category Selector with Inline Dropdown (Shown in Shortcut Mode) -->
+        <div class="popup-field" id="field-category" style="display: none;">
+          <div class="popup-field-header">
+            <label class="popup-field-label" for="bm-category-trigger">Category</label>
+          </div>
+          <div class="picker-trigger-box" id="bm-category">
+            <button type="button" class="picker-trigger-btn" id="bm-category-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="picker-trigger-icon-wrap">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>
+              </span>
+              <span class="picker-trigger-label" id="bm-category-label">Quick Access</span>
+              <svg class="picker-trigger-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+            </button>
+            <input type="hidden" id="bm-category-value">
+
+            <!-- Inline Category Search & List Dropdown -->
+            <div class="picker-dropdown-panel" id="category-dropdown-panel" hidden>
+              <div class="picker-dropdown-search-row">
+                <svg class="picker-dropdown-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+                <input type="text" class="picker-dropdown-search-input" id="category-search-input" placeholder="Search categories..." autocomplete="off">
+                <button type="button" class="picker-dropdown-search-clear" id="category-search-clear" hidden aria-label="Clear search">✕</button>
+                <button type="button" class="picker-dropdown-add-btn" id="category-new-btn" title="Create new category">+ New</button>
+              </div>
+
+              <!-- Inline New Category Creator -->
+              <div class="picker-dropdown-creator" id="category-creator-box" hidden>
+                <input type="text" class="picker-dropdown-creator-input" id="category-creator-input" placeholder="Category name..." autocomplete="off">
+                <button type="button" class="picker-dropdown-creator-confirm" id="category-creator-confirm">Add</button>
+                <button type="button" class="picker-dropdown-creator-cancel" id="category-creator-cancel">✕</button>
+              </div>
+
+              <div class="picker-dropdown-list-wrap">
+                <ul class="picker-dropdown-list" id="category-dropdown-list" role="listbox"></ul>
+              </div>
+            </div>
+          </div>
+          <!-- Recent shortcut categories quick chips -->
+          <div class="picker-quick-row" id="category-quick-row" role="group" aria-label="Recent categories"></div>
+        </div>
+
+        <!-- Collection Selector with Inline Dropdown (Shown in Collection Mode) -->
         <div class="popup-field" id="field-collection" style="display: none;">
           <div class="popup-field-header">
             <label class="popup-field-label" for="bm-custom-collection-trigger">Collection</label>
@@ -163,6 +203,8 @@
               </div>
             </div>
           </div>
+          <!-- Recent collections quick chips -->
+          <div class="picker-quick-row" id="collection-quick-row" role="group" aria-label="Recent collections"></div>
         </div>
 
         <!-- Workspace Selector with Inline Dropdown -->

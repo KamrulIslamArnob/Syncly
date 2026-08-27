@@ -424,17 +424,20 @@ describe("Entity: UserSettings DE-21..DE-25", () => {
       themePresetDark: "retro_grid",
       themePresetLight: "diamond_storm",
       colorMode: "dark",
+      fontSize: "large",
       workspaceThemes: { "ws-1": { themePresetDark: "graphite_flow", themePresetLight: "aurora", colorMode: "light", cssVarAccent: "#3B82F6" } },
       cssVarAccent: "#FF0000",
       showWebsitePreviews: false,
     });
     const json = s.toJSON();
     assert.equal(json.name, "Arnob");
+    assert.equal(json.fontSize, "large");
     assert.equal(json.cssVarAccent, "#FF0000");
     assert.equal(json.showWebsitePreviews, false);
     assert.equal(json.workspaceThemes["ws-1"].themePresetDark, "graphite_flow");
     const restored = UserSettings.fromJSON(json);
     assert.equal(restored.name, "Arnob");
+    assert.equal(restored.fontSize, "large");
     assert.equal(restored.cssVarAccent, "#FF0000");
     assert.equal(restored.workspaceThemes["ws-1"].themePresetDark, "graphite_flow");
   });
@@ -453,8 +456,10 @@ describe("Entity: UserSettings DE-21..DE-25", () => {
   it("DE-25 fromJSON resilience", () => {
     const s = UserSettings.fromJSON(null);
     assert.equal(s.name, "");
-    const s2 = UserSettings.fromJSON({ background: null, clocks: null, themePreset: "bad", themePresetDark: "bad" });
+    assert.equal(s.fontSize, "default");
+    const s2 = UserSettings.fromJSON({ background: null, clocks: null, themePreset: "bad", themePresetDark: "bad", fontSize: "invalid" });
     assert.equal(s2.themePreset, "aurora"); // fallback
+    assert.equal(s2.fontSize, "default"); // fallback
     assert.equal(s2.background.kind, "solid_color");
     assert.equal(Array.isArray(s2.clocks) && s2.clocks.length, 4);
   });
@@ -471,6 +476,9 @@ describe("Entity: UserSettings DE-21..DE-25", () => {
     s.setSearchEngine("bing");
     assert.equal(s.searchEngine, "bing");
     assert.throws(() => s.setSearchEngine("bad"), /Invalid/);
+    s.setFontSize("xlarge");
+    assert.equal(s.fontSize, "xlarge");
+    assert.throws(() => s.setFontSize("gigantic"), /Invalid/);
     s.setThemePreset("nord");
     s.setColorMode("light");
     assert.equal(s.colorMode, "light");

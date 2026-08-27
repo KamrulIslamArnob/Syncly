@@ -71,10 +71,51 @@ function hostnameOf(urlString) {
   }
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function createSvgIcon(name, size = 13, className = "") {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  if (className) svg.setAttribute("class", className);
+
+  if (name === "folder") {
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", "M3 7.5h6l2 2.5h10v9.5H3Z");
+    svg.appendChild(path);
+  } else if (name === "category") {
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", "M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z");
+    svg.appendChild(path);
+  } else if (name === "chevron") {
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", "m9 18 6-6-6-6");
+    svg.appendChild(path);
+  } else if (name === "collection") {
+    const p1 = document.createElementNS(SVG_NS, "path");
+    p1.setAttribute("d", "m12 2 10 5-10 5L2 7l10-5Z");
+    const p2 = document.createElementNS(SVG_NS, "path");
+    p2.setAttribute("d", "m2 17 10 5 10-5");
+    const p3 = document.createElementNS(SVG_NS, "path");
+    p3.setAttribute("d", "m2 12 10 5 10-5");
+    svg.append(p1, p2, p3);
+  }
+  return svg;
+}
+
 const LAST_FOLDER_KEY = "popupLastFolder";
 const RECENT_FOLDERS_KEY = "popupRecentFolders";
+const LAST_CATEGORY_KEY = "popupLastCategory";
+const RECENT_CATEGORIES_KEY = "popupRecentCategories";
 const LAST_COLLECTION_KEY = "popupLastCollection";
-const MAX_RECENT_FOLDERS = 4;
+const RECENT_COLLECTIONS_KEY = "popupRecentCollections";
+const MAX_RECENT_CHIPS = 4;
 
 async function readLocal(key) {
   try {
@@ -100,6 +141,7 @@ class PopupController {
     this.typeBtnShortcut = document.getElementById("type-btn-shortcut");
     this.typeBtnCollection = document.getElementById("type-btn-collection");
     this.fieldFolder = document.getElementById("field-folder");
+    this.fieldCategory = document.getElementById("field-category");
     this.fieldCollection = document.getElementById("field-collection");
     this.fieldWorkspace = document.getElementById("field-workspace");
 
@@ -114,7 +156,7 @@ class PopupController {
     this.submitBtn = document.getElementById("bm-submit");
     this.submitBtnText = document.getElementById("bm-submit-text");
 
-    // Folder Destination & Inline Dropdown
+    // Folder Destination & Inline Dropdown (Bookmark Mode)
     this.folderTrigger = document.getElementById("bm-collection-trigger");
     this.folderHidden = document.getElementById("bm-collection-value");
     this.folderLabel = document.getElementById("bm-collection-label");
@@ -129,10 +171,26 @@ class PopupController {
     this.folderCreatorCancel = document.getElementById("folder-creator-cancel");
     this.folderList = document.getElementById("folder-dropdown-list");
 
-    // Collection Destination & Inline Dropdown
+    // Category Destination & Inline Dropdown (Shortcut Mode)
+    this.categoryTrigger = document.getElementById("bm-category-trigger");
+    this.categoryHidden = document.getElementById("bm-category-value");
+    this.categoryLabel = document.getElementById("bm-category-label");
+    this.categoryQuickRow = document.getElementById("category-quick-row");
+    this.categoryDropdown = document.getElementById("category-dropdown-panel");
+    this.categorySearchInput = document.getElementById("category-search-input");
+    this.categorySearchClear = document.getElementById("category-search-clear");
+    this.categoryNewBtn = document.getElementById("category-new-btn");
+    this.categoryCreatorBox = document.getElementById("category-creator-box");
+    this.categoryCreatorInput = document.getElementById("category-creator-input");
+    this.categoryCreatorConfirm = document.getElementById("category-creator-confirm");
+    this.categoryCreatorCancel = document.getElementById("category-creator-cancel");
+    this.categoryList = document.getElementById("category-dropdown-list");
+
+    // Collection Destination & Inline Dropdown (Collection Mode)
     this.customCollectionTrigger = document.getElementById("bm-custom-collection-trigger");
     this.customCollectionHidden = document.getElementById("bm-custom-collection-value");
     this.customCollectionLabel = document.getElementById("bm-custom-collection-label");
+    this.collectionQuickRow = document.getElementById("collection-quick-row");
     this.collectionDropdown = document.getElementById("collection-dropdown-panel");
     this.collectionSearchInput = document.getElementById("collection-search-input");
     this.collectionSearchClear = document.getElementById("collection-search-clear");
@@ -143,7 +201,7 @@ class PopupController {
     this.collectionCreatorCancel = document.getElementById("collection-creator-cancel");
     this.collectionList = document.getElementById("collection-dropdown-list");
 
-    // Workspace Destination & Inline Dropdown
+    // Workspace Destination & Inline Dropdown (Bookmark Mode)
     this.workspaceTrigger = document.getElementById("bm-workspace-trigger");
     this.workspaceHidden = document.getElementById("bm-workspace-value");
     this.workspaceSwatch = document.getElementById("bm-workspace-swatch");
@@ -154,14 +212,19 @@ class PopupController {
     this.workspaceList = document.getElementById("workspace-dropdown-list");
 
     this.destinationType = "bookmark"; // "bookmark" | "shortcut" | "collection"
-    this.activeDropdown = null; // "folder" | "collection" | "workspace" | null
+    this.activeDropdown = null; // "folder" | "category" | "collection" | "workspace" | null
     this.groups = [];
     this.folders = [];
+    this.categories = [];
     this.collections = [];
     this.recentFolders = [];
+    this.recentCategories = [];
+    this.recentCollections = [];
+    this.shortcutsFolderId = null;
     this.activeTags = new Set();
     this.currentColorMode = "dark";
     this.currentAccentColor = "#3b82f6";
+    this.currentFontSize = "default";
 
     this._bindEvents();
   }
@@ -184,6 +247,7 @@ class PopupController {
           if (changes.settings?.newValue) {
             const s = changes.settings.newValue;
             const accent = s.cssVarAccent || "#3b82f6";
+            if (s.fontSize) this.currentFontSize = s.fontSize;
             this.applyTheme(this.currentColorMode, accent);
           }
         }
@@ -195,6 +259,12 @@ class PopupController {
       e.preventDefault();
       e.stopPropagation();
       this.toggleDropdown("folder");
+    });
+
+    this.categoryTrigger?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleDropdown("category");
     });
 
     this.customCollectionTrigger?.addEventListener("click", (e) => {
@@ -209,7 +279,7 @@ class PopupController {
       this.toggleDropdown("workspace");
     });
 
-    // Dropdown Search - Folder
+    // Dropdown Search & Creator - Folder
     this.folderSearchInput?.addEventListener("input", () => this._onFolderSearch());
     this.folderSearchClear?.addEventListener("click", () => {
       if (this.folderSearchInput) {
@@ -218,8 +288,6 @@ class PopupController {
         this.folderSearchInput.focus();
       }
     });
-
-    // Dropdown Creator - Folder
     this.folderNewBtn?.addEventListener("click", () => this._toggleFolderCreator());
     this.folderCreatorCancel?.addEventListener("click", () => this._closeFolderCreator());
     this.folderCreatorConfirm?.addEventListener("click", () => this._submitFolderCreator());
@@ -233,7 +301,29 @@ class PopupController {
       }
     });
 
-    // Dropdown Search - Collection
+    // Dropdown Search & Creator - Category (Shortcuts)
+    this.categorySearchInput?.addEventListener("input", () => this._onCategorySearch());
+    this.categorySearchClear?.addEventListener("click", () => {
+      if (this.categorySearchInput) {
+        this.categorySearchInput.value = "";
+        this._onCategorySearch();
+        this.categorySearchInput.focus();
+      }
+    });
+    this.categoryNewBtn?.addEventListener("click", () => this._toggleCategoryCreator());
+    this.categoryCreatorCancel?.addEventListener("click", () => this._closeCategoryCreator());
+    this.categoryCreatorConfirm?.addEventListener("click", () => this._submitCategoryCreator());
+    this.categoryCreatorInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this._submitCategoryCreator();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this._closeCategoryCreator();
+      }
+    });
+
+    // Dropdown Search & Creator - Collection
     this.collectionSearchInput?.addEventListener("input", () => this._onCollectionSearch());
     this.collectionSearchClear?.addEventListener("click", () => {
       if (this.collectionSearchInput) {
@@ -242,8 +332,6 @@ class PopupController {
         this.collectionSearchInput.focus();
       }
     });
-
-    // Dropdown Creator - Collection
     this.collectionNewBtn?.addEventListener("click", () => this._toggleCollectionCreator());
     this.collectionCreatorCancel?.addEventListener("click", () => this._closeCollectionCreator());
     this.collectionCreatorConfirm?.addEventListener("click", () => this._submitCollectionCreator());
@@ -344,6 +432,7 @@ class PopupController {
 
     if (this.fieldFolder) this.fieldFolder.style.display = isBm ? "" : "none";
     if (this.fieldWorkspace) this.fieldWorkspace.style.display = isBm ? "" : "none";
+    if (this.fieldCategory) this.fieldCategory.style.display = isSc ? "" : "none";
     if (this.fieldCollection) this.fieldCollection.style.display = isCol ? "" : "none";
 
     this.closeAllDropdowns();
@@ -369,6 +458,11 @@ class PopupController {
     this.folderTrigger?.classList.remove("is-open");
     this.folderTrigger?.setAttribute("aria-expanded", "false");
     this._closeFolderCreator();
+
+    if (this.categoryDropdown) this.categoryDropdown.hidden = true;
+    this.categoryTrigger?.classList.remove("is-open");
+    this.categoryTrigger?.setAttribute("aria-expanded", "false");
+    this._closeCategoryCreator();
 
     if (this.collectionDropdown) this.collectionDropdown.hidden = true;
     this.customCollectionTrigger?.classList.remove("is-open");
@@ -403,6 +497,20 @@ class PopupController {
         if (selected) selected.scrollIntoView({ block: "nearest" });
         this.folderSearchInput?.focus();
       }, 50);
+    } else if (type === "category" && this.categoryDropdown) {
+      this.categoryDropdown.hidden = false;
+      this.categoryTrigger?.classList.add("is-open");
+      this.categoryTrigger?.setAttribute("aria-expanded", "true");
+      if (this.categorySearchInput) {
+        this.categorySearchInput.value = "";
+        this.categorySearchClear.hidden = true;
+      }
+      this._renderCategoryList(this.categories);
+      setTimeout(() => {
+        const selected = this.categoryList?.querySelector(".dropdown-item.is-selected");
+        if (selected) selected.scrollIntoView({ block: "nearest" });
+        this.categorySearchInput?.focus();
+      }, 50);
     } else if (type === "collection" && this.collectionDropdown) {
       this.collectionDropdown.hidden = false;
       this.customCollectionTrigger?.classList.add("is-open");
@@ -434,7 +542,7 @@ class PopupController {
     }
   }
 
-  /* ── Folder Dropdown Methods ────────────────────────────── */
+  /* ── Folder Dropdown Methods (Bookmarks) ───────────────── */
   _onFolderSearch() {
     const q = this.folderSearchInput?.value.trim().toLowerCase() || "";
     if (this.folderSearchClear) this.folderSearchClear.hidden = !q;
@@ -472,9 +580,7 @@ class PopupController {
 
       const icon = document.createElement("span");
       icon.className = "dropdown-item-icon";
-      icon.innerHTML = f.depth === 0
-        ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5h6l2 2.5h10v9.5H3Z"></path></svg>`
-        : `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>`;
+      icon.appendChild(f.depth === 0 ? createSvgIcon("folder", 13) : createSvgIcon("chevron", 11));
 
       const title = document.createElement("span");
       title.className = "dropdown-item-title";
@@ -533,6 +639,91 @@ class PopupController {
     }
   }
 
+  /* ── Category Dropdown Methods (Shortcuts) ─────────────── */
+  _onCategorySearch() {
+    const q = this.categorySearchInput?.value.trim().toLowerCase() || "";
+    if (this.categorySearchClear) this.categorySearchClear.hidden = !q;
+    const filtered = this.categories.filter((c) => !q || (c.name && c.name.toLowerCase().includes(q)));
+    this._renderCategoryList(filtered);
+  }
+
+  _renderCategoryList(categories) {
+    if (!this.categoryList) return;
+    this.categoryList.replaceChildren();
+    if (!categories || categories.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "dropdown-empty-msg";
+      empty.textContent = "No categories found. Click '+ New' to create one.";
+      this.categoryList.appendChild(empty);
+      return;
+    }
+
+    const currentId = this.categoryHidden?.value;
+    for (const c of categories) {
+      const li = document.createElement("li");
+      li.className = "dropdown-item";
+      li.dataset.value = c.id;
+      if (c.id === currentId) li.classList.add("is-selected");
+
+      const icon = document.createElement("span");
+      icon.className = "dropdown-item-icon";
+      icon.appendChild(createSvgIcon("category", 13));
+
+      const title = document.createElement("span");
+      title.className = "dropdown-item-title";
+      title.textContent = c.name;
+
+      const check = document.createElement("span");
+      check.className = "dropdown-item-check";
+      check.textContent = "✓";
+
+      li.append(icon, title, check);
+      li.addEventListener("click", () => {
+        this.selectCategory(c.id, c.name);
+        this.closeAllDropdowns();
+      });
+
+      this.categoryList.appendChild(li);
+    }
+  }
+
+  _toggleCategoryCreator() {
+    if (!this.categoryCreatorBox) return;
+    const isHidden = this.categoryCreatorBox.hidden;
+    this.categoryCreatorBox.hidden = !isHidden;
+    if (isHidden && this.categoryCreatorInput) {
+      this.categoryCreatorInput.value = "";
+      setTimeout(() => this.categoryCreatorInput.focus(), 40);
+    }
+  }
+
+  _closeCategoryCreator() {
+    if (this.categoryCreatorBox) {
+      this.categoryCreatorBox.hidden = true;
+      if (this.categoryCreatorInput) this.categoryCreatorInput.value = "";
+    }
+  }
+
+  async _submitCategoryCreator() {
+    const name = this.categoryCreatorInput?.value.trim();
+    if (!name) return;
+    try {
+      let parentId = this.shortcutsFolderId;
+      if (!parentId && this.useCases?.ensureShortcutsFolder) {
+        parentId = await this.useCases.ensureShortcutsFolder.execute();
+      }
+      const created = await chrome.bookmarks.create({
+        parentId: parentId || "2",
+        title: name,
+      });
+      await this.populateCategories();
+      if (created) this.selectCategory(created.id, created.title);
+      this.closeAllDropdowns();
+    } catch (err) {
+      this.showError(err.message || "Failed to create category");
+    }
+  }
+
   /* ── Collection Dropdown Methods ────────────────────────── */
   _onCollectionSearch() {
     const q = this.collectionSearchInput?.value.trim().toLowerCase() || "";
@@ -561,7 +752,7 @@ class PopupController {
 
       const icon = document.createElement("span");
       icon.className = "dropdown-item-icon";
-      icon.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 10 5-10 5L2 7l10-5Z"></path><path d="m2 17 10 5 10-5"></path><path d="m2 12 10 5 10-5"></path></svg>`;
+      icon.appendChild(createSvgIcon("collection", 13));
 
       const title = document.createElement("span");
       title.className = "dropdown-item-title";
@@ -711,6 +902,7 @@ class PopupController {
     await Promise.all([
       this.populateWorkspaces(),
       this.populateFolders(),
+      this.populateCategories(),
       this.populateCollections(),
     ]);
 
@@ -733,9 +925,11 @@ class PopupController {
 
       this.currentAccentColor = s?.cssVarAccent || "#3b82f6";
       this.currentColorMode = storedPopupMode || s?.colorMode || "dark";
+      this.currentFontSize = s?.fontSize || "default";
     } catch {
       this.currentColorMode = "dark";
       this.currentAccentColor = "#3b82f6";
+      this.currentFontSize = "default";
     }
     this.applyTheme(this.currentColorMode, this.currentAccentColor);
   }
@@ -744,6 +938,10 @@ class PopupController {
     this.currentColorMode = mode;
     this.currentAccentColor = accentHex || "#3b82f6";
     document.documentElement.setAttribute("data-color-mode", mode);
+    document.documentElement.setAttribute("data-font-size", this.currentFontSize || "default");
+    const fontScales = { small: "0.88", default: "1", large: "1.14", xlarge: "1.28" };
+    document.documentElement.style.setProperty("--ui-font-scale", fontScales[this.currentFontSize || "default"] || "1");
+
     const accentVars = deriveAccentShades(this.currentAccentColor, mode);
     for (const [prop, val] of Object.entries(accentVars)) {
       document.documentElement.style.setProperty(prop, val);
@@ -841,7 +1039,7 @@ class PopupController {
     this.recentFolders = [
       entry,
       ...this.recentFolders.filter((f) => f.id !== entry.id),
-    ].slice(0, MAX_RECENT_FOLDERS);
+    ].slice(0, MAX_RECENT_CHIPS);
     await writeLocal(RECENT_FOLDERS_KEY, this.recentFolders);
     await writeLocal(LAST_FOLDER_KEY, entry);
   }
@@ -853,12 +1051,15 @@ class PopupController {
     const currentId = this.folderHidden?.value;
 
     this.folderQuickRow.replaceChildren();
-    for (const f of visible.slice(0, MAX_RECENT_FOLDERS)) {
+    for (const f of visible.slice(0, MAX_RECENT_CHIPS)) {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "picker-quick-chip" + (f.id === currentId ? " is-active" : "");
       chip.title = f.title;
-      chip.innerHTML = `<svg class="picker-chip-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5h6l2 2.5h10v9.5H3Z"></path></svg><span>${f.title}</span>`;
+      const icon = createSvgIcon("folder", 12, "picker-chip-icon");
+      const label = document.createElement("span");
+      label.textContent = f.title;
+      chip.append(icon, label);
       chip.addEventListener("click", () => {
         this.selectFolder(f.id, f.title);
         this.closeAllDropdowns();
@@ -867,6 +1068,119 @@ class PopupController {
     }
   }
 
+  /* ── Category Data & State (Shortcuts) ─────────────────── */
+  async populateCategories() {
+    try {
+      const raw = typeof chrome !== "undefined" && chrome.bookmarks ? await chrome.bookmarks.getTree() : [];
+      let shortcutsFolderId = null;
+      if (this.useCases?.ensureShortcutsFolder) {
+        shortcutsFolderId = await this.useCases.ensureShortcutsFolder.execute({ tree: raw });
+      }
+      this.shortcutsFolderId = shortcutsFolderId;
+
+      let cats = [];
+      if (shortcutsFolderId) {
+        const findFolder = (nodes, id) => {
+          for (const n of nodes || []) {
+            if (String(n.id) === String(id)) return n;
+            if (n.children) {
+              const f = findFolder(n.children, id);
+              if (f) return f;
+            }
+          }
+          return null;
+        };
+        const shortcutsNode = findFolder(raw, shortcutsFolderId);
+        if (shortcutsNode && Array.isArray(shortcutsNode.children)) {
+          for (const child of shortcutsNode.children) {
+            if (!child.url) {
+              cats.push({ id: String(child.id), name: child.title || "Category" });
+            }
+          }
+        }
+      }
+
+      if (cats.length === 0 && shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
+        try {
+          const created = await chrome.bookmarks.create({ parentId: shortcutsFolderId, title: "Quick Access" });
+          cats = [{ id: String(created.id), name: created.title }];
+        } catch { /* non-fatal */ }
+      }
+
+      this.categories = cats;
+
+      const [storedLast, storedRecents] = await Promise.all([
+        readLocal(LAST_CATEGORY_KEY),
+        readLocal(RECENT_CATEGORIES_KEY),
+      ]);
+      const validIds = new Set(this.categories.map((c) => c.id));
+      this.recentCategories = Array.isArray(storedRecents)
+        ? storedRecents.filter((c) => c && c.id && validIds.has(String(c.id)))
+        : [];
+
+      const last = (storedLast && validIds.has(String(storedLast.id))) ? storedLast : null;
+      if (this.recentCategories.length === 0 && this.categories[0]) {
+        this.recentCategories = [{ id: this.categories[0].id, name: this.categories[0].name }];
+      }
+
+      if (last) {
+        this.selectCategory(last.id, last.name, { persist: false });
+      } else if (this.categories.length > 0) {
+        this.selectCategory(this.categories[0].id, this.categories[0].name, { persist: false });
+      } else if (this.categoryLabel) {
+        this.categoryLabel.textContent = "Select Category";
+      }
+
+      this._renderCategoryQuickChips();
+      this._renderCategoryList(this.categories);
+    } catch {
+      if (this.categoryLabel) this.categoryLabel.textContent = "Select Category";
+    }
+  }
+
+  selectCategory(id, name, { persist = true } = {}) {
+    if (this.categoryHidden) this.categoryHidden.value = id;
+    if (this.categoryLabel) this.categoryLabel.textContent = name;
+    if (persist) this._rememberCategory(id, name);
+    this._renderCategoryQuickChips();
+  }
+
+  async _rememberCategory(id, name) {
+    if (!id) return;
+    const entry = { id: String(id), name: String(name || "Category") };
+    this.recentCategories = [
+      entry,
+      ...this.recentCategories.filter((c) => c.id !== entry.id),
+    ].slice(0, MAX_RECENT_CHIPS);
+    await writeLocal(RECENT_CATEGORIES_KEY, this.recentCategories);
+    await writeLocal(LAST_CATEGORY_KEY, entry);
+  }
+
+  _renderCategoryQuickChips() {
+    if (!this.categoryQuickRow) return;
+    const validIds = new Set(this.categories.map((c) => c.id));
+    const visible = this.recentCategories.filter((c) => validIds.has(c.id));
+    const currentId = this.categoryHidden?.value;
+
+    this.categoryQuickRow.replaceChildren();
+    for (const c of visible.slice(0, MAX_RECENT_CHIPS)) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "picker-quick-chip" + (c.id === currentId ? " is-active" : "");
+      chip.title = c.name;
+      const icon = createSvgIcon("category", 12, "picker-chip-icon");
+      const label = document.createElement("span");
+      label.textContent = c.name;
+      chip.append(icon, label);
+      chip.addEventListener("click", () => {
+        this.selectCategory(c.id, c.name);
+        this.closeAllDropdowns();
+      });
+      this.categoryQuickRow.appendChild(chip);
+    }
+  }
+
+  /* ── Collection Data & State ────────────────────────────── */
   async populateCollections() {
     try {
       if (this.useCases?.listBookmarkCollections) {
@@ -874,15 +1188,30 @@ class PopupController {
       } else {
         this.collections = [];
       }
-      const stored = await readLocal(LAST_COLLECTION_KEY);
-      const last = stored && this.collections.find((c) => c.id === stored.id);
+
+      const [storedLast, storedRecents] = await Promise.all([
+        readLocal(LAST_COLLECTION_KEY),
+        readLocal(RECENT_COLLECTIONS_KEY),
+      ]);
+      const validIds = new Set(this.collections.map((c) => c.id));
+      this.recentCollections = Array.isArray(storedRecents)
+        ? storedRecents.filter((c) => c && c.id && validIds.has(String(c.id)))
+        : [];
+
+      const last = (storedLast && validIds.has(String(storedLast.id))) ? storedLast : null;
+      if (this.recentCollections.length === 0 && this.collections[0]) {
+        this.recentCollections = [{ id: this.collections[0].id, name: this.collections[0].name }];
+      }
+
       if (last) {
-        this.selectCustomCollection(last.id, last.name);
+        this.selectCustomCollection(last.id, last.name, { persist: false });
       } else if (this.collections.length > 0) {
-        this.selectCustomCollection(this.collections[0].id, this.collections[0].name);
+        this.selectCustomCollection(this.collections[0].id, this.collections[0].name, { persist: false });
       } else if (this.customCollectionLabel) {
         this.customCollectionLabel.textContent = "Select Collection";
       }
+
+      this._renderCollectionQuickChips();
       this._renderCollectionList(this.collections);
     } catch {
       if (this.customCollectionLabel) this.customCollectionLabel.textContent = "Create collection";
@@ -891,13 +1220,44 @@ class PopupController {
 
   async _rememberCollection(id, name) {
     if (!id) return;
-    await writeLocal(LAST_COLLECTION_KEY, { id: String(id), name: String(name || "Collection") });
+    const entry = { id: String(id), name: String(name || "Collection") };
+    this.recentCollections = [
+      entry,
+      ...this.recentCollections.filter((c) => c.id !== entry.id),
+    ].slice(0, MAX_RECENT_CHIPS);
+    await writeLocal(RECENT_COLLECTIONS_KEY, this.recentCollections);
+    await writeLocal(LAST_COLLECTION_KEY, entry);
   }
 
-  selectCustomCollection(id, name) {
+  selectCustomCollection(id, name, { persist = true } = {}) {
     if (this.customCollectionHidden) this.customCollectionHidden.value = id;
     if (this.customCollectionLabel) this.customCollectionLabel.textContent = name;
-    this._rememberCollection(id, name);
+    if (persist) this._rememberCollection(id, name);
+    this._renderCollectionQuickChips();
+  }
+
+  _renderCollectionQuickChips() {
+    if (!this.collectionQuickRow) return;
+    const validIds = new Set(this.collections.map((c) => c.id));
+    const visible = this.recentCollections.filter((c) => validIds.has(c.id));
+    const currentId = this.customCollectionHidden?.value;
+
+    this.collectionQuickRow.replaceChildren();
+    for (const c of visible.slice(0, MAX_RECENT_CHIPS)) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "picker-quick-chip" + (c.id === currentId ? " is-active" : "");
+      chip.title = c.name;
+      const icon = createSvgIcon("collection", 12, "picker-chip-icon");
+      const label = document.createElement("span");
+      label.textContent = c.name;
+      chip.append(icon, label);
+      chip.addEventListener("click", () => {
+        this.selectCustomCollection(c.id, c.name);
+        this.closeAllDropdowns();
+      });
+      this.collectionQuickRow.appendChild(chip);
+    }
   }
 
   async seedFromActiveTab({ focusTitle = true } = {}) {
@@ -1009,33 +1369,63 @@ class PopupController {
 
     try {
       if (this.destinationType === "shortcut") {
-        let shortcutsFolderId = null;
-        if (this.useCases?.ensureShortcutsFolder) {
-          shortcutsFolderId = await this.useCases.ensureShortcutsFolder.execute();
+        let targetCategoryId = this.categoryHidden?.value;
+        if (!targetCategoryId) {
+          if (this.categories && this.categories.length > 0) {
+            targetCategoryId = this.categories[0].id;
+          } else {
+            let shortcutsFolderId = this.shortcutsFolderId;
+            if (!shortcutsFolderId && this.useCases?.ensureShortcutsFolder) {
+              shortcutsFolderId = await this.useCases.ensureShortcutsFolder.execute();
+            }
+            const createdCat = await chrome.bookmarks.create({
+              parentId: shortcutsFolderId || "2",
+              title: "Quick Access",
+            });
+            targetCategoryId = createdCat.id;
+          }
         }
+
         await chrome.bookmarks.create({
-          parentId: shortcutsFolderId || "2",
+          parentId: String(targetCategoryId),
           title,
           url,
         });
+
+        const usedCat = this.categories.find((c) => c.id === String(targetCategoryId));
+        if (usedCat) await this._rememberCategory(usedCat.id, usedCat.name);
       } else if (this.destinationType === "collection") {
-        const collectionId = this.customCollectionHidden.value;
+        let collectionId = this.customCollectionHidden?.value;
+        if (!collectionId && this.collections && this.collections.length > 0) {
+          collectionId = this.collections[0].id;
+        }
+        if (!collectionId && this.useCases?.createBookmarkCollection) {
+          const created = await this.useCases.createBookmarkCollection.execute({ name: "Favorites" });
+          collectionId = created.id;
+          await this.populateCollections();
+        }
+
         const targetColl = Array.isArray(this.collections) ? this.collections.find((c) => c.id === collectionId) : null;
-        let parentId = targetColl?.folderId || targetColl?.id;
+        let parentId = targetColl?.folderId;
         if (!parentId && this.useCases?.ensureCollectionsFolder) {
-          parentId = (await this.useCases.ensureCollectionsFolder.execute()) || "2";
+          parentId = await this.useCases.ensureCollectionsFolder.execute();
         }
         if (!parentId) {
           const otherFolder = this.folders.find((f) => f.id === "2" || /other bookmarks/i.test(f.title));
           parentId = otherFolder?.id || "2";
         }
-        const created = await chrome.bookmarks.create({ parentId, title, url });
-        if (collectionId && this.useCases?.updateCollectionMembers && created?.id) {
+
+        const createdBm = await chrome.bookmarks.create({ parentId, title, url });
+        if (collectionId && this.useCases?.updateCollectionMembers && createdBm?.id) {
           await this.useCases.updateCollectionMembers.execute({
             collectionId,
-            add: [created.id],
+            add: [createdBm.id],
             urls: [url],
           });
+        }
+
+        if (collectionId && targetColl) {
+          await this._rememberCollection(collectionId, targetColl.name);
         }
       } else {
         const parentId = this.folderHidden.value || "1";
@@ -1060,7 +1450,8 @@ class PopupController {
       return;
     }
 
-    if (this.submitBtnText) this.submitBtnText.textContent = "Saved ✓";
+    if (this.submitBtn) this.submitBtn.classList.add("is-saved");
+    if (this.submitBtnText) this.submitBtnText.textContent = "Saved";
     setTimeout(() => window.close(), 350);
   }
 }

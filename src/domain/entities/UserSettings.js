@@ -50,6 +50,7 @@ export class UserSettings {
   #avatarUrl;         // string
   #workspaceThemes;   // object: { [workspaceId]: { themePresetDark, themePresetLight, themePreset, colorMode, cssVarAccent } }
   #moveBookmarksToQuickAccess; // boolean
+  #fontSize;          // "small" | "default" | "large" | "xlarge"
 
   constructor({
     name = "",
@@ -95,6 +96,7 @@ export class UserSettings {
     showWebsitePreviews = true,
     workspaceThemes = {},
     moveBookmarksToQuickAccess = false,
+    fontSize = "default",
   } = {}) {
     if (typeof name !== "string") throw new Error("name must be a string");
     if (name.length > 60) throw new Error("name must be <= 60 chars");
@@ -109,6 +111,12 @@ export class UserSettings {
     }
     if (typeof backgroundOverlay !== "number" || backgroundOverlay < 0 || backgroundOverlay > 1) {
       throw new Error("backgroundOverlay must be between 0 and 1");
+    }
+    if (typeof backgroundTintColor !== "string") {
+      throw new Error("backgroundTintColor must be a string");
+    }
+    if (typeof buttonRoundness !== "number" || buttonRoundness < 0 || buttonRoundness > 24) {
+      throw new Error("buttonRoundness must be between 0 and 24");
     }
     if (typeof bgGrayscale !== "number" || bgGrayscale < 0 || bgGrayscale > 1) {
       throw new Error("bgGrayscale must be between 0 and 1");
@@ -139,6 +147,10 @@ export class UserSettings {
     const colorModes = ["dark", "light"];
     if (!colorModes.includes(colorMode)) {
       throw new Error("Invalid colorMode");
+    }
+    const fontSizes = ["small", "default", "large", "xlarge"];
+    if (fontSize && !fontSizes.includes(fontSize)) {
+      throw new Error("Invalid fontSize");
     }
     if (typeof weatherEnabled !== "boolean") {
       throw new Error("weatherEnabled must be a boolean");
@@ -178,6 +190,7 @@ export class UserSettings {
     this.#themePresetLight = themePresetLight && themes.includes(themePresetLight) ? themePresetLight : (themePreset && themes.includes(themePreset) ? themePreset : "aurora");
     this.#themePreset = colorMode === "light" ? this.#themePresetLight : this.#themePresetDark;
     this.#colorMode = colorMode;
+    this.#fontSize = fontSize && fontSizes.includes(fontSize) ? fontSize : "default";
     this.#weatherEnabled = weatherEnabled;
     this.#weatherLocation = weatherLocation;
     this.#weatherUnit = weatherUnit;
@@ -245,6 +258,7 @@ export class UserSettings {
   get themePresetDark() { return this.#themePresetDark; }
   get themePresetLight() { return this.#themePresetLight; }
   get colorMode() { return this.#colorMode; }
+  get fontSize() { return this.#fontSize; }
   get weatherEnabled() { return this.#weatherEnabled; }
   get weatherLocation() { return this.#weatherLocation; }
   get weatherUnit() { return this.#weatherUnit; }
@@ -458,6 +472,12 @@ export class UserSettings {
     this.#moveBookmarksToQuickAccess = value;
   }
 
+  setFontSize(value) {
+    const fontSizes = ["small", "default", "large", "xlarge"];
+    if (!fontSizes.includes(value)) throw new Error("Invalid fontSize");
+    this.#fontSize = value;
+  }
+
   toJSON() {
     return {
       name: this.#name,
@@ -480,6 +500,7 @@ export class UserSettings {
       themePresetDark: this.#themePresetDark,
       themePresetLight: this.#themePresetLight,
       colorMode: this.#colorMode,
+      fontSize: this.#fontSize,
       weatherEnabled: this.#weatherEnabled,
       weatherLocation: this.#weatherLocation,
       weatherUnit: this.#weatherUnit,
@@ -523,6 +544,9 @@ export class UserSettings {
     const themePresetDark = safe.themePresetDark && themes.includes(safe.themePresetDark) ? safe.themePresetDark : themePreset;
     const themePresetLight = safe.themePresetLight && themes.includes(safe.themePresetLight) ? safe.themePresetLight : themePreset;
 
+    const fontSizes = ["small", "default", "large", "xlarge"];
+    const fontSize = safe.fontSize && fontSizes.includes(safe.fontSize) ? safe.fontSize : "default";
+
     return new UserSettings({
       name: safe.name ?? "",
       avatarUrl: safe.avatarUrl ?? "",
@@ -545,6 +569,7 @@ export class UserSettings {
       themePresetDark,
       themePresetLight,
       colorMode: safe.colorMode === "light" ? "light" : "dark",
+      fontSize,
       weatherEnabled: !!safe.weatherEnabled,
       weatherLocation: safe.weatherLocation ?? "",
       weatherUnit: safe.weatherUnit ?? "c",

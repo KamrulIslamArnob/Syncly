@@ -4,20 +4,20 @@
     "firstRenderMs": 500,
     "loadMs": 150
   },
-  "timestamp": "2026-08-22T03:38:06.849Z",
-  "wallClockToShellMs": 1661,
+  "timestamp": "2026-08-23T07:16:48.258Z",
+  "wallClockToShellMs": 1608,
   "perf": {
-    "firstRenderMs": 12.899999998509884,
-    "domContentLoadedMs": 280.3999999985099,
-    "loadEventMs": 421.3999999985099,
+    "firstRenderMs": 15,
+    "domContentLoadedMs": 222.80000000074506,
+    "loadEventMs": 352.5,
     "deckLoads": 1,
-    "deckLoadAvgMs": 24.799999997019768,
-    "deckLoadMaxMs": 24.799999997019768,
+    "deckLoadAvgMs": 25.399999999441206,
+    "deckLoadMaxMs": 25.399999999441206,
     "longTasks": 1,
-    "domNodes": 450
+    "domNodes": 578
   },
   "heapMb": {
-    "jsHeapUsed": 4.25,
-    "jsHeapTotal": 8.25
+    "jsHeapUsed": 4.37,
+    "jsHeapTotal": 11.75
   }
 }

@@ -35,25 +35,26 @@ export class GreetingView {
     }
     const name = settings.name?.trim() || "";
     const hour = this.clock.now().getHours();
-    let part = "Good Morning";
+    let timeOfDay = "Morning";
 
     if (hour >= 5 && hour < 12) {
-      part = "Good Morning";
+      timeOfDay = "Morning";
     } else if (hour >= 12 && hour < 18) {
-      part = "Good Afternoon";
+      timeOfDay = "Afternoon";
     } else if (hour >= 18 && hour < 22) {
-      part = "Good Evening";
+      timeOfDay = "Evening";
     } else {
-      part = "Good Night";
+      timeOfDay = "Night";
     }
 
     const iconEl = createDayNightToggle();
     const greetingIcon = el("span", { className: "greeting-icon greeting-icon--toggle", "aria-hidden": "true" }, iconEl);
-    const prefix = el("span", { id: "greeting-prefix" }, part + (name ? "," : ""));
+    const goodEl = el("span", { className: "greeting-good" }, "Good");
+    const prefix = el("span", { id: "greeting-prefix" }, timeOfDay + (name ? "," : ""));
     const nameEl = name ? el("span", { className: "name", id: "greeting-name" }, name) : null;
     const suffix = name ? "!" : "";
 
-    const h1 = el("h1", {}, greetingIcon, prefix, nameEl ? [" ", nameEl, suffix] : "");
+    const h1 = el("h1", {}, goodEl, greetingIcon, prefix, nameEl ? [" ", nameEl, suffix] : "");
     const msg = settings.messageText?.trim() || "Stay focused. Build. Ship. Repeat.";
     const p = el("p", {}, msg);
 

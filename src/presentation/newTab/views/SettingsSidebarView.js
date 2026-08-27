@@ -48,6 +48,7 @@ export class SettingsSidebarView {
       themePresetDark:     darkPreset,
       themePresetLight:    lightPreset,
       colorMode:           colorMode,
+      fontSize:            s.fontSize ?? "default",
       showWebsitePreviews: s.showWebsitePreviews !== false,
       timeFormat24h:        s.timeFormat?.value === "24h" || s.timeFormat === "24h",
       cssVarAccent:        wsTheme?.cssVarAccent ?? s.cssVarAccent ?? "#555B66",
@@ -262,6 +263,58 @@ export class SettingsSidebarView {
 
     const themeSegmented = el("div", { className: "settings-segmented" }, darkBtn, lightBtn);
 
+    // ── Interface Text Size (Font Scale) ──────────────────────
+    const FONT_SIZE_PRESETS = [
+      { id: "small", label: "Small", hint: "88% Scale" },
+      { id: "default", label: "Default", hint: "100% Scale" },
+      { id: "large", label: "Large", hint: "114% Scale" },
+      { id: "xlarge", label: "Extra Large", hint: "128% Scale" },
+    ];
+
+    const currentFontSize = draft.fontSize || "default";
+    const fontSizeSegmented = el("div", { className: "settings-font-size-segmented", role: "group", "aria-label": "Interface Text Size" });
+    const fontSizeButtons = [];
+
+    const applyFontSizeLive = (sizeId) => {
+      draft.fontSize = sizeId;
+      document.documentElement.setAttribute("data-font-size", sizeId);
+      const fontScales = { small: "0.88", default: "1", large: "1.14", xlarge: "1.28" };
+      const scale = fontScales[sizeId] || "1";
+      document.documentElement.style.setProperty("--ui-font-scale", scale);
+      this.save();
+    };
+
+    FONT_SIZE_PRESETS.forEach((preset) => {
+      const isSelected = preset.id === currentFontSize;
+      const btn = el("button", {
+        type: "button",
+        className: "settings-font-pill" + (isSelected ? " is-active" : ""),
+        title: `${preset.label} (${preset.hint})`,
+        "aria-pressed": String(isSelected),
+      }, el("span", {}, preset.label));
+
+      btn.addEventListener("click", () => {
+        fontSizeButtons.forEach(b => {
+          b.classList.remove("is-active");
+          b.setAttribute("aria-pressed", "false");
+        });
+        btn.classList.add("is-active");
+        btn.setAttribute("aria-pressed", "true");
+        applyFontSizeLive(preset.id);
+      });
+
+      fontSizeButtons.push(btn);
+      fontSizeSegmented.appendChild(btn);
+    });
+
+    const fontSizeBlock = el("div", { className: "settings-option-block" },
+      el("div", { className: "settings-option-meta" },
+        el("span", { className: "settings-option-label" }, "Interface Text Size"),
+        el("span", { className: "settings-option-hint" }, "Scale dashboard text, bookmarks, and sidebar")
+      ),
+      fontSizeSegmented
+    );
+
     // Accent Color Swatches
     const ACCENT_PRESETS = [
       { hex: "#555B66", label: "Dark Grey" },
@@ -409,6 +462,7 @@ export class SettingsSidebarView {
     appearanceBody.append(
       scopeBadge,
       themeSegmented,
+      fontSizeBlock,
       accentBlock,
       bgPresetBlock,
       previewRow
@@ -637,7 +691,7 @@ export class SettingsSidebarView {
       if (!autoBackupService) return;
       const status = await autoBackupService.getStatus();
       if (status.enabled && status.hasPermission) {
-        autoBackupStatus.textContent = `Syncing to: ${status.fileName || "neptab-backup.json"}`;
+        autoBackupStatus.textContent = `Syncing to: ${status.fileName || "Syncly-backup.json"}`;
         autoBackupStatus.style.color = "var(--success)";
       } else if (status.enabled && !status.hasPermission) {
         autoBackupStatus.textContent = "Permission required — click to grant";
@@ -984,12 +1038,14 @@ export class SettingsSidebarView {
       spellcheck: "false",
     });
     cssArea.value = draft.customCss || "";
-
+    let cssDebounce = null;
     cssArea.addEventListener("input", () => {
       const sanitized = sanitizeCss(cssArea.value);
       draft.customCss = sanitized;
-      const styleTag = document.getElementById("neptab-custom-css");
+      const styleTag = document.getElementById("syncly-custom-css") || document.getElementById("neptab-custom-css");
       if (styleTag) styleTag.textContent = sanitized;
+      clearTimeout(cssDebounce);
+      cssDebounce = setTimeout(() => this.save(), 500);
     });
 
     const cssSaveBtn = el("button", {
@@ -1005,7 +1061,7 @@ export class SettingsSidebarView {
     cssClearBtn.addEventListener("click", () => {
       cssArea.value = "";
       draft.customCss = "";
-      const styleTag = document.getElementById("neptab-custom-css");
+      const styleTag = document.getElementById("syncly-custom-css") || document.getElementById("neptab-custom-css");
       if (styleTag) styleTag.textContent = "";
       this.save({ showToast: true });
     });
@@ -1016,7 +1072,7 @@ export class SettingsSidebarView {
         if (sanitizedPaste !== cssArea.value) {
           cssArea.value = sanitizedPaste;
           draft.customCss = sanitizedPaste;
-          const styleTag = document.getElementById("neptab-custom-css");
+          const styleTag = document.getElementById("syncly-custom-css") || document.getElementById("neptab-custom-css");
           if (styleTag) styleTag.textContent = sanitizedPaste;
         }
       }, 0);
@@ -1030,19 +1086,18 @@ export class SettingsSidebarView {
     );
 
     // ═══════════════════════════════════════════════════════════
-    // 5. EXTENSION UPDATES & DEVELOPER RELOAD
+    // 5. EXTENSION RELOAD (DEVELOPER MODE)
     // ═══════════════════════════════════════════════════════════
     const { card: updatesCard, body: updatesBody } = this._createCard({
       id: "updates",
       iconName: "refresh",
-      title: "Extension Updates & Reload",
+      title: "Extension Reload",
     });
 
     const updatesHint = el("span", { className: "settings-option-hint" },
-      "Reload the unpacked extension directly from disk after running git pull, or check remote GitHub repository commits."
+      "Reload the unpacked extension directly from disk after making code changes or running git pull."
     );
 
-    // 1. One-Click Reload Button
     const reloadBtn = el("button", {
       type: "button",
       className: "settings-btn settings-btn-primary",
@@ -1074,82 +1129,7 @@ export class SettingsSidebarView {
       reloadBtn
     );
 
-    // 2. GitHub Repository Updates Check
-    const repoInput = el("input", {
-      type: "text",
-      className: "settings-input",
-      value: "KamrulIslamArnob/Syncly-playground",
-      placeholder: "owner/repository",
-      autocomplete: "off",
-      spellcheck: "false",
-    });
-
-    const checkUpdatesBtn = el("button", {
-      type: "button",
-      className: "settings-btn settings-btn-secondary",
-    },
-      icon("search", "settings-btn-icon"),
-      el("span", {}, "Check GitHub")
-    );
-
-    const commitStatus = el("div", {
-      className: "settings-option-hint",
-      style: "margin-top:6px; font-family:var(--font-mono); font-size:11px; line-height:1.4;",
-    }, "Repository: https://github.com/KamrulIslamArnob/Syncly-playground");
-
-    checkUpdatesBtn.addEventListener("click", async () => {
-      const repo = repoInput.value.trim() || "KamrulIslamArnob/Syncly-playground";
-      commitStatus.textContent = "Checking GitHub commits...";
-      commitStatus.style.color = "var(--muted)";
-      checkUpdatesBtn.disabled = true;
-
-      try {
-        let headers = { Accept: "application/vnd.github+json" };
-        if (typeof chrome !== "undefined" && chrome.storage?.local) {
-          const stored = await chrome.storage.local.get(["githubBackupPAT"]);
-          if (stored?.githubBackupPAT) {
-            headers.Authorization = `Bearer ${stored.githubBackupPAT}`;
-          }
-        }
-
-        const res = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=1`, { headers });
-        if (!res.ok) {
-          if (res.status === 404) {
-            throw new Error("Repository not found or private (add Token in GitHub Gist Sync card above if private)");
-          }
-          throw new Error(`GitHub API HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
-        const latest = Array.isArray(data) && data[0] ? data[0] : null;
-        if (latest) {
-          const sha = latest.sha ? latest.sha.substring(0, 7) : "unknown";
-          const msg = latest.commit?.message?.split("\n")[0] || "";
-          const date = latest.commit?.author?.date ? new Date(latest.commit.author.date).toLocaleString() : "";
-          commitStatus.textContent = `Latest commit [${sha}]: "${msg}" (${date})`;
-          commitStatus.style.color = "var(--success)";
-        } else {
-          commitStatus.textContent = "No commits found in repository.";
-        }
-      } catch (err) {
-        commitStatus.textContent = `Check failed: ${err.message || err}`;
-        commitStatus.style.color = "var(--danger)";
-      } finally {
-        checkUpdatesBtn.disabled = false;
-      }
-    });
-
-    const repoRow = el("div", { className: "settings-option-block" },
-      el("div", { className: "settings-option-meta" },
-        el("span", { className: "settings-option-label" }, "Git Repository"),
-        el("span", { className: "settings-option-hint" }, "Check latest remote commit")
-      ),
-      repoInput,
-      el("div", { className: "settings-btn-row", style: "margin-top:8px;" }, checkUpdatesBtn),
-      commitStatus
-    );
-
-    updatesBody.append(updatesHint, reloadRow, repoRow);
+    updatesBody.append(updatesHint, reloadRow);
 
     // ═══════════════════════════════════════════════════════════
     // 6. RESET & DANGER ZONE

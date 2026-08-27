@@ -15,14 +15,15 @@ function hashString(str) {
 
 export class AutoBackupService {
   constructor() {
-    this.dbName = 'neptab-backup-db';
+    this.dbName = 'syncly-backup-db';
+    this.legacyDbName = 'neptab-backup-db';
     this.storeName = 'handles';
-    try { this._lastHash = localStorage.getItem(LAST_HASH_KEY) || null; } catch { this._lastHash = null; }
+    try { this._lastHash = localStorage.getItem("syncly:lastBackupHash") || localStorage.getItem(LAST_HASH_KEY) || null; } catch { this._lastHash = null; }
   }
 
-  async initDB() {
+  async initDB(name = this.dbName) {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, 1);
+      const request = indexedDB.open(name, 1);
 
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
@@ -49,15 +50,31 @@ export class AutoBackupService {
   }
 
   async getHandle() {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(this.storeName, 'readonly');
-      const store = tx.objectStore(this.storeName);
-      const req = store.get('backup-file');
+    try {
+      const db = await this.initDB(this.dbName);
+      const handle = await new Promise((resolve, reject) => {
+        const tx = db.transaction(this.storeName, 'readonly');
+        const store = tx.objectStore(this.storeName);
+        const req = store.get('backup-file');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      if (handle) return handle;
+    } catch { /* non-fatal */ }
 
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+    // Fallback to legacy database if present
+    try {
+      const legacyDb = await this.initDB(this.legacyDbName);
+      return await new Promise((resolve, reject) => {
+        const tx = legacyDb.transaction(this.storeName, 'readonly');
+        const store = tx.objectStore(this.storeName);
+        const req = store.get('backup-file');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    } catch {
+      return null;
+    }
   }
 
   async setupWithSavePicker() {
