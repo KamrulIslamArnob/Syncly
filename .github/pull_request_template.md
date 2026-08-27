@@ -33,4 +33,4 @@
 - [ ] I did not use `innerHTML` for dynamic user data (strictly using `el()` with text nodes).
 - [ ] I updated relevant documentation where necessary.
 - [ ] I added/updated automated unit tests where appropriate.
-- [ ] All CI checks and unit tests pass (`npm test`).
+- [ ] All automated unit tests pass (`npm test`).

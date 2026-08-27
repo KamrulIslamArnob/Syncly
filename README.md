@@ -6,7 +6,6 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-success.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
-[![CI Status](https://img.shields.io/badge/CI-Passing-success.svg?logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
 [![Tests: 273 Passing](https://img.shields.io/badge/Tests-273%20Passing-brightgreen.svg)](#development--testing)
 [![Zero Build](https://img.shields.io/badge/Build-Zero%20Dependencies-orange.svg)](#architecture--design-principles)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
