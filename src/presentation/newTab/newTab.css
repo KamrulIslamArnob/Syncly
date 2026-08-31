@@ -6649,8 +6649,13 @@ html[data-color-mode="light"] .bento-collection-fav {
   border-radius: 8px;
   background: #20232b;
   border: none;
-  cursor: pointer;
+  cursor: grab;
+  position: relative;
   transition: background var(--dur) var(--ease);
+}
+
+.bento-quickie-item.is-dragging {
+  opacity: 0.4;
 }
 
 html[data-color-mode="light"] .bento-quickie-item {
@@ -6777,36 +6782,94 @@ html[data-color-mode="light"] .bento-quickie-action-btn:hover {
   gap: 8px;
 }
 
-.bento-tasks-input {
+.bento-tasks-input-box {
+  position: relative;
+  display: flex;
+  align-items: center;
   width: 100%;
   height: 36px;
-  padding: 0 12px;
   border-radius: var(--radius-sm, 8px);
-  border: none;
   background: #20232b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+html[data-color-mode="light"] .bento-tasks-input-box {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.bento-tasks-input-box:focus-within {
+  background: #272b35;
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 2px var(--accent-soft, rgba(99, 102, 241, 0.15));
+}
+
+html[data-color-mode="light"] .bento-tasks-input-box:focus-within {
+  background: #ffffff;
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 2px var(--accent-soft, rgba(99, 102, 241, 0.15));
+}
+
+.bento-tasks-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px 0 12px;
+  border: none;
+  background: transparent;
   color: var(--fg);
   font-family: var(--font-body);
   font-size: calc(12.5px * var(--ui-font-scale, 1));
   outline: none;
-  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
-}
-
-html[data-color-mode="light"] .bento-tasks-input {
-  background: #ffffff;
 }
 
 .bento-tasks-input::placeholder {
   color: var(--muted-2);
 }
 
-.bento-tasks-input:focus {
-  background: #272b35;
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.2);
+.bento-tasks-enter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  margin-right: 6px;
+  padding: 0 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-family: var(--font-mono, monospace);
+  font-size: calc(10.5px * var(--ui-font-scale, 1));
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+  transition: all var(--dur) var(--ease);
 }
 
-html[data-color-mode="light"] .bento-tasks-input:focus {
-  background: #ffffff;
-  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.15);
+html[data-color-mode="light"] .bento-tasks-enter-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: var(--muted);
+}
+
+.bento-tasks-enter-btn:hover {
+  background: var(--accent-soft, rgba(99, 102, 241, 0.15));
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+  transform: translateY(-0.5px);
+}
+
+.bento-tasks-enter-btn:active {
+  transform: scale(0.95);
+}
+
+.bento-tasks-enter-icon {
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.85;
 }
 
 .bento-tasks-chips {
@@ -6900,7 +6963,9 @@ html[data-color-mode="light"] .bento-task-check {
 .bento-task-check svg { width: 11px; height: 11px; }
 
 .bento-task-check:hover {
-  border-color: var(--fg);
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+  background: var(--accent-soft, rgba(99, 102, 241, 0.12));
 }
 
 .bento-task-check.is-done {
@@ -7136,8 +7201,17 @@ html[data-color-mode="dark"] .bookmark-list {
 .raindrop-card.is-dragging { opacity: 0.4; }
 .raindrop-card.is-drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
 .raindrop-nav-row.is-drop-target,
-.raindrop-quick-tile.is-drop-target {
+.raindrop-quick-tile.is-drop-target,
+.bento-card-quickies.is-drop-target,
+.bento-collection-tile.is-drop-target {
   outline: 2px dashed var(--accent); outline-offset: -2px;
+  background: var(--accent-soft);
+}
+
+.shortcut-circular-grid.is-drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  border-radius: 14px;
   background: var(--accent-soft);
 }
 
@@ -8288,13 +8362,26 @@ html[data-color-mode="light"] .raindrop-card-fav {
 /* To-Do quick panel inside right drawer */
 .todo-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .todo-panel-input-wrap{padding:16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.todo-panel-input-box{
+  position:relative;display:flex;align-items:center;width:100%;height:40px;
+  border-radius:10px;background:var(--surface-2);border:1px solid var(--border-strong);
+  box-sizing:border-box;transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+.todo-panel-input-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
 .todo-panel-input{
-  width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--border-strong);
-  background:var(--surface-2);color:var(--fg);font-family:var(--font-body);font-size:13px;
-  outline:none;box-sizing:border-box;transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+  flex:1;min-width:0;height:100%;padding:0 8px 0 12px;border:none;background:transparent;
+  color:var(--fg);font-family:var(--font-body);font-size:13px;outline:none;
 }
 .todo-panel-input::placeholder{color:var(--muted-2)}
-.todo-panel-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.todo-panel-enter-btn{
+  display:inline-flex;align-items:center;gap:4px;height:26px;margin-right:7px;padding:0 8px;
+  border-radius:6px;border:1px solid var(--border-strong);background:var(--surface);
+  color:var(--muted);font-family:var(--font-mono, monospace);font-size:11px;font-weight:500;
+  cursor:pointer;flex-shrink:0;user-select:none;transition:all var(--dur) var(--ease);
+}
+.todo-panel-enter-btn:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);transform:translateY(-0.5px)}
+.todo-panel-enter-btn:active{transform:scale(.95)}
+.todo-panel-enter-icon{font-size:11.5px;line-height:1;opacity:.85}
 .todo-panel-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .todo-panel-chip{
   height:28px;padding:0 12px;border-radius:999px;border:1px solid var(--border);
@@ -8315,6 +8402,7 @@ html[data-color-mode="light"] .raindrop-card-fav {
   cursor:pointer;flex-shrink:0;transition:all var(--dur) var(--ease);
 }
 .todo-panel-check svg{width:12px;height:12px}
+.todo-panel-check:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 .todo-panel-check.is-done{background:var(--accent);border-color:var(--accent);color:#fff}
 .todo-panel-title{
   flex:1;min-width:0;font-family:var(--font-body);font-size:13px;font-weight:500;color:var(--fg);

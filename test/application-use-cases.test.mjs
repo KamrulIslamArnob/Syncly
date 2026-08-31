@@ -274,6 +274,13 @@ describe("UseCases: Tasks", () => {
     const listUC = new ListTasksUseCase(repo);
     assert.deepEqual(await listUC.execute(), []);
   });
+  it("DeleteTask works with DI taskRepo param format", async () => {
+    const stub = createStub({ tasks: [{ id: "t1", title: "Todo", completed: false, order: 0 }] });
+    const taskRepo = new BaseChromeListRepository(stub, "tasks", Task.fromJSON);
+    const del = new DeleteTaskUseCase({ taskRepo, events: new EventBus() });
+    await del.execute("t1");
+    assert.equal((await taskRepo.list()).length, 0);
+  });
 });
 
 // ─── Subfolders ──────────────────────────────────────────────────

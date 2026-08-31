@@ -7,8 +7,8 @@ export class CreateTaskUseCase {
   #sanitizer;
   #events;
 
-  constructor({ repo, ids, sanitizer, events }) {
-    this.#repo = repo;
+  constructor({ repo, taskRepo, ids, sanitizer, events } = {}) {
+    this.#repo = repo || taskRepo;
     this.#ids = ids;
     this.#sanitizer = sanitizer;
     this.#events = events;

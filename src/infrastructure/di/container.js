@@ -291,9 +291,9 @@ export function buildContainer() {
     }),
 
     listTasks: new ListTasksUseCase(taskRepo),
-    createTask: new CreateTaskUseCase({ repo: taskRepo, ids, sanitizer, events }),
-    updateTask: new UpdateTaskUseCase({ taskRepo, sanitizer, events }),
-    deleteTask: new DeleteTaskUseCase({ taskRepo, events }),
+    createTask: new CreateTaskUseCase({ repo: taskRepo, taskRepo, ids, sanitizer, events }),
+    updateTask: new UpdateTaskUseCase({ repo: taskRepo, taskRepo, sanitizer, events }),
+    deleteTask: new DeleteTaskUseCase({ repo: taskRepo, taskRepo, events }),
 
     getLayout: new GetLayoutUseCase(layoutRepo),
     toggleWidgetVisibility: new ToggleWidgetVisibilityUseCase({

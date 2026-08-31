@@ -811,27 +811,79 @@ export class BookmarkDeckView {
    *  cards themselves in _renderCard. */
   _bindFolderDropTarget(node, folderId) {
     node.addEventListener("dragover", (e) => {
-      if (!this._drag) return;
-      if (this._drag.parentId === folderId) return;
+      if (!this._drag && !e.dataTransfer?.types?.length) return;
+      if (this._drag && this._drag.parentId === folderId) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       node.classList.add("is-drop-target");
     });
-    node.addEventListener("dragleave", () => node.classList.remove("is-drop-target"));
+    node.addEventListener("dragleave", (e) => {
+      if (!node.contains(e.relatedTarget)) {
+        node.classList.remove("is-drop-target");
+      }
+    });
     node.addEventListener("drop", async (e) => {
       e.preventDefault();
       node.classList.remove("is-drop-target");
       const drag = this._drag;
-      if (!drag || drag.parentId === folderId) return;
+      if (drag && drag.parentId === folderId) return;
       try {
-        if (typeof chrome !== "undefined" && chrome.bookmarks?.move) {
-          await chrome.bookmarks.move(drag.id, { parentId: folderId });
+        let moved = false;
+        if (drag?.id && typeof chrome !== "undefined" && chrome.bookmarks?.move) {
+          try {
+            await chrome.bookmarks.move(drag.id, { parentId: folderId });
+            moved = true;
+          } catch (_) {}
+        }
+        if (!moved) {
+          let url = drag?.url?.href || drag?.url;
+          let title = drag?.title;
+          if (!url && drag?.id && this._leafIndex?.has(drag.id)) {
+            const leaf = this._leafIndex.get(drag.id);
+            url = leaf.url?.href || leaf.url;
+            title = title || leaf.title;
+          }
+          if (!url && e.dataTransfer) {
+            try {
+              const jsonStr = e.dataTransfer.getData("application/json");
+              if (jsonStr) {
+                const parsed = JSON.parse(jsonStr);
+                url = parsed.url;
+                title = title || parsed.title;
+              }
+            } catch (_) {}
+            if (!url) {
+              const uriList = e.dataTransfer.getData("text/uri-list");
+              if (uriList) {
+                const lines = uriList.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+                if (lines.length) url = lines[0];
+              }
+            }
+            if (!url) {
+              const plain = e.dataTransfer.getData("text/plain")?.trim();
+              if (plain && (/^https?:\/\//i.test(plain) || /^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/.test(plain))) {
+                url = plain;
+              }
+            }
+          }
+          if (url && typeof chrome !== "undefined" && chrome.bookmarks?.create) {
+            if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+            await chrome.bookmarks.create({
+              parentId: folderId,
+              title: title || guessTitleFromUrl(url) || "Bookmark",
+              url,
+            });
+            moved = true;
+          }
         }
         await this._scheduleLoad();
-        if (drag.isShortcut) {
-          this.toast?.show(`Moved shortcut "${drag.title || 'link'}" to folder ✓`);
+        const isQuickieTarget = folderId === this._quickieFolderId;
+        if (drag?.isShortcut) {
+          this.toast?.show(isQuickieTarget ? `Moved shortcut "${drag.title || 'link'}" to Quickies ✓` : `Moved shortcut "${drag.title || 'link'}" to folder ✓`);
+        } else if (isQuickieTarget) {
+          this.toast?.show(drag?.isQuickie ? "Quickie updated ✓" : "Moved bookmark to Quickies ✓");
         } else {
-          this.toast?.show("Bookmark moved");
+          this.toast?.show(drag?.isQuickie ? `Moved "${drag.title || 'link'}" from Quickie to folder ✓` : "Bookmark moved ✓");
         }
       } catch (err) {
         this.toast?.show(err.message || "Could not move bookmark", { error: true });
@@ -1637,26 +1689,43 @@ export class BookmarkDeckView {
       });
       btn.addEventListener("dragover", (e) => {
         const isCatDrag = this._dragCategoryId && this._dragCategoryId !== catId;
-        const isShortcutDrag = this._dragShortcutId && this._dragShortcutCatId !== catId;
-        if (!isCatDrag && !isShortcutDrag) return;
+        const isBookmarkOrShortcutDrag = this._drag && this._drag.parentId !== catId;
+        if (!isCatDrag && !isBookmarkOrShortcutDrag && !e.dataTransfer?.types?.length) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
         btn.classList.add("is-drag-over");
       });
-      btn.addEventListener("dragleave", () => btn.classList.remove("is-drag-over"));
+      btn.addEventListener("dragleave", (e) => {
+        if (!btn.contains(e.relatedTarget)) {
+          btn.classList.remove("is-drag-over");
+        }
+      });
       btn.addEventListener("drop", async (e) => {
         e.preventDefault();
         btn.classList.remove("is-drag-over");
-        // Shortcut dropped on category → move to that category
-        if (this._dragShortcutId && this._dragShortcutCatId !== catId) {
-          const draggedId = this._dragShortcutId;
+        // Bookmark or Shortcut dropped on category → move/create in that category
+        if (this._drag && this._drag.parentId !== catId) {
+          const drag = this._drag;
           try {
-            if (typeof chrome !== "undefined" && chrome.bookmarks?.move) {
-              await chrome.bookmarks.move(draggedId, { parentId: catId });
+            let moved = false;
+            if (drag.id && typeof chrome !== "undefined" && chrome.bookmarks?.move) {
+              try {
+                await chrome.bookmarks.move(drag.id, { parentId: catId });
+                moved = true;
+              } catch (_) {}
+            }
+            if (!moved && drag.url) {
+              if (typeof chrome !== "undefined" && chrome.bookmarks?.create) {
+                await chrome.bookmarks.create({
+                  parentId: catId,
+                  title: drag.title || "Shortcut",
+                  url: drag.url?.href || drag.url,
+                });
+              }
             }
             this._activeCategoryId = catId;
             await this._scheduleLoad();
-            this.toast?.show("Shortcut moved");
+            this.toast?.show(drag.isQuickie ? `Moved "${drag.title || 'link'}" from Quickie to Shortcuts ✓` : "Shortcut moved ✓");
           } catch (err) {
             this.toast?.show(err.message || "Failed to move", { error: true });
           }
@@ -1850,6 +1919,25 @@ export class BookmarkDeckView {
   _renderShortcutGrid() {
     const grid = el("div", { className: "shortcut-circular-grid", "aria-label": "Website shortcuts" });
     
+    grid.addEventListener("dragover", (e) => {
+      if (!this._drag && !e.dataTransfer?.types?.length) return;
+      if (this._dragShortcutId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      grid.classList.add("is-drop-target");
+    });
+    grid.addEventListener("dragleave", (e) => {
+      if (!grid.contains(e.relatedTarget)) {
+        grid.classList.remove("is-drop-target");
+      }
+    });
+    grid.addEventListener("drop", async (e) => {
+      if (this._dragShortcutId) return;
+      e.preventDefault();
+      grid.classList.remove("is-drop-target");
+      await this._handleDropOnAddShortcut(e);
+    });
+
     const currentShortcuts = (this._shortcuts || []).filter((s) => {
       const catId = s.categoryId?.value || s.categoryId;
       return catId === this._activeCategoryId;
@@ -1912,7 +2000,7 @@ export class BookmarkDeckView {
 
     // 1. Internal drag state
     if (this._drag) {
-      if (this._drag.url) url = this._drag.url;
+      if (this._drag.url) url = this._drag.url?.href || this._drag.url;
       if (this._drag.title) title = this._drag.title;
       if (!url && this._drag.id) {
         const leaf = this._leafIndex?.get(this._drag.id);
@@ -2012,25 +2100,38 @@ export class BookmarkDeckView {
     }
 
     try {
-      if (this._shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
+      let moved = false;
+      if (this._drag?.id && this._shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
         if (!targetCatId) {
           const created = await chrome.bookmarks.create({ parentId: this._shortcutsFolderId, title: "Quick Access" });
           targetCatId = created.id;
         }
-        await chrome.bookmarks.create({
-          parentId: targetCatId,
-          title,
-          url,
-        });
-      } else if (this.useCases?.createBookmark) {
-        await this.useCases.createBookmark.execute({
-          title,
-          url,
-          categoryId: targetCatId,
-        });
+        try {
+          await chrome.bookmarks.move(this._drag.id, { parentId: targetCatId });
+          moved = true;
+        } catch (_) {}
+      }
+      if (!moved) {
+        if (this._shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
+          if (!targetCatId) {
+            const created = await chrome.bookmarks.create({ parentId: this._shortcutsFolderId, title: "Quick Access" });
+            targetCatId = created.id;
+          }
+          await chrome.bookmarks.create({
+            parentId: targetCatId,
+            title,
+            url,
+          });
+        } else if (this.useCases?.createBookmark) {
+          await this.useCases.createBookmark.execute({
+            title,
+            url,
+            categoryId: targetCatId,
+          });
+        }
       }
 
-      this.toast?.show(`Added shortcut "${title}"`);
+      this.toast?.show(this._drag?.isQuickie ? `Moved "${title}" from Quickie to Shortcuts ✓` : `Added shortcut "${title}" ✓`);
       await this._scheduleLoad();
     } catch (err) {
       this.toast?.show(err.message || "Failed to create shortcut", { error: true });
@@ -2607,17 +2708,21 @@ export class BookmarkDeckView {
         const check = el("button", {
           type: "button",
           className: `todo-panel-check${t.completed ? " is-done" : ""}`,
-          "aria-label": t.completed ? "Mark undone" : "Mark done",
-          title: t.completed ? "Mark undone" : "Mark done",
-        }, icon(t.completed ? "check" : "circle"));
+          "aria-label": "Done",
+          title: "Done",
+        }, icon("check"));
         check.addEventListener("click", async () => {
-          try { await this.useCases.updateTask.execute({ id: t.id.value, completed: !t.completed }); await this._renderRightPanelList(); } catch (e) { this.toast?.show(e.message || "Could not update", { error: true }); }
+          try {
+            row.classList.add("is-done");
+            await this.useCases.deleteTask.execute(t.id?.value || t.id);
+            await this._renderRightPanelList();
+          } catch (e) { this.toast?.show(e.message || "Could not delete", { error: true }); }
         });
         const titleEl = el("span", { className: "todo-panel-title" }, t.title);
         const duePill = t.dueDate ? el("span", { className: "todo-panel-due" }, this._labelForDue(t.dueDate)) : null;
         const delBtn = el("button", { type: "button", className: "todo-panel-delete", title: "Delete", "aria-label": "Delete" }, icon("trash"));
         delBtn.addEventListener("click", async () => {
-          try { await this.useCases.deleteTask.execute(t.id.value); await this._renderRightPanelList(); } catch (e) { this.toast?.show(e.message || "Could not delete", { error: true }); }
+          try { await this.useCases.deleteTask.execute(t.id?.value || t.id); await this._renderRightPanelList(); } catch (e) { this.toast?.show(e.message || "Could not delete", { error: true }); }
         });
         row.append(check, titleEl);
         if (duePill) row.append(duePill);
@@ -2651,13 +2756,48 @@ export class BookmarkDeckView {
 
     // Input row
     const inputWrap = el("div", { className: "todo-panel-input-wrap" });
+    const inputBox = el("div", { className: "todo-panel-input-box" });
     this._rightPanelInput = el("input", {
       type: "text",
       className: "todo-panel-input",
-      placeholder: "What needs to be done?",
+      placeholder: "Write any task...",
       maxLength: 200,
       autocomplete: "off",
     });
+
+    const submitRightPanelTask = async (presetId = "today") => {
+      const title = this._rightPanelInput.value.trim();
+      if (!title) {
+        this.toast?.show("Type a task first", { error: true });
+        this._rightPanelInput.focus();
+        return;
+      }
+      const dueDate = this._dueForPreset(presetId);
+      try {
+        if (this.useCases?.createTask) {
+          await this.useCases.createTask.execute({ title, dueDate });
+        }
+        this._rightPanelInput.value = "";
+        this._rightPanelInput.focus();
+        await this._renderRightPanelList();
+      } catch (e) {
+        this.toast?.show(e.message || "Could not add", { error: true });
+      }
+    };
+
+    const rightPanelEnterBtn = el("button", {
+      type: "button",
+      className: "todo-panel-enter-btn",
+      title: "Press Enter to add task",
+      "aria-label": "Add task",
+    },
+      el("span", { className: "todo-panel-kbd" }, "Enter"),
+      el("span", { className: "todo-panel-enter-icon" }, "↵")
+    );
+    rightPanelEnterBtn.addEventListener("click", () => submitRightPanelTask("today"));
+
+    inputBox.append(this._rightPanelInput, rightPanelEnterBtn);
+
     const chips = el("div", { className: "todo-panel-chips" });
     const presets = [
       { id: "today", label: "Today" },
@@ -2667,34 +2807,17 @@ export class BookmarkDeckView {
     ];
     for (const p of presets) {
       const btn = el("button", { type: "button", className: "todo-panel-chip", "data-preset": p.id }, p.label);
-      btn.addEventListener("click", async () => {
-        const title = this._rightPanelInput.value.trim();
-        if (!title) { this.toast?.show("Type a task first", { error: true }); this._rightPanelInput.focus(); return; }
-        const dueDate = this._dueForPreset(p.id);
-        try {
-          await this.useCases.createTask.execute({ title, dueDate });
-          this._rightPanelInput.value = "";
-          this._rightPanelInput.focus();
-          await this._renderRightPanelList();
-        } catch (e) { this.toast?.show(e.message || "Could not add", { error: true }); }
-      });
+      btn.addEventListener("click", () => submitRightPanelTask(p.id));
       chips.append(btn);
     }
     // Enter defaults to Today
     this._rightPanelInput.addEventListener("keydown", async (e) => {
       if (e.key === "Enter") {
-        const title = this._rightPanelInput.value.trim();
-        if (!title) return;
-        const dueDate = this._dueForPreset("today");
-        try {
-          await this.useCases.createTask.execute({ title, dueDate });
-          this._rightPanelInput.value = "";
-          await this._renderRightPanelList();
-        } catch (err) { this.toast?.show(err.message || "Could not add", { error: true }); }
+        await submitRightPanelTask("today");
       }
     });
 
-    inputWrap.append(this._rightPanelInput, chips);
+    inputWrap.append(inputBox, chips);
     this._rightPanelList = el("div", { className: "todo-panel-list" });
 
     body.append(inputWrap, this._rightPanelList);
@@ -3149,6 +3272,7 @@ export class BookmarkDeckView {
           previewStrip.appendChild(el("span", { className: "bento-collection-empty-label" }, "Empty collection"));
         }
 
+        this._bindCollectionDropTarget(tile, coll.id);
         tile.addEventListener("click", () => {
           this._activeSelection = { type: "collection", id: coll.id, title: coll.name, collection: coll };
           this._activeTag = null;
@@ -3165,6 +3289,9 @@ export class BookmarkDeckView {
 
     // ── 2. Quickies Preview Tile ────────────────────────────────
     const quickiesTile = el("div", { className: "bento-card bento-card-quickies" });
+    if (this._quickieFolderId) {
+      this._bindFolderDropTarget(quickiesTile, this._quickieFolderId);
+    }
     const quickieLeaves = this._quickieLeaves || [];
     const quickiesHeader = el("div", { className: "bento-card-header" },
       el("div", { className: "bento-card-header-left" },
@@ -3193,7 +3320,7 @@ export class BookmarkDeckView {
     const quickiesBody = el("div", { className: "bento-card-body bento-quickies-body" });
     if (quickieLeaves.length === 0) {
       const emptyQ = el("div", { className: "bento-empty-state" },
-        el("p", { className: "bento-empty-text" }, "Save links instantly from the extension popup with 1-Click Quick Add.")
+        el("p", { className: "bento-empty-text" }, "Save links instantly from the extension popup with 1-Click Quick Add, or drag bookmarks here.")
       );
       quickiesBody.appendChild(emptyQ);
     } else {
@@ -3205,7 +3332,8 @@ export class BookmarkDeckView {
           className: "bento-quickie-item",
           role: "button",
           tabIndex: 0,
-          title: `${b.title}\n${b.url}`,
+          title: `${b.title}\n${b.url} — drag to move`,
+          draggable: "true",
         },
           this._favicon(b, "bento-quickie-fav"),
           el("div", { className: "bento-quickie-info" },
@@ -3227,6 +3355,36 @@ export class BookmarkDeckView {
             }, icon("trash"))
           )
         );
+
+        item.addEventListener("dragstart", (e) => {
+          this._drag = {
+            id: b.id,
+            parentId: b.parentId || this._quickieFolderId,
+            title: b.title,
+            url: b.url,
+            isQuickie: true,
+          };
+          e.dataTransfer.effectAllowed = "copyMove";
+          e.dataTransfer.setData("text/plain", b.id);
+          if (b.url) {
+            e.dataTransfer.setData("text/uri-list", b.url);
+          }
+          try {
+            e.dataTransfer.setData("application/json", JSON.stringify({
+              id: b.id,
+              title: b.title,
+              url: b.url,
+              parentId: b.parentId || this._quickieFolderId,
+              isQuickie: true,
+            }));
+          } catch {}
+          setTimeout(() => item.classList.add("is-dragging"), 0);
+        });
+
+        item.addEventListener("dragend", () => {
+          item.classList.remove("is-dragging");
+          this._drag = null;
+        });
 
         item.querySelector(".bento-quickie-action-btn[title='Copy link']").addEventListener("click", async (e) => {
           e.stopPropagation();
@@ -3255,6 +3413,7 @@ export class BookmarkDeckView {
         });
 
         item.addEventListener("click", (e) => {
+          if (item.classList.contains("is-dragging")) return;
           this._open(b, e.metaKey || e.ctrlKey || e.shiftKey);
         });
 
@@ -3279,13 +3438,47 @@ export class BookmarkDeckView {
 
     // Task input
     const inputWrap = el("div", { className: "bento-tasks-input-wrap" });
+    const inputBox = el("div", { className: "bento-tasks-input-box" });
     const taskInput = el("input", {
       type: "text",
       className: "bento-tasks-input",
-      placeholder: "Add a task... (Press Enter)",
+      placeholder: "Write any task...",
       maxLength: 200,
       autocomplete: "off",
     });
+
+    const submitTask = async (presetId = "today") => {
+      const title = taskInput.value.trim();
+      if (!title) {
+        this.toast?.show("Type a task first", { error: true });
+        taskInput.focus();
+        return;
+      }
+      const dueDate = this._dueForPreset(presetId);
+      try {
+        if (this.useCases?.createTask) {
+          await this.useCases.createTask.execute({ title, dueDate });
+        }
+        taskInput.value = "";
+        taskInput.focus();
+        await this._refreshBentoTasks();
+      } catch (err) {
+        this.toast?.show(err.message || "Could not add task", { error: true });
+      }
+    };
+
+    const enterBtn = el("button", {
+      type: "button",
+      className: "bento-tasks-enter-btn",
+      title: "Press Enter to add task",
+      "aria-label": "Add task",
+    },
+      el("span", { className: "bento-tasks-kbd" }, "Enter"),
+      el("span", { className: "bento-tasks-enter-icon" }, "↵")
+    );
+    enterBtn.addEventListener("click", () => submitTask("today"));
+
+    inputBox.append(taskInput, enterBtn);
 
     const chips = el("div", { className: "bento-tasks-chips" });
     const presets = [
@@ -3295,38 +3488,17 @@ export class BookmarkDeckView {
     ];
     for (const p of presets) {
       const btn = el("button", { type: "button", className: "bento-tasks-chip", "data-preset": p.id }, p.label);
-      btn.addEventListener("click", async () => {
-        const title = taskInput.value.trim();
-        if (!title) { this.toast?.show("Type a task first", { error: true }); taskInput.focus(); return; }
-        const dueDate = this._dueForPreset(p.id);
-        try {
-          if (this.useCases?.createTask) {
-            await this.useCases.createTask.execute({ title, dueDate });
-          }
-          taskInput.value = "";
-          taskInput.focus();
-          await this._refreshBentoTasks();
-        } catch (e) { this.toast?.show(e.message || "Could not add task", { error: true }); }
-      });
+      btn.addEventListener("click", () => submitTask(p.id));
       chips.append(btn);
     }
 
     taskInput.addEventListener("keydown", async (e) => {
       if (e.key === "Enter") {
-        const title = taskInput.value.trim();
-        if (!title) return;
-        const dueDate = this._dueForPreset("today");
-        try {
-          if (this.useCases?.createTask) {
-            await this.useCases.createTask.execute({ title, dueDate });
-          }
-          taskInput.value = "";
-          await this._refreshBentoTasks();
-        } catch (err) { this.toast?.show(err.message || "Could not add task", { error: true }); }
+        await submitTask("today");
       }
     });
 
-    inputWrap.append(taskInput, chips);
+    inputWrap.append(inputBox, chips);
     tasksBody.appendChild(inputWrap);
 
     this._bentoTasksList = el("div", { className: "bento-tasks-list" });
@@ -3368,14 +3540,15 @@ export class BookmarkDeckView {
         const check = el("button", {
           type: "button",
           className: `bento-task-check${t.completed ? " is-done" : ""}`,
-          "aria-label": t.completed ? "Mark undone" : "Mark done",
-          title: t.completed ? "Mark undone" : "Mark done",
-        }, icon(t.completed ? "check" : "circle"));
+          "aria-label": "Done",
+          title: "Done",
+        }, icon("check"));
         check.addEventListener("click", async () => {
           try {
-            await this.useCases.updateTask.execute({ id: t.id.value, completed: !t.completed });
+            row.classList.add("is-done");
+            await this.useCases.deleteTask.execute(t.id?.value || t.id);
             await this._refreshBentoTasks();
-          } catch (e) { this.toast?.show(e.message || "Could not update task", { error: true }); }
+          } catch (e) { this.toast?.show(e.message || "Could not delete task", { error: true }); }
         });
         const titleEl = el("span", { className: "bento-task-title" }, t.title);
         const duePill = t.dueDate ? el("span", { className: "bento-task-due" }, this._labelForDue(t.dueDate)) : null;
@@ -3387,7 +3560,7 @@ export class BookmarkDeckView {
         }, icon("trash"));
         delBtn.addEventListener("click", async () => {
           try {
-            await this.useCases.deleteTask.execute(t.id.value);
+            await this.useCases.deleteTask.execute(t.id?.value || t.id);
             await this._refreshBentoTasks();
           } catch (e) { this.toast?.show(e.message || "Could not delete task", { error: true }); }
         });
