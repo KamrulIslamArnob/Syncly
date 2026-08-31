@@ -26,16 +26,29 @@ html[data-font-size="xlarge"] { --ui-font-scale: 1.28; }
 html, body {
   margin: 0;
   padding: 0;
-  width: 100%;
-  min-height: 520px;
+  width: 450px;
+  min-width: 450px;
+  max-width: 480px;
+  height: auto;
+  min-height: auto;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-body, "Plus Jakarta Sans", system-ui, sans-serif);
-  font-size: calc(14px * var(--font-scale-effective, 1));
-  overflow-x: hidden;
-  overflow-y: auto;
+  font-size: calc(13.5px * var(--font-scale-effective, 1));
+  overflow: hidden;
   scrollbar-width: none;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+html.is-sidepanel,
+html.is-sidepanel body,
+body.is-sidepanel {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  min-height: 100% !important;
+  height: 100% !important;
+  overflow-y: auto !important;
 }
 
 html::-webkit-scrollbar,
@@ -78,17 +91,17 @@ body::after {
 .popup-container {
   position: relative;
   width: 100%;
-  min-height: 520px;
-  height: 100%;
+  height: auto;
+  min-height: auto;
   display: flex;
   flex-direction: column;
 }
 
 .popup-view {
-  padding: 16px 18px;
+  padding: 14px 18px 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
   flex: 1;
 }
@@ -99,7 +112,7 @@ body::after {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -196,15 +209,69 @@ html[data-color-mode="light"] .popup-logo {
 [data-color-mode="light"] .theme-icon-dark { display: none; }
 [data-color-mode="light"] .theme-icon-light { display: flex; }
 
+/* In Sidepanel mode, hide the "Open in Sidebar" button */
+body.is-sidepanel #btn-open-sidebar,
+html.is-sidepanel #btn-open-sidebar {
+  display: none !important;
+}
+
+/* Custom Context Menu on Right Click */
+.popup-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md, 8px);
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  min-width: 170px;
+  animation: popFadeIn 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.popup-context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  font-family: var(--font-body, inherit);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fg);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.popup-context-item:hover {
+  background: var(--surface-active);
+  color: var(--accent);
+}
+
+.popup-context-item svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+@keyframes popFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 /* ── 2. Segmented Destination Switcher ────────────────────── */
 .popup-type-switch {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   background: var(--surface-2);
-  padding: 3px;
+  padding: 4px;
   border-radius: var(--radius-pill, 999px);
   border: 1px solid var(--border);
-  gap: 3px;
+  gap: 4px;
 }
 
 .popup-type-btn {
@@ -212,12 +279,12 @@ html[data-color-mode="light"] .popup-logo {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 28px;
+  height: 30px;
   border-radius: var(--radius-pill, 999px);
   border: none;
   background: transparent;
   font-family: var(--font-body, inherit);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--muted);
   cursor: pointer;
@@ -246,18 +313,102 @@ html[data-color-mode="light"] .popup-logo {
   color: #ffffff;
 }
 
+/* ── 2b. Already Saved Notification Banner ─────────────────── */
+.popup-existing-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: var(--radius-md, 6px);
+  font-family: var(--font-body, inherit);
+  font-size: 11.5px;
+  color: #10b981;
+  animation: bannerSlideIn 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.popup-existing-banner.is-visible {
+  display: flex !important;
+}
+
+.popup-existing-banner[hidden] {
+  display: none !important;
+}
+
+[data-color-mode="light"] .popup-existing-banner {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.existing-badge-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.existing-folder-link {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+}
+
+.existing-folder-link:hover {
+  text-decoration-style: solid;
+}
+
+.existing-badge-icon {
+  flex-shrink: 0;
+}
+
+.existing-badge-btn {
+  background: transparent;
+  border: none;
+  font-family: var(--font-body, inherit);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: background var(--dur) var(--ease);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.existing-badge-btn:hover {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+@keyframes bannerSlideIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ── 3. Bookmark Capture Form ─────────────────────────────── */
 .popup-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
 }
 
 .popup-field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .popup-field-header {
@@ -287,11 +438,11 @@ html[data-color-mode="light"] .popup-logo {
 
 .popup-input {
   width: 100%;
-  height: 36px;
+  height: 35px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-md, 8px);
-  padding: 0 11px;
+  padding: 0 12px;
   color: var(--fg);
   font-family: var(--font-body, inherit);
   font-size: 13px;
@@ -309,7 +460,8 @@ html[data-color-mode="light"] .popup-logo {
   font-family: var(--font-mono, monospace);
   font-size: 11.5px;
   color: var(--muted);
-  height: 32px;
+  height: 31px;
+  padding: 0 12px;
 }
 
 .popup-input-url:focus {
@@ -323,11 +475,11 @@ html[data-color-mode="light"] .popup-logo {
 
 .picker-trigger-btn {
   width: 100%;
-  height: 38px;
+  height: 36px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-md, 8px);
-  padding: 0 11px;
+  padding: 0 12px;
   color: var(--fg);
   font-family: var(--font-body, inherit);
   font-size: 13px;
@@ -377,7 +529,7 @@ html[data-color-mode="light"] .popup-logo {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 5px;
 }
 
 .picker-quick-row:empty {
@@ -393,9 +545,9 @@ html[data-color-mode="light"] .popup-logo {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill, 999px);
-  padding: 5px 10px;
+  padding: 4px 10px;
   cursor: pointer;
-  max-width: 150px;
+  max-width: 190px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -433,7 +585,7 @@ html[data-color-mode="light"] .popup-logo {
 
 /* ── 5. Tags & Suggestions ────────────────────────────────── */
 .popup-tags-box {
-  min-height: 38px;
+  min-height: 36px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -495,7 +647,7 @@ html[data-color-mode="light"] .popup-logo {
   outline: none;
   color: var(--fg);
   font-family: var(--font-body, inherit);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .popup-tags-input::placeholder {
@@ -507,17 +659,21 @@ html[data-color-mode="light"] .popup-logo {
   font-family: var(--font-body, inherit);
   font-size: 11.5px;
   color: #ef4444;
-  min-height: 14px;
+  min-height: 0;
   line-height: 1.3;
+}
+
+.popup-error-msg:empty {
+  display: none;
 }
 
 /* ── 7. Footer & Primary Action ───────────────────────────── */
 .popup-footer {
-  margin-top: auto;
+  margin-top: 6px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 6px;
+  gap: 6px;
+  padding-top: 4px;
 }
 
 .popup-save-btn {

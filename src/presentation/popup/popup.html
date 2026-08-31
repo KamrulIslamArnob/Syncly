@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-color-mode="dark">
+<html lang="en" data-color-mode="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,10 +10,21 @@
     html, body {
       margin: 0;
       padding: 0;
-      width: 100%;
-      min-height: 520px;
+      width: 450px;
+      min-width: 450px;
+      height: auto;
       font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       overflow-x: hidden;
+      overflow-y: hidden;
+      background: #ffffff;
+      color: #0f172a;
+    }
+    html.is-sidepanel, html.is-sidepanel body {
+      width: 100% !important;
+      min-width: 0 !important;
+      min-height: 100% !important;
+      height: 100% !important;
+      overflow-y: auto !important;
     }
     html[data-color-mode="dark"], html[data-color-mode="dark"] body {
       background: #111215;
@@ -44,6 +55,9 @@
             <img id="popup-favicon" class="popup-favicon" alt="" hidden>
             <span class="popup-domain" id="popup-domain">Saving page...</span>
           </div>
+          <button type="button" id="btn-open-sidebar" class="popup-theme-btn" title="Open from sidebar" aria-label="Open from sidebar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg>
+          </button>
           <button type="button" id="btn-theme-toggle" class="popup-theme-btn" title="Toggle theme" aria-label="Toggle theme">
             <span class="theme-icon theme-icon-dark">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
@@ -68,6 +82,18 @@
         <button type="button" class="popup-type-btn" id="type-btn-collection" role="tab" aria-selected="false">
           <svg class="popup-type-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 10 5-10 5L2 7l10-5Z"></path><path d="m2 17 10 5 10-5"></path><path d="m2 12 10 5 10-5"></path></svg>
           <span>Collection</span>
+        </button>
+      </div>
+
+      <!-- Already Saved Notification Banner -->
+      <div id="popup-existing-banner" class="popup-existing-banner" hidden style="display: none !important;">
+        <div class="existing-badge-content">
+          <svg class="existing-badge-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Saved in <strong id="existing-folder-name" class="existing-folder-link" title="Click to view folder in Chrome Bookmarks"></strong></span>
+        </div>
+        <button type="button" id="btn-view-existing-folder" class="existing-badge-btn" title="Open this location in Chrome Bookmarks">
+          <span>View location</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </button>
       </div>
 

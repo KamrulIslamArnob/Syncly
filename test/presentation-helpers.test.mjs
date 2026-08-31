@@ -285,8 +285,73 @@ describe("Helper: dom.el (H-16)", () => {
       setChildren(parent, [el("i", {}, "x")]);
       assert.equal(parent.children.length, 1);
     }
-    // clean up shim if we created it
-    // Do not delete document if original existed; we created a fake one solely for this test
-    // keep it for subsequent tests that might rely on it
+  });
+});
+
+// ─── findExactBookmarkInTree ──────────────────────────────────────
+describe("Helper: findExactBookmarkInTree", () => {
+  const TREE = [{
+    id: "0", title: "", children: [
+      {
+        id: "1",
+        title: "Bookmarks bar",
+        children: [
+          {
+            id: "10",
+            title: "Dev Tools",
+            children: [
+              { id: "100", title: "GitHub", url: "https://github.com/profile" },
+              { id: "101", title: "Three.js Shaders", url: "https://threeui.com/browse" },
+            ]
+          },
+          { id: "120", title: "Google", url: "https://google.com/" },
+        ]
+      },
+      {
+        id: "2",
+        title: "Other bookmarks",
+        children: [
+          { id: "200", title: "YouTube Video", url: "https://youtube.com/watch?v=123#t=10s" }
+        ]
+      }
+    ]
+  }];
+
+  it("finds exact bookmark with path hierarchy", async () => {
+    const { findExactBookmarkInTree } = await import("../src/presentation/popup/popupController.js");
+    const match = findExactBookmarkInTree(TREE, "https://threeui.com/browse");
+    assert.ok(match);
+    assert.equal(match.node.id, "101");
+    assert.equal(match.folderId, "10");
+    assert.equal(match.folderTitle, "Dev Tools");
+    assert.equal(match.fullPath, "Bookmarks bar › Dev Tools");
+  });
+
+  it("finds bookmark with normalized trailing slash", async () => {
+    const { findExactBookmarkInTree } = await import("../src/presentation/popup/popupController.js");
+    const match = findExactBookmarkInTree(TREE, "https://google.com");
+    assert.ok(match);
+    assert.equal(match.node.id, "120");
+    assert.equal(match.folderTitle, "Bookmarks bar");
+  });
+
+  it("finds bookmark with hash fragment", async () => {
+    const { findExactBookmarkInTree } = await import("../src/presentation/popup/popupController.js");
+    const match = findExactBookmarkInTree(TREE, "https://youtube.com/watch?v=123#t=10s");
+    assert.ok(match);
+    assert.equal(match.node.id, "200");
+    assert.equal(match.folderTitle, "Other bookmarks");
+  });
+
+  it("returns null for unbookmarked new URL", async () => {
+    const { findExactBookmarkInTree } = await import("../src/presentation/popup/popupController.js");
+    const match = findExactBookmarkInTree(TREE, "https://pryzm.design/studio#s=0&c=0a0a0a");
+    assert.equal(match, null);
+  });
+
+  it("returns null for non-matching subdomain/path", async () => {
+    const { findExactBookmarkInTree } = await import("../src/presentation/popup/popupController.js");
+    const match = findExactBookmarkInTree(TREE, "https://github.com/settings");
+    assert.equal(match, null);
   });
 });

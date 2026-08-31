@@ -90,6 +90,76 @@ export class SettingsSidebarView {
     }
   }
 
+  /**
+   * Run an asynchronous button action with stateful loading, success, and error feedback:
+   * 1. Loading: button is disabled, spinner icon, dynamic loading text
+   * 2. Success: button turns emerald green (.is-success), checkmark icon, success text (reverts after 2.6s)
+   * 3. Error: button turns red (.is-error), alert icon, error text (reverts after 3s)
+   */
+  async _runAsyncBtnAction(btn, { loadingText, successText, errorText, resetDelay = 2600 } = {}, actionFn) {
+    if (!btn || btn.classList.contains("is-loading")) return;
+
+    if (btn._stateResetTimer) {
+      clearTimeout(btn._stateResetTimer);
+      btn._stateResetTimer = null;
+    }
+
+    if (!btn._initialNodes) {
+      btn._initialNodes = Array.from(btn.childNodes).map((node) => node.cloneNode(true));
+      btn._initialClass = btn.className;
+    }
+
+    const restoreInitial = () => {
+      btn.classList.remove("is-loading", "is-success", "is-done", "is-error");
+      btn.disabled = false;
+      btn.replaceChildren(...btn._initialNodes.map((n) => n.cloneNode(true)));
+      if (btn._stateResetTimer) {
+        clearTimeout(btn._stateResetTimer);
+        btn._stateResetTimer = null;
+      }
+    };
+
+    btn.disabled = true;
+    btn.classList.remove("is-success", "is-done", "is-error");
+    btn.classList.add("is-loading");
+    btn.replaceChildren(
+      icon("refresh", "settings-btn-icon"),
+      el("span", {}, loadingText || "Processing...")
+    );
+
+    try {
+      const result = await actionFn();
+
+      btn.classList.remove("is-loading");
+      btn.classList.add("is-success");
+      const finalSuccessText = typeof successText === "function" ? successText(result) : (successText || "Done ✓");
+      btn.replaceChildren(
+        icon("check", "settings-btn-icon"),
+        el("span", {}, finalSuccessText)
+      );
+
+      btn._stateResetTimer = setTimeout(() => {
+        restoreInitial();
+      }, resetDelay);
+
+      return result;
+    } catch (err) {
+      btn.classList.remove("is-loading");
+      btn.classList.add("is-error");
+      const finalErrorText = typeof errorText === "function" ? errorText(err) : (errorText || "Failed ✕");
+      btn.replaceChildren(
+        icon("alert", "settings-btn-icon"),
+        el("span", {}, finalErrorText)
+      );
+
+      btn._stateResetTimer = setTimeout(() => {
+        restoreInitial();
+      }, 3000);
+
+      throw err;
+    }
+  }
+
   _createCard({ id, iconName, title, isDanger = false, children = [] }) {
     const card = el("div", { className: `settings-card${isDanger ? " is-danger-card" : ""}` });
 
@@ -653,7 +723,15 @@ export class SettingsSidebarView {
       type: "button",
       className: "settings-btn settings-btn-secondary",
     }, icon("download"), el("span", {}, "Export JSON"));
-    exportBtn.addEventListener("click", () => this.exportBackup());
+    exportBtn.addEventListener("click", () => {
+      this._runAsyncBtnAction(exportBtn, {
+        loadingText: "Exporting...",
+        successText: "Exported ✓",
+        errorText: "Failed ✕",
+      }, async () => {
+        await this.exportBackup();
+      });
+    });
 
     const importInput = el("input", {
       type: "file",
@@ -705,15 +783,21 @@ export class SettingsSidebarView {
 
     autoBackupBtn.addEventListener("click", async () => {
       if (!autoBackupService) return;
-      try {
+      this._runAsyncBtnAction(autoBackupBtn, {
+        loadingText: "Configuring...",
+        successText: "Configured ✓",
+        errorText: "Failed ✕",
+      }, async () => {
         const ok = await autoBackupService.setup();
         if (ok) {
           this.toast.show("Auto-backup location configured ✓");
           updateAutoBackupStatus();
+        } else {
+          throw new Error("Permission cancelled");
         }
-      } catch (err) {
+      }).catch((err) => {
         this.toast.show(err.message || "Could not setup backup file", { error: true });
-      }
+      });
     });
 
     const autoBackupRow = el("div", { className: "settings-row-between" },
@@ -846,18 +930,21 @@ export class SettingsSidebarView {
     };
     refreshGithubStatus();
 
-    patSaveBtn.addEventListener("click", async () => {
+    patSaveBtn.addEventListener("click", () => {
       const token = patInput.value.trim();
       if (!token) { this.toast.show("Enter a token", { error: true }); return; }
-      patSaveBtn.disabled = true;
-      try {
+      this._runAsyncBtnAction(patSaveBtn, {
+        loadingText: "Saving Token...",
+        successText: "Token Saved ✓",
+        errorText: "Save Failed ✕",
+      }, async () => {
         await githubService.setup({ token });
         patInput.value = "";
         this.toast.show("GitHub token saved (encrypted) ✓");
         await refreshGithubStatus();
-      } catch (err) {
+      }).catch((err) => {
         this.toast.show(err.message || "Could not save token", { error: true });
-      } finally { patSaveBtn.disabled = false; }
+      });
     });
 
     patClearBtn.addEventListener("click", async () => {
@@ -877,10 +964,13 @@ export class SettingsSidebarView {
       });
     });
 
-    gistLinkBtn.addEventListener("click", async () => {
+    gistLinkBtn.addEventListener("click", () => {
       const raw = gistIdInput.value.trim();
-      gistLinkBtn.disabled = true;
-      try {
+      this._runAsyncBtnAction(gistLinkBtn, {
+        loadingText: "Linking Gist...",
+        successText: (id) => id ? "Gist Linked ✓" : "Unlinked ✓",
+        errorText: "Link Failed ✕",
+      }, async () => {
         const id = await githubService.setGistId(raw);
         if (id) {
           this.toast.show(`Linked to Gist ${id.slice(0, 8)}… ✓`);
@@ -888,31 +978,34 @@ export class SettingsSidebarView {
           this.toast.show("Unlinked Gist ID (will auto-create on next push)");
         }
         await refreshGithubStatus();
-      } catch (err) {
+        return id;
+      }).catch((err) => {
         this.toast.show(err.message || "Invalid Gist ID or URL", { error: true });
-      } finally {
-        gistLinkBtn.disabled = false;
-      }
+      });
     });
 
-    filenameSaveBtn.addEventListener("click", async () => {
+    filenameSaveBtn.addEventListener("click", () => {
       const raw = filenameInput.value.trim();
-      filenameSaveBtn.disabled = true;
-      try {
+      this._runAsyncBtnAction(filenameSaveBtn, {
+        loadingText: "Saving Name...",
+        successText: "Name Saved ✓",
+        errorText: "Save Failed ✕",
+      }, async () => {
         const saved = await githubService.setFilename(raw);
         filenameInput.value = saved;
         this.toast.show(`Target file set to ${saved} ✓`);
         await refreshGithubStatus();
-      } catch (err) {
+      }).catch((err) => {
         this.toast.show(err.message || "Invalid filename", { error: true });
-      } finally {
-        filenameSaveBtn.disabled = false;
-      }
+      });
     });
 
-    gistPushBtn.addEventListener("click", async () => {
-      gistPushBtn.disabled = true;
-      try {
+    gistPushBtn.addEventListener("click", () => {
+      this._runAsyncBtnAction(gistPushBtn, {
+        loadingText: "Pushing to Gist...",
+        successText: "Pushed & Updated ✓",
+        errorText: "Push Failed ✕",
+      }, async () => {
         const targetFilename = filenameInput.value.trim() || undefined;
         const res = await this.useCases.pushBackupToGitHub.execute({
           filename: targetFilename,
@@ -920,14 +1013,19 @@ export class SettingsSidebarView {
         });
         const currentFile = await githubService.getFilename();
         this.toast.show(`Updated ${currentFile} in Gist ${res.gistId.slice(0, 8)}… ✓`);
-      } catch (err) {
+        await refreshGithubStatus();
+        return res;
+      }).catch((err) => {
         this.toast.show(err.message || "Push failed", { error: true });
-      } finally { gistPushBtn.disabled = false; await refreshGithubStatus(); }
+      });
     });
 
-    gistPullBtn.addEventListener("click", async () => {
-      gistPullBtn.disabled = true;
-      try {
+    gistPullBtn.addEventListener("click", () => {
+      this._runAsyncBtnAction(gistPullBtn, {
+        loadingText: "Pulling from Gist...",
+        successText: "Gist Fetched ✓",
+        errorText: "Pull Failed ✕",
+      }, async () => {
         const targetFilename = filenameInput.value.trim() || undefined;
         const content = await githubService.pullBackup({ filename: targetFilename });
         const raw = JSON.parse(content);
@@ -944,9 +1042,9 @@ export class SettingsSidebarView {
             setTimeout(() => location.reload(), 800);
           },
         });
-      } catch (err) {
+      }).catch((err) => {
         this.toast.show(err.message || "Pull failed", { error: true });
-      } finally { gistPullBtn.disabled = false; }
+      });
     });
 
     // ═══════════════════════════════════════════════════════════
@@ -986,19 +1084,29 @@ export class SettingsSidebarView {
     };
     refreshGoogleStatus();
 
-    googlePushBtn.addEventListener("click", async () => {
-      googlePushBtn.disabled = true;
-      try {
+    googlePushBtn.addEventListener("click", () => {
+      this._runAsyncBtnAction(googlePushBtn, {
+        loadingText: "Pushing to Cloud...",
+        successText: (res) => `Pushed ${res?.count || 0} keys ✓`,
+        errorText: "Push Failed ✕",
+      }, async () => {
         const res = await googleService.pushAll();
-        if (res.success) this.toast.show(`Pushed ${res.count} keys to cloud ✓`);
-        else throw new Error(res.error || res.reason);
-      } catch (err) {
+        if (res.success) {
+          this.toast.show(`Pushed ${res.count} keys to cloud ✓`);
+          return res;
+        }
+        throw new Error(res.error || res.reason || "Push failed");
+      }).catch((err) => {
         this.toast.show(err.message || "Push failed", { error: true });
-      } finally { googlePushBtn.disabled = false; }
+      });
     });
-    googlePullBtn.addEventListener("click", async () => {
-      googlePullBtn.disabled = true;
-      try {
+
+    googlePullBtn.addEventListener("click", () => {
+      this._runAsyncBtnAction(googlePullBtn, {
+        loadingText: "Pulling Cloud...",
+        successText: "Cloud Pulled ✓",
+        errorText: "Pull Failed ✕",
+      }, async () => {
         const res = await this.useCases.syncFromGoogleCloud.execute();
         if (res.count > 0) {
           this.toast.show(`Pulled ${res.count} keys from cloud ✓ - reloading`);
@@ -1006,20 +1114,24 @@ export class SettingsSidebarView {
         } else {
           this.toast.show("No new changes in Google Cloud to pull");
         }
-      } catch (err) {
+      }).catch((err) => {
         this.toast.show(err.message || "Pull failed", { error: true });
-      } finally { googlePullBtn.disabled = false; }
+      });
     });
-    googleSyncBtn.addEventListener("click", async () => {
-      googleSyncBtn.disabled = true;
-      try {
+
+    googleSyncBtn.addEventListener("click", () => {
+      this._runAsyncBtnAction(googleSyncBtn, {
+        loadingText: "Syncing Cloud...",
+        successText: "All Synced ✓",
+        errorText: "Sync Failed ✕",
+      }, async () => {
         const pushRes = await googleService.pushAll();
         const pullRes = await this.useCases.syncFromGoogleCloud.execute().catch(() => ({ count: 0 }));
-        this.toast.show(`Sync done: pushed ${pushRes.count||0}, pulled ${pullRes.count||0} ✓`);
+        this.toast.show(`Sync done: pushed ${pushRes.count || 0}, pulled ${pullRes.count || 0} ✓`);
         if (pullRes.count > 0) setTimeout(() => location.reload(), 600);
-      } catch (err) {
+      }).catch((err) => {
         this.toast.show(err.message || "Sync failed", { error: true });
-      } finally { googleSyncBtn.disabled = false; }
+      });
     });
 
     // ═══════════════════════════════════════════════════════════
@@ -1052,7 +1164,15 @@ export class SettingsSidebarView {
       type: "button",
       className: "settings-btn settings-btn-primary",
     }, icon("check"), el("span", {}, "Save CSS"));
-    cssSaveBtn.addEventListener("click", () => this.save({ showToast: true }));
+    cssSaveBtn.addEventListener("click", () => {
+      this._runAsyncBtnAction(cssSaveBtn, {
+        loadingText: "Saving CSS...",
+        successText: "CSS Saved ✓",
+        errorText: "Failed ✕",
+      }, async () => {
+        await this.save({ showToast: true });
+      });
+    });
 
     const cssClearBtn = el("button", {
       type: "button",
@@ -1110,15 +1230,20 @@ export class SettingsSidebarView {
     const reloadStatus = el("span", { className: "settings-option-hint" }, "Unpacked Dev Mode");
 
     reloadBtn.addEventListener("click", () => {
-      reloadStatus.textContent = "Reloading extension...";
-      reloadStatus.style.color = "var(--accent)";
-      setTimeout(() => {
+      this._runAsyncBtnAction(reloadBtn, {
+        loadingText: "Reloading...",
+        successText: "Reloaded ✓",
+        errorText: "Failed ✕",
+      }, async () => {
+        reloadStatus.textContent = "Reloading extension...";
+        reloadStatus.style.color = "var(--accent)";
+        await new Promise((resolve) => setTimeout(resolve, 150));
         if (typeof chrome !== "undefined" && chrome.runtime?.reload) {
           chrome.runtime.reload();
         } else {
           location.reload();
         }
-      }, 150);
+      });
     });
 
     const reloadRow = el("div", { className: "settings-row-between" },

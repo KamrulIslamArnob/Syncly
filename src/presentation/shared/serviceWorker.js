@@ -218,16 +218,39 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 // ── Init ────────────────────────────────────────────────────────────────────
 
-// Clicking the toolbar icon opens the Syncly side panel (which hosts the
-// popup UI) instead of the classic anchored popup. Registered at top level
-// so it re-arms on every service-worker start.
-chrome.sidePanel
-  .setPanelBehavior({ openPanelOnActionClick: true })
-  .catch((err) => console.warn("[SidePanel] setPanelBehavior failed:", err));
+// Clicking the toolbar icon opens the popup dialog.
+// Right-clicking the icon provides the "Open from sidebar" option.
+if (chrome.sidePanel && typeof chrome.sidePanel.setPanelBehavior === "function") {
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: false })
+    .catch((err) => console.warn("[SidePanel] setPanelBehavior failed:", err));
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   try {
     chrome.alarms.create(RECONCILE_ALARM, { periodInMinutes: 15 });
   } catch {}
   googleSync.reconcile().catch(() => {});
+
+  if (chrome.contextMenus && typeof chrome.contextMenus.create === "function") {
+    try {
+      chrome.contextMenus.create({
+        id: "open_side_panel",
+        title: "Open from sidebar",
+        contexts: ["action"],
+      });
+    } catch {}
+  }
 });
+
+if (chrome.contextMenus && chrome.contextMenus.onClicked) {
+  chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId === "open_side_panel" && tab?.windowId && chrome.sidePanel?.open) {
+      try {
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+      } catch (err) {
+        console.warn("[SidePanel] open failed:", err);
+      }
+    }
+  });
+}

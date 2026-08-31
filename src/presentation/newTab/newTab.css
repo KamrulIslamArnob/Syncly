@@ -1933,6 +1933,62 @@ html[data-color-mode="light"] .settings-logo {
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
 }
 
+/* Button Dynamic States: Loading, Success/Done, Error */
+.settings-btn.is-loading {
+  opacity: 0.85;
+  cursor: wait !important;
+  pointer-events: none;
+}
+
+.settings-btn.is-loading .settings-btn-icon,
+.settings-btn.is-loading svg {
+  animation: settingsBtnSpin 0.7s linear infinite !important;
+}
+
+@keyframes settingsBtnSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.settings-btn.is-success,
+.settings-btn.is-done {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25), 0 2px 8px rgba(16, 185, 129, 0.35);
+  pointer-events: none;
+  transform: scale(1.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-btn.is-success svg,
+.settings-btn.is-done svg {
+  animation: settingsBtnPop 0.25s ease-out;
+}
+
+.settings-btn.is-error {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25), 0 2px 8px rgba(239, 68, 68, 0.35);
+  animation: settingsBtnShake 0.3s ease;
+  pointer-events: none;
+}
+
+@keyframes settingsBtnPop {
+  0% { transform: scale(0.6); }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes settingsBtnShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
 /* Custom CSS Editor */
 .settings-css-editor {
   width: 100%;

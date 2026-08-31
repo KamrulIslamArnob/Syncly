@@ -8,6 +8,7 @@
   },
   "action": {
     "default_title": "Quick-add to Dashboard",
+    "default_popup": "src/presentation/popup/popup.html",
     "default_icon": {
       "16": "public/icons/icon16.png",
       "32": "public/icons/icon32.png",
@@ -16,13 +17,13 @@
     }
   },
   "side_panel": {
-    "default_path": "src/presentation/sidepanel/sidepanel.html"
+    "default_path": "src/presentation/popup/popup.html?sidepanel=1"
   },
   "options_ui": {
     "page": "src/presentation/options/options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "bookmarks", "tabs", "favicon", "alarms", "sidePanel"],
+  "permissions": ["storage", "unlimitedStorage", "activeTab", "bookmarks", "tabs", "favicon", "alarms", "sidePanel", "contextMenus"],
   "minimum_chrome_version": "114",
   "omnibox": { "keyword": "nt" },
   "content_security_policy": {

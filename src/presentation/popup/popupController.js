@@ -23,6 +23,88 @@ function extractSuggestedTags(title) {
   return Array.from(tags).slice(0, 5);
 }
 
+function normalizeUrlStrict(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== "string") return "";
+  try {
+    const u = new URL(rawUrl.trim());
+    let path = u.pathname.replace(/\/+$/, "") || "/";
+    let host = u.hostname.toLowerCase().replace(/^www\./, "");
+    return `${u.protocol}//${host}${path}${u.search}`;
+  } catch {
+    return rawUrl.trim().toLowerCase().replace(/\/+$/, "");
+  }
+}
+
+function normalizeUrlWithHash(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== "string") return "";
+  try {
+    const u = new URL(rawUrl.trim());
+    let path = u.pathname.replace(/\/+$/, "") || "/";
+    let host = u.hostname.toLowerCase().replace(/^www\./, "");
+    return `${u.protocol}//${host}${path}${u.search}${u.hash}`;
+  } catch {
+    return rawUrl.trim().toLowerCase().replace(/\/+$/, "");
+  }
+}
+
+export function findExactBookmarkInTree(roots, targetUrl) {
+  if (!targetUrl || typeof targetUrl !== "string") return null;
+  const targetStrict = normalizeUrlStrict(targetUrl);
+  const targetWithHash = normalizeUrlWithHash(targetUrl);
+  if (!targetStrict) return null;
+
+  const raw = Array.isArray(roots) ? roots : [];
+  let top = raw;
+  if (
+    raw.length === 1 &&
+    raw[0] &&
+    typeof raw[0] === "object" &&
+    (raw[0].id === "0" || raw[0].title === "" || raw[0].title === "root") &&
+    Array.isArray(raw[0].children)
+  ) {
+    top = raw[0].children;
+  }
+
+  let foundMatch = null;
+
+  const walk = (node, path, parentFolderId) => {
+    if (!node || foundMatch) return;
+
+    if (typeof node.url === "string" && node.url.length > 0) {
+      const nodeStrict = normalizeUrlStrict(node.url);
+      const nodeWithHash = normalizeUrlWithHash(node.url);
+      if (nodeWithHash === targetWithHash || nodeStrict === targetStrict) {
+        const folderTitle = path.length > 0 ? path[path.length - 1] : "Bookmarks bar";
+        const fullPath = path.length > 0 ? path.join(" › ") : "Bookmarks bar";
+        foundMatch = {
+          node,
+          folderId: String(node.parentId || parentFolderId || "1"),
+          folderTitle,
+          fullPath,
+        };
+        return;
+      }
+    }
+
+    if (Array.isArray(node.children)) {
+      const title = typeof node.title === "string" && node.title.length > 0 ? node.title : "Folder";
+      const nextPath = (node.id === "0" || !node.title) ? path : [...path, title];
+      const currentFolderId = (node.id !== "0" && node.id) ? String(node.id) : parentFolderId;
+      for (const child of node.children) {
+        walk(child, nextPath, currentFolderId);
+        if (foundMatch) return;
+      }
+    }
+  };
+
+  for (const node of top) {
+    walk(node, [], String(node.id || "1"));
+    if (foundMatch) break;
+  }
+
+  return foundMatch;
+}
+
 /** Flatten a chrome.bookmarks tree into folder options with indent depth & breadcrumb path. */
 function flattenFolders(roots) {
   const raw = Array.isArray(roots) ? roots : [];
@@ -222,15 +304,49 @@ class PopupController {
     this.recentCollections = [];
     this.shortcutsFolderId = null;
     this.activeTags = new Set();
-    this.currentColorMode = "dark";
+    this.currentColorMode = "light";
     this.currentAccentColor = "#3b82f6";
     this.currentFontSize = "default";
+    this._saveResetTimer = null;
+    this._activeContextMenu = null;
+
+    this.existingBanner = document.getElementById("popup-existing-banner");
+    this.existingFolderNameEl = document.getElementById("existing-folder-name");
+    this.existingBookmark = null;
+    this.existingFolderName = "";
+
+    this.viewExistingFolderBtn = document.getElementById("btn-view-existing-folder");
+    this.openSidebarBtn = document.getElementById("btn-open-sidebar");
+    this.isSidePanel = window.location.search.includes("sidepanel") || window.location.pathname.includes("sidepanel");
+    if (this.isSidePanel) {
+      document.documentElement.classList.add("is-sidepanel");
+      document.body.classList.add("is-sidepanel");
+    }
 
     this._bindEvents();
   }
 
   _bindEvents() {
     this.themeToggleBtn?.addEventListener("click", () => this.toggleTheme());
+    this.openSidebarBtn?.addEventListener("click", () => this.openSidePanel());
+
+    // Click on "View location" or folder name to jump to bookmarks manager
+    this.viewExistingFolderBtn?.addEventListener("click", () => this.openExistingBookmarkLocation());
+    this.existingFolderNameEl?.addEventListener("click", () => this.openExistingBookmarkLocation());
+
+    // Input listeners to automatically clear saved state when editing
+    this.titleInput?.addEventListener("input", () => {
+      this._resetSavedState();
+      this._updateSubmitButtonLabel();
+    });
+    this.urlInput?.addEventListener("input", () => {
+      this._resetSavedState();
+      this.checkExistingBookmark(this.urlInput.value.trim());
+    });
+
+    // Right-click inside popup -> "Open from sidebar" context menu
+    document.addEventListener("contextmenu", (e) => this._onContextMenu(e));
+    document.addEventListener("click", () => this._closeContextMenu());
 
     // Destination Switcher
     this.typeBtnBookmark?.addEventListener("click", () => this.setDestinationType("bookmark"));
@@ -436,12 +552,45 @@ class PopupController {
     if (this.fieldCollection) this.fieldCollection.style.display = isCol ? "" : "none";
 
     this.closeAllDropdowns();
+    this._resetSavedState();
+  }
 
-    if (this.submitBtnText) {
-      if (isSc) this.submitBtnText.textContent = "Save to Shortcuts";
-      else if (isCol) this.submitBtnText.textContent = "Add to Collection";
-      else this.submitBtnText.textContent = "Save Bookmark";
+  _updateSubmitButtonLabel() {
+    if (!this.submitBtnText) return;
+    if (this.destinationType === "shortcut") {
+      this.submitBtnText.textContent = "Save to Shortcuts";
+    } else if (this.destinationType === "collection") {
+      this.submitBtnText.textContent = "Add to Collection";
+    } else {
+      if (this.existingBookmark) {
+        const currentFolderId = this.folderHidden?.value;
+        const isDifferentFolder = currentFolderId && currentFolderId !== String(this.existingBookmark.parentId);
+        const currentTitle = this.titleInput?.value.trim();
+        const isDifferentTitle = currentTitle && currentTitle !== this.existingBookmark.title;
+
+        if (isDifferentFolder) {
+          this.submitBtnText.textContent = "Move Bookmark";
+        } else if (isDifferentTitle) {
+          this.submitBtnText.textContent = "Update Bookmark";
+        } else {
+          this.submitBtnText.textContent = "Already Saved · Move";
+        }
+      } else {
+        this.submitBtnText.textContent = "Save Bookmark";
+      }
     }
+  }
+
+  _resetSavedState() {
+    if (this._saveResetTimer) {
+      clearTimeout(this._saveResetTimer);
+      this._saveResetTimer = null;
+    }
+    if (this.submitBtn) {
+      this.submitBtn.classList.remove("is-saved");
+      this.submitBtn.disabled = false;
+    }
+    this._updateSubmitButtonLabel();
   }
 
   /* ============================================================
@@ -924,10 +1073,14 @@ class PopupController {
       }
 
       this.currentAccentColor = s?.cssVarAccent || "#3b82f6";
-      this.currentColorMode = storedPopupMode || s?.colorMode || "dark";
+      let mode = storedPopupMode || s?.colorMode;
+      if (mode !== "dark" && mode !== "light") {
+        mode = "light";
+      }
+      this.currentColorMode = mode;
       this.currentFontSize = s?.fontSize || "default";
     } catch {
-      this.currentColorMode = "dark";
+      this.currentColorMode = "light";
       this.currentAccentColor = "#3b82f6";
       this.currentFontSize = "default";
     }
@@ -1031,6 +1184,7 @@ class PopupController {
     if (this.folderLabel) this.folderLabel.textContent = name;
     if (persist) this._rememberFolder(id, name);
     this._renderFolderQuickChips();
+    this._updateSubmitButtonLabel();
   }
 
   async _rememberFolder(id, name) {
@@ -1271,10 +1425,23 @@ class PopupController {
     } catch (err) {
       console.warn("Could not query active tab:", err);
     }
-    this._seedTab(tab, { focusTitle });
+    await this._seedTab(tab, { focusTitle });
   }
 
-  _seedTab(tab, { focusTitle = false } = {}) {
+  async _seedTab(tab, { focusTitle = false, isLiveSwitch = false } = {}) {
+    if (this._saveResetTimer) {
+      clearTimeout(this._saveResetTimer);
+      this._saveResetTimer = null;
+    }
+
+    this.clearError();
+
+    // Reset button state to fresh/ready state on any tab switch
+    if (this.submitBtn) {
+      this.submitBtn.classList.remove("is-saved");
+      this.submitBtn.disabled = false;
+    }
+
     if (tab && tab.url) {
       this.urlInput.value = tab.url;
       this.titleInput.value = tab.title || hostnameOf(tab.url) || "";
@@ -1291,12 +1458,137 @@ class PopupController {
       this.activeTags.clear();
       const suggested = extractSuggestedTags(tab.title);
       for (const t of suggested) this.addTagChip(t, false);
+
+      // Start with banner guaranteed hidden while querying
+      this._setExistingBookmark(null);
+      await this.checkExistingBookmark(tab.url);
     } else {
       if (this.domainEl) this.domainEl.textContent = "New Bookmark";
       if (this.faviconEl) this.faviconEl.hidden = true;
+      this._setExistingBookmark(null);
     }
 
+    this._updateSubmitButtonLabel();
     if (focusTitle) setTimeout(() => this.titleInput?.focus(), 80);
+  }
+
+  async checkExistingBookmark(url) {
+    if (!url || typeof chrome === "undefined" || !chrome.bookmarks?.getTree) {
+      this._setExistingBookmark(null);
+      return;
+    }
+
+    try {
+      const tree = await chrome.bookmarks.getTree().catch(() => []);
+      const match = findExactBookmarkInTree(tree, url);
+
+      if (match) {
+        this._setExistingBookmark(match.node, match.fullPath, match.folderTitle, match.folderId);
+      } else {
+        this._setExistingBookmark(null);
+      }
+    } catch (err) {
+      console.debug("[Popup] checkExistingBookmark error:", err);
+      this._setExistingBookmark(null);
+    }
+  }
+
+  _setExistingBookmark(node, fullPath = "", folderTitle = "", folderId = "") {
+    this.existingBookmark = node;
+    this.existingFolderName = fullPath || folderTitle;
+
+    if (!node) {
+      if (this.existingBanner) {
+        this.existingBanner.hidden = true;
+        this.existingBanner.classList.remove("is-visible");
+        this.existingBanner.style.setProperty("display", "none", "important");
+      }
+      this._updateSubmitButtonLabel();
+      return;
+    }
+
+    if (this.existingBanner) {
+      this.existingBanner.hidden = false;
+      this.existingBanner.classList.add("is-visible");
+      this.existingBanner.style.removeProperty("display");
+      if (this.existingFolderNameEl) {
+        this.existingFolderNameEl.textContent = fullPath || folderTitle || "Bookmarks";
+      }
+    }
+
+    // Pre-select the existing folder if in bookmark mode
+    if (this.destinationType === "bookmark" && (folderId || node.parentId)) {
+      const targetId = folderId || node.parentId;
+      this.selectFolder(targetId, folderTitle || "Bookmarks", { persist: false });
+    }
+
+    this._updateSubmitButtonLabel();
+  }
+
+  openExistingBookmarkLocation() {
+    if (!this.existingBookmark) return;
+    const folderId = this.existingBookmark.parentId || "1";
+    try {
+      if (typeof chrome !== "undefined" && chrome.tabs?.create) {
+        chrome.tabs.create({ url: `chrome://bookmarks/?id=${folderId}` });
+        window.close();
+      }
+    } catch (err) {
+      console.warn("Could not open bookmarks manager:", err);
+    }
+  }
+
+  async openSidePanel() {
+    try {
+      if (typeof chrome !== "undefined" && chrome.sidePanel?.open && chrome.windows) {
+        const currentWin = await chrome.windows.getCurrent();
+        if (currentWin?.id) {
+          await chrome.sidePanel.open({ windowId: currentWin.id });
+          window.close();
+        }
+      }
+    } catch (err) {
+      console.warn("[Popup] Failed to open side panel:", err);
+    }
+  }
+
+  _onContextMenu(e) {
+    if (e.target.closest("input, textarea, [contenteditable]")) return;
+    e.preventDefault();
+    this._closeContextMenu();
+
+    if (this.isSidePanel) return; // Already in sidepanel
+
+    const menu = document.createElement("div");
+    menu.className = "popup-context-menu";
+
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "popup-context-item";
+    item.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg>
+      <span>Open from sidebar</span>
+    `;
+    item.addEventListener("click", () => {
+      this._closeContextMenu();
+      this.openSidePanel();
+    });
+
+    menu.appendChild(item);
+    document.body.appendChild(menu);
+    this._activeContextMenu = menu;
+
+    const x = Math.min(window.innerWidth - 170, e.clientX);
+    const y = Math.min(window.innerHeight - 50, e.clientY);
+    menu.style.left = `${Math.max(8, x)}px`;
+    menu.style.top = `${Math.max(8, y)}px`;
+  }
+
+  _closeContextMenu() {
+    if (this._activeContextMenu) {
+      this._activeContextMenu.remove();
+      this._activeContextMenu = null;
+    }
   }
 
   addTagChip(tag, isActive = false) {
@@ -1318,6 +1610,7 @@ class PopupController {
     chip.textContent = `#${clean}`;
     chip.addEventListener("click", () => {
       chip.classList.toggle("is-active");
+      this._resetSavedState();
     });
     this.tagsList?.appendChild(chip);
     this.activeTags.add(clean);
@@ -1428,23 +1721,37 @@ class PopupController {
           await this._rememberCollection(collectionId, targetColl.name);
         }
       } else {
+        // Standard Bookmark Mode
         const parentId = this.folderHidden.value || "1";
-        await chrome.bookmarks.create({
-          parentId,
-          title,
-          url,
-        });
-        const usedFolder = this.folders.find((f) => f.id === String(parentId));
-        if (usedFolder) await this._rememberFolder(usedFolder.id, usedFolder.title);
+
+        if (this.existingBookmark?.id) {
+          // Bookmark already exists: move or update title without duplicating
+          if (String(this.existingBookmark.parentId) !== String(parentId)) {
+            await chrome.bookmarks.move(this.existingBookmark.id, { parentId: String(parentId) });
+            this.existingBookmark.parentId = String(parentId);
+          }
+          if (this.existingBookmark.title !== title) {
+            await chrome.bookmarks.update(this.existingBookmark.id, { title });
+            this.existingBookmark.title = title;
+          }
+          const usedFolder = this.folders.find((f) => f.id === String(parentId));
+          if (usedFolder) await this._rememberFolder(usedFolder.id, usedFolder.title);
+        } else {
+          // New bookmark
+          const created = await chrome.bookmarks.create({
+            parentId,
+            title,
+            url,
+          });
+          if (created) this.existingBookmark = created;
+          const usedFolder = this.folders.find((f) => f.id === String(parentId));
+          if (usedFolder) await this._rememberFolder(usedFolder.id, usedFolder.title);
+        }
       }
     } catch (err) {
       if (this.submitBtn) {
         this.submitBtn.disabled = false;
-        if (this.submitBtnText) {
-          this.submitBtnText.textContent = this.destinationType === "shortcut"
-            ? "Save to Shortcuts"
-            : (this.destinationType === "collection" ? "Add to Collection" : "Save Bookmark");
-        }
+        this._updateSubmitButtonLabel();
       }
       this.showError(err?.message || "Failed to save bookmark.");
       return;
@@ -1452,11 +1759,20 @@ class PopupController {
 
     if (this.submitBtn) this.submitBtn.classList.add("is-saved");
     if (this.submitBtnText) this.submitBtnText.textContent = "Saved";
-    setTimeout(() => window.close(), 350);
+
+    if (this.isSidePanel) {
+      // In Side Panel mode, keep panel open and automatically reset after 1.8 seconds
+      if (this._saveResetTimer) clearTimeout(this._saveResetTimer);
+      this._saveResetTimer = setTimeout(() => {
+        this._resetSavedState();
+      }, 1800);
+    }
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const controller = new PopupController();
-  controller.init();
-});
+if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+  document.addEventListener("DOMContentLoaded", () => {
+    const controller = new PopupController();
+    controller.init();
+  });
+}
