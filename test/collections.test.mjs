@@ -356,3 +356,144 @@ test("Create, Rename, Delete & Member Sync with native Chrome bookmark folders",
   assert.equal(await repo.findById(coll.id), null);
 });
 
+test("EnsureCollectionsFolderUseCase: adopts pre-existing native collection subfolders on fresh install when storage is empty", async () => {
+  const { EnsureCollectionsFolderUseCase } = await import("../src/application/useCases/bookmarks/EnsureCollectionsFolderUseCase.js");
+  const storage = createMockStorage(); // completely empty storage on Device B
+  const events = new EventBus();
+  let emittedCount = 0;
+  events.on("bookmarkCollections:changed", () => { emittedCount++; });
+
+  const fakeTree = [
+    {
+      id: "0",
+      title: "",
+      children: [
+        { id: "1", title: "Bookmarks Bar", children: [] },
+        {
+          id: "2",
+          title: "Other Bookmarks",
+          children: [
+            {
+              id: "coll-root-88",
+              title: "Collections",
+              children: [
+                {
+                  id: "sub-design-101",
+                  title: "Design Tools",
+                  children: [
+                    { id: "bm-figma-102", title: "Figma", url: "https://figma.com" },
+                    { id: "bm-spline-103", title: "Spline", url: "https://spline.design" },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const bookmarksMock = {
+    async getTree() {
+      return JSON.parse(JSON.stringify(fakeTree));
+    },
+    async create({ parentId, title, url }) {
+      const node = { id: `new-${Date.now()}`, parentId, title, url };
+      return node;
+    },
+  };
+
+  const useCase = new EnsureCollectionsFolderUseCase({ storage, bookmarks: bookmarksMock, events });
+
+  const folderId = await useCase.execute();
+  assert.equal(folderId, "coll-root-88");
+
+  // Verify collection was adopted from native subfolder
+  const collectionsMap = storage.raw.bookmarkCollections;
+  assert.ok(collectionsMap, "bookmarkCollections should be populated in storage");
+  const collections = Object.values(collectionsMap);
+  assert.equal(collections.length, 1);
+  assert.equal(collections[0].name, "Design Tools");
+  assert.equal(collections[0].folderId, "sub-design-101");
+  assert.deepEqual(collections[0].bookmarkIds, ["bm-figma-102", "bm-spline-103"]);
+  assert.deepEqual(collections[0].bookmarkUrls, ["https://figma.com", "https://spline.design"]);
+  assert.equal(emittedCount, 1);
+});
+
+test("SyncFromGoogleCloudUseCase: remaps foreign collection folderId and member IDs by native title and URL", async () => {
+  const { SyncFromGoogleCloudUseCase } = await import("../src/application/useCases/sync/SyncFromGoogleCloudUseCase.js");
+  const storage = createMockStorage();
+  const events = new EventBus();
+
+  const fakeTree = [
+    {
+      id: "0",
+      title: "",
+      children: [
+        { id: "1", title: "Bookmarks Bar", children: [] },
+        {
+          id: "2",
+          title: "Other Bookmarks",
+          children: [
+            {
+              id: "coll-root-local",
+              title: "Collections",
+              children: [
+                {
+                  id: "folder-local-55",
+                  title: "Design Tools",
+                  children: [
+                    { id: "bm-local-77", title: "Figma", url: "https://figma.com" },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  // Set global chrome mock
+  globalThis.chrome = {
+    storage: { local: storage },
+    bookmarks: {
+      async getTree() {
+        return JSON.parse(JSON.stringify(fakeTree));
+      },
+    },
+  };
+
+  const googleSyncServiceMock = {
+    async pullAll() {
+      // Simulate incoming cloud data from device A with foreign IDs
+      await storage.set({
+        bookmarkCollections: {
+          "coll-device-a": {
+            id: "coll-device-a",
+            name: "Design Tools",
+            folderId: "foreign-folder-99",
+            bookmarkIds: ["foreign-bm-11"],
+            bookmarkUrls: ["https://figma.com"],
+          },
+        },
+      });
+      return { success: true, pulledKeys: ["bookmarkCollections"] };
+    },
+  };
+
+  const useCase = new SyncFromGoogleCloudUseCase({
+    googleSyncService: googleSyncServiceMock,
+    events,
+  });
+
+  const res = await useCase.execute();
+  assert.equal(res.success, true);
+
+  // Verify folderId remapped to local native folder and member ID resolved
+  const remapped = storage.raw.bookmarkCollections["coll-device-a"];
+  assert.equal(remapped.folderId, "folder-local-55");
+  assert.ok(remapped.bookmarkIds.includes("bm-local-77"));
+});
+
+

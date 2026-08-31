@@ -22,10 +22,12 @@
 export class EnsureCollectionsFolderUseCase {
   #storage;
   #bookmarks;
+  #events;
 
-  constructor({ storage, bookmarks } = {}) {
+  constructor({ storage, bookmarks, events } = {}) {
     this.#storage = storage || (typeof chrome !== "undefined" && chrome.storage ? chrome.storage.local : null);
     this.#bookmarks = bookmarks || (typeof chrome !== "undefined" && chrome.bookmarks ? chrome.bookmarks : null);
+    this.#events = events || null;
   }
 
   /**
@@ -93,7 +95,7 @@ export class EnsureCollectionsFolderUseCase {
       }
     }
 
-    // 5. Migrate any existing legacy collections from storage into physical subfolders
+    // 5. Migrate and adopt any native subfolders into storage collections
     if (collectionsFolderId && this.#storage) {
       try {
         await this._migrateStoredCollections(collectionsFolderId, tree);
@@ -108,8 +110,9 @@ export class EnsureCollectionsFolderUseCase {
   async _migrateStoredCollections(collectionsFolderId, tree) {
     if (!this.#storage || !this.#bookmarks) return;
     const data = await this.#storage.get(["bookmarkCollections", "collectionsNativeMigrated"]);
-    const rawColls = data?.bookmarkCollections;
-    if (!rawColls || typeof rawColls !== "object") return;
+    const rawColls = (data?.bookmarkCollections && typeof data.bookmarkCollections === "object")
+      ? data.bookmarkCollections
+      : {};
 
     // Refresh tree if needed
     let liveTree = tree;
@@ -117,7 +120,7 @@ export class EnsureCollectionsFolderUseCase {
 
     const collectionsNode = this._findFolderNodeById(liveTree, collectionsFolderId);
     const existingSubfolders = (collectionsNode?.children || []).filter((c) => c.children || !c.url);
-    const existingByName = new Map(existingSubfolders.map((f) => [String(f.title).toLowerCase(), f]));
+    const existingByName = new Map(existingSubfolders.map((f) => [String(f.title || "").toLowerCase().trim(), f]));
 
     const collList = Array.isArray(rawColls) ? rawColls : Object.values(rawColls);
     const updatedStorageColls = typeof rawColls === "object" && !Array.isArray(rawColls) ? { ...rawColls } : {};
@@ -137,9 +140,11 @@ export class EnsureCollectionsFolderUseCase {
     };
     indexWalk(liveTree);
 
+    let changed = false;
+
     for (const coll of collList) {
       if (!coll || !coll.name) continue;
-      const key = String(coll.name).toLowerCase();
+      const key = String(coll.name).toLowerCase().trim();
       let subfolder = existingByName.get(key);
 
       // Create native subfolder if missing
@@ -150,6 +155,7 @@ export class EnsureCollectionsFolderUseCase {
             title: coll.name,
           });
           existingByName.set(key, subfolder);
+          changed = true;
         } catch (err) {
           console.warn(`Could not create native collection folder for "${coll.name}":`, err);
           continue;
@@ -188,26 +194,51 @@ export class EnsureCollectionsFolderUseCase {
             title: item.title,
             url: item.url,
           });
+          changed = true;
         } catch (_) {}
       }
 
       // Update storage collection entity with native folderId
-      if (coll.id) {
+      if (coll.id && updatedStorageColls[coll.id]?.folderId !== subfolder.id) {
         updatedStorageColls[coll.id] = {
           ...coll,
           folderId: subfolder.id,
         };
+        changed = true;
       }
     }
 
-    // Also import any native subfolders in Collections folder that aren't yet in storage
+    // Also import or reconcile any native subfolders in Collections folder
     for (const sub of existingSubfolders) {
-      const alreadyTracked = Object.values(updatedStorageColls).some(
-        (c) => c.folderId === sub.id || String(c.name).toLowerCase() === String(sub.title).toLowerCase()
+      if (!sub || !sub.title) continue;
+      const key = String(sub.title).toLowerCase().trim();
+      const existingMatch = Object.values(updatedStorageColls).find(
+        (c) => c.folderId === sub.id || String(c.name).toLowerCase().trim() === key
       );
-      if (!alreadyTracked && sub.title) {
+      const childBookmarks = (sub.children || []).filter((c) => c.url);
+
+      if (existingMatch) {
+        const combinedIds = new Set([...(existingMatch.bookmarkIds || []), ...childBookmarks.map((b) => String(b.id))]);
+        const combinedUrls = new Set([...(existingMatch.bookmarkUrls || []), ...childBookmarks.map((b) => String(b.url))]);
+        const newIds = Array.from(combinedIds);
+        const newUrls = Array.from(combinedUrls);
+
+        if (
+          existingMatch.folderId !== sub.id ||
+          JSON.stringify(newIds) !== JSON.stringify(existingMatch.bookmarkIds || []) ||
+          JSON.stringify(newUrls) !== JSON.stringify(existingMatch.bookmarkUrls || [])
+        ) {
+          updatedStorageColls[existingMatch.id] = {
+            ...existingMatch,
+            folderId: sub.id,
+            bookmarkIds: newIds,
+            bookmarkUrls: newUrls,
+            updatedAt: Date.now(),
+          };
+          changed = true;
+        }
+      } else {
         const newId = `coll-${sub.id}`;
-        const childBookmarks = (sub.children || []).filter((c) => c.url);
         updatedStorageColls[newId] = {
           id: newId,
           name: sub.title,
@@ -218,13 +249,19 @@ export class EnsureCollectionsFolderUseCase {
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
+        changed = true;
       }
     }
 
-    await this.#storage.set({
-      bookmarkCollections: updatedStorageColls,
-      collectionsNativeMigrated: true,
-    });
+    if (changed || !data?.collectionsNativeMigrated || JSON.stringify(updatedStorageColls) !== JSON.stringify(rawColls)) {
+      await this.#storage.set({
+        bookmarkCollections: updatedStorageColls,
+        collectionsNativeMigrated: true,
+      });
+      if (this.#events) {
+        this.#events.emit("bookmarkCollections:changed", undefined);
+      }
+    }
   }
 
   _findFolderById(nodes, id) {
@@ -240,14 +277,21 @@ export class EnsureCollectionsFolderUseCase {
   _findFolderNodeById(nodes, id) {
     if (!Array.isArray(nodes) || !id) return null;
     const targetId = String(id);
-    for (const node of nodes) {
-      if (String(node.id) === targetId && (node.children || !node.url)) return node;
-      if (node.children) {
-        const found = this._findFolderNodeById(node.children, targetId);
-        if (found) return found;
+    const roots = nodes.length === 1 && (nodes[0]?.id === "0" || nodes[0]?.title === "") && nodes[0]?.children
+      ? nodes[0].children
+      : nodes;
+    const walk = (list) => {
+      if (!Array.isArray(list)) return null;
+      for (const node of list) {
+        if (String(node.id) === targetId && (node.children || !node.url)) return node;
+        if (node.children) {
+          const found = walk(node.children);
+          if (found) return found;
+        }
       }
-    }
-    return null;
+      return null;
+    };
+    return walk(roots);
   }
 
   _findFolderByTitle(nodes, title) {

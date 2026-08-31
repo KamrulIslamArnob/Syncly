@@ -449,17 +449,21 @@ export class BookmarkDeckView {
     // with both ensure use cases (same-tick contract) instead of each one
     // issuing its own chrome.bookmarks.getTree() IPC round-trip.
     const raw = await this.getTree().catch(() => []);
-    const [quickieId, shortcutsFolderId, collectionsFolderId, collections, , usage, tags, settings, folderColors] = await Promise.all([
+    const [quickieId, shortcutsFolderId, collectionsFolderId, , , usage, tags, settings, folderColors] = await Promise.all([
       this.useCases?.ensureQuickieFolder ? this.useCases.ensureQuickieFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
       this.useCases?.ensureShortcutsFolder ? this.useCases.ensureShortcutsFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
       this.useCases?.ensureCollectionsFolder ? this.useCases.ensureCollectionsFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
-      this.useCases?.listBookmarkCollections ? this.useCases.listBookmarkCollections.execute().catch(() => []) : Promise.resolve([]),
+      Promise.resolve(null),
       this.groupButtons.loadState().catch(() => null),
       this.storage ? this.storage.get([USAGE_KEY, LAST_KEY]).then((d) => d?.[USAGE_KEY] || {}).catch(() => ({})) : Promise.resolve({}),
       this.useCases?.listBookmarkTags ? this.useCases.listBookmarkTags.execute().catch(() => ({})) : Promise.resolve({}),
       this.useCases?.getSettings ? this.useCases.getSettings.execute().catch(() => null) : Promise.resolve(null),
       this.storage ? this.storage.get(FOLDER_COLORS_KEY).then((d) => d?.[FOLDER_COLORS_KEY] || {}).catch(() => ({})) : Promise.resolve({}),
     ]);
+
+    const collections = this.useCases?.listBookmarkCollections
+      ? await this.useCases.listBookmarkCollections.execute().catch(() => [])
+      : [];
 
     this._shortcutsFolderId = shortcutsFolderId || this._shortcutsFolderId;
     this._collectionsFolderId = collectionsFolderId || this._collectionsFolderId;

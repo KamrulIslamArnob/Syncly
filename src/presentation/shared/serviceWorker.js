@@ -173,6 +173,7 @@ chrome.omnibox.onInputEntered.addListener(async (text, disposition) => {
 import { GoogleSyncService, SYNC_KEYS, TOMBSTONE_KEY } from "../../infrastructure/services/GoogleSyncService.js";
 import { ChromeBookmarkGroupRepository } from "../../infrastructure/repositories/ChromeBookmarkGroupRepository.js";
 import { AdoptNativeWorkspaceFolders } from "../../application/useCases/workspaces/AdoptNativeWorkspaceFolders.js";
+import { EnsureCollectionsFolderUseCase } from "../../application/useCases/bookmarks/EnsureCollectionsFolderUseCase.js";
 
 const googleSync = new GoogleSyncService();
 const RECONCILE_ALARM = "syncly-sync-reconcile";
@@ -187,6 +188,13 @@ function runNativeWorkspaceAdoption() {
       },
     });
     adopter.execute().catch(() => {});
+  } catch {}
+}
+
+function runNativeCollectionAdoption() {
+  try {
+    const ensureCollections = new EnsureCollectionsFolderUseCase();
+    ensureCollections.execute().catch(() => {});
   } catch {}
 }
 
@@ -207,6 +215,8 @@ chrome.runtime.onStartup.addListener(() => {
   googleSync.reconcile().catch(() => {});
   // Native-sync fallback: adopt w-* workspace folders synced natively.
   runNativeWorkspaceAdoption();
+  // Native-sync fallback: adopt native collection subfolders synced natively.
+  runNativeCollectionAdoption();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -231,6 +241,8 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.alarms.create(RECONCILE_ALARM, { periodInMinutes: 15 });
   } catch {}
   googleSync.reconcile().catch(() => {});
+  runNativeWorkspaceAdoption();
+  runNativeCollectionAdoption();
 
   if (chrome.contextMenus && typeof chrome.contextMenus.create === "function") {
     try {

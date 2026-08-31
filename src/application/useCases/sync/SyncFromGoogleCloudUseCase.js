@@ -113,7 +113,7 @@ export class SyncFromGoogleCloudUseCase {
       }
     }
 
-    // Auto-remap bookmarkCollections member IDs by URL after pull
+    // Auto-remap bookmarkCollections member IDs by URL and folderId by title after pull
     if (res.pulledKeys && res.pulledKeys.includes("bookmarkCollections") && typeof chrome !== "undefined" && chrome.bookmarks && chrome.storage?.local) {
       try {
         const stored = await chrome.storage.local.get("bookmarkCollections");
@@ -131,6 +131,10 @@ export class SyncFromGoogleCloudUseCase {
           };
           walkBookmarks(tree);
 
+          const collectionsNode = this._findFolderByTitle(tree, "Collections");
+          const subfolders = (collectionsNode?.children || []).filter((c) => c.children || !c.url);
+          const subfolderByName = new Map(subfolders.map((s) => [String(s.title || "").toLowerCase().trim(), s]));
+
           let collChanged = false;
           for (const coll of Object.values(collectionsMap)) {
             if (!coll || typeof coll !== "object") continue;
@@ -141,6 +145,19 @@ export class SyncFromGoogleCloudUseCase {
             for (const url of urls) {
               const localId = urlToLocalId.get(url);
               if (localId) remappedIds.add(localId);
+            }
+
+            const collKey = String(coll.name || "").toLowerCase().trim();
+            const matchingSub = subfolderByName.get(collKey);
+            if (matchingSub && matchingSub.id) {
+              if (coll.folderId !== matchingSub.id) {
+                coll.folderId = matchingSub.id;
+                collChanged = true;
+              }
+              const childBookmarks = (matchingSub.children || []).filter((c) => c.url);
+              for (const child of childBookmarks) {
+                remappedIds.add(String(child.id));
+              }
             }
 
             const newIdArr = Array.from(remappedIds);
@@ -176,6 +193,28 @@ export class SyncFromGoogleCloudUseCase {
       pulledKeys: res.pulledKeys,
       count: res.pulledKeys.length,
     };
+  }
+
+  _findFolderByTitle(nodes, title) {
+    if (!Array.isArray(nodes) || !title) return null;
+    const targetTitle = String(title).trim().toLowerCase();
+    const walk = (list) => {
+      if (!Array.isArray(list)) return null;
+      for (const n of list) {
+        if ((n.children || !n.url) && String(n.title || "").trim().toLowerCase() === targetTitle) {
+          return n;
+        }
+        if (n.children) {
+          const res = walk(n.children);
+          if (res) return res;
+        }
+      }
+      return null;
+    };
+    const roots = nodes.length === 1 && (nodes[0]?.id === "0" || nodes[0]?.title === "") && nodes[0]?.children
+      ? nodes[0].children
+      : nodes;
+    return walk(roots);
   }
 
   _findOtherBookmarksId(tree) {

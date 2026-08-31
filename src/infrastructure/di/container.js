@@ -182,7 +182,9 @@ export function buildContainer() {
   // Native-sync fallback: after hydration settles, migrate existing workspace
   // folders to the "w-" convention and adopt "w-*" folders that arrived from
   // other devices via Chrome's native bookmark sync (quota-proof channel).
-  .then(() => adoptNativeWorkspaceFolders.execute()).catch(() => {});
+  .then(() => adoptNativeWorkspaceFolders.execute()).catch(() => {})
+  // Native-sync fallback for collections: adopt native subfolders inside "Collections" folder
+  .then(() => ensureCollectionsFolderUseCase.execute()).catch(() => {});
 
   // PERF-T04: page-side reconcile polling (30s interval + post-write trigger)
   // was removed — the MV3 service worker now owns catch-up convergence via its
@@ -191,7 +193,7 @@ export function buildContainer() {
   // above; manual Push/Pull buttons call pushAll()/pullAll() directly.
 
   const ensureShortcutsFolderUseCase = new EnsureShortcutsFolderUseCase();
-  const ensureCollectionsFolderUseCase = new EnsureCollectionsFolderUseCase();
+  const ensureCollectionsFolderUseCase = new EnsureCollectionsFolderUseCase({ events });
 
   // ---- use cases ----
   const useCases = Object.freeze({
