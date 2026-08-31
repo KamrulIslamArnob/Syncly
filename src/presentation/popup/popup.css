@@ -263,6 +263,81 @@ html.is-sidepanel #btn-open-sidebar {
   to { opacity: 1; transform: scale(1); }
 }
 
+/* ── 1b. 1-Click Quick Add to Quickies ──────────────────── */
+.popup-quickie-action-wrap {
+  width: 100%;
+}
+
+.popup-quickie-btn {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--accent-soft, rgba(59, 130, 246, 0.12));
+  border: 1px solid var(--accent, #3b82f6);
+  color: var(--accent, #3b82f6);
+  cursor: pointer;
+  font-family: var(--font-body, inherit);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), transform 140ms ease, box-shadow var(--dur) var(--ease);
+  user-select: none;
+}
+
+.popup-quickie-btn:hover {
+  background: var(--accent, #3b82f6);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 12px var(--accent-soft);
+}
+
+.popup-quickie-btn:hover .popup-quickie-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.popup-quickie-btn:active {
+  transform: translateY(0);
+}
+
+.popup-quickie-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+}
+
+.popup-quickie-btn-text {
+  flex: 1;
+  text-align: left;
+}
+
+.popup-quickie-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1.5px 6.5px;
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.popup-quickie-btn.is-saved {
+  background: #10b981 !important;
+  border-color: #10b981 !important;
+  color: #ffffff !important;
+}
+
+.popup-quickie-btn.is-saved .popup-quickie-badge {
+  background: rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff !important;
+}
+
 /* ── 2. Segmented Destination Switcher ────────────────────── */
 .popup-type-switch {
   display: grid;

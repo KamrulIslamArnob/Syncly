@@ -265,6 +265,15 @@ export class BookmarkDeckView {
     this._bookmarkEventNames = [];
     this._bookmarkEventHandler = null;
     this._unsubEvents = [];
+    this._bentoTaskCount = null;
+    this._bentoTasksList = null;
+
+    if (this.events?.on) {
+      const unsub = this.events.on("tasks:changed", () => {
+        this._refreshBentoTasks();
+      });
+      if (typeof unsub === "function") this._unsubEvents.push(unsub);
+    }
 
     this.groupButtons = new GroupProfileButtonsView({
       useCases,
@@ -1452,8 +1461,7 @@ export class BookmarkDeckView {
         sidebarToggleBtn
       );
       const focusRight = el("div", { className: "raindrop-header-right focus-header-right" },
-        focusThemeGroup,
-        makePanelBtn()
+        focusThemeGroup
       );
       this._header.append(focusLeft, el("div", { className: "raindrop-header-spacer" }), focusRight);
       return;
@@ -1472,8 +1480,7 @@ export class BookmarkDeckView {
     rightCluster.append(
       focusThemeGroup,
       selectBtn,
-      viewSwitch,
-      makePanelBtn()
+      viewSwitch
     );
 
     this._header.append(metaLeft, searchWrap, rightCluster);
@@ -2903,40 +2910,12 @@ export class BookmarkDeckView {
       if (shortcutGrid) shortcutsContainer.appendChild(shortcutGrid);
       if (categoryBar || shortcutGrid) this._content.appendChild(shortcutsContainer);
 
-      const activeGroup = this.groupButtons.activeGroup;
-      const sectionTitle = activeGroup ? `${activeGroup.name} / All Bookmarks` : "All Bookmarks";
-
-      caret = el("span", {
-        className: "bookmarks-section-caret" + (!this._allBookmarksCollapsed ? " is-open" : ""),
-      }, icon("chevronRight"));
-
-      const titleEl = el("h3", { className: "bookmarks-section-title" }, sectionTitle);
-      const countEl = el("span", { className: "bookmarks-section-count" }, `${pool.length} bookmarks`);
-
-      let settingsBtn = null;
-      if (this._layoutStyle === "focus" && this.onOpenSettings) {
-        settingsBtn = el("button", {
-          type: "button",
-          className: "raindrop-settings-btn focus-bottom-settings-btn",
-          title: "Settings (,)",
-          "aria-label": "Open Settings",
-        }, icon("settings"));
-        settingsBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          this.onOpenSettings?.();
-        });
+      // Home Bento Grid Dashboard (Collections, Quickies, Tasks) - Hidden in Focus mode
+      if (this._layoutStyle !== "focus") {
+        const bentoDashboard = this._renderHomeBentoGrid();
+        if (bentoDashboard) this._content.appendChild(bentoDashboard);
       }
-
-      sectionHeader = el("div", {
-        className: "bookmarks-section-header" + (this._allBookmarksCollapsed ? " is-collapsed" : ""),
-        role: "button",
-        tabIndex: 0,
-        title: this._allBookmarksCollapsed ? "Click to expand bookmarks" : "Click to collapse bookmarks",
-      },
-        el("div", { className: "bookmarks-section-left" }, caret, titleEl, countEl),
-        settingsBtn
-      );
-      this._content.appendChild(sectionHeader);
+      return;
     }
 
     if (pool.length === 0 && currentSubfolders.length === 0) {
@@ -3082,6 +3061,345 @@ export class BookmarkDeckView {
     // Floating Bulk Action Bar (when in select mode and at least 1 bookmark selected)
     if (this._selectMode && this._selectedIds.size > 0) {
       this._content.appendChild(this._renderBulkActionBar());
+    }
+  }
+
+  /* ── 3b. Home Bento Grid Rendering ────────────────────────── */
+  _renderHomeBentoGrid() {
+    const bentoContainer = el("div", { className: "home-bento-dashboard" });
+
+    // ── 1. Top Collections Tile ─────────────────────────────────
+    const visibleCollections = this._getVisibleCollections();
+    const collectionsTile = el("div", { className: "bento-card bento-card-collections" });
+    
+    const collectionsHeader = el("div", { className: "bento-card-header" },
+      el("div", { className: "bento-card-header-left" },
+        el("span", { className: "bento-card-icon" }, icon("folder")),
+        el("h3", { className: "bento-card-title" }, "Collections"),
+        el("span", { className: "bento-card-count" }, `${visibleCollections.length}`)
+      ),
+      el("div", { className: "bento-card-header-actions" },
+        el("button", {
+          type: "button",
+          className: "bento-btn-icon",
+          title: "New Collection",
+          "aria-label": "New Collection"
+        }, icon("plus")),
+        visibleCollections.length > 0 ? el("button", {
+          type: "button",
+          className: "bento-btn-link",
+          title: "View all collections"
+        }, "View all", icon("arrowRight")) : null
+      )
+    );
+
+    collectionsHeader.querySelector(".bento-btn-icon")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this._promptCreateBookmarkCollection();
+    });
+    collectionsHeader.querySelector(".bento-btn-link")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this._activeSelection = { type: "collections" };
+      this._renderSidebar();
+      this._renderHeader();
+      this._renderContent();
+    });
+    collectionsTile.appendChild(collectionsHeader);
+
+    const collectionsBody = el("div", { className: "bento-card-body bento-collections-body" });
+    if (visibleCollections.length === 0) {
+      const emptyCol = el("div", { className: "bento-empty-state" },
+        el("p", { className: "bento-empty-text" }, "Bundle your favorite bookmarks together."),
+        el("button", { type: "button", className: "btn btn-primary bento-empty-btn" }, "+ Create Collection")
+      );
+      emptyCol.querySelector("button").addEventListener("click", () => this._promptCreateBookmarkCollection());
+      collectionsBody.appendChild(emptyCol);
+    } else {
+      const colGrid = el("div", { className: "bento-collections-grid" });
+      const previewCols = visibleCollections.slice(0, 6);
+      for (const coll of previewCols) {
+        const leaves = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
+        const count = leaves.length;
+        const dotStyle = coll.color ? `background: ${coll.color};` : "";
+
+        const tile = el("div", {
+          className: "bento-collection-tile",
+          role: "button",
+          tabIndex: 0,
+          title: `Open ${coll.name} (${count} bookmarks)`,
+        },
+          el("div", { className: "bento-collection-top" },
+            el("span", { className: "bento-collection-dot", style: dotStyle }),
+            el("span", { className: "bento-collection-name" }, coll.name),
+            el("span", { className: "bento-collection-count" }, `${count}`)
+          ),
+          el("div", { className: "bento-collection-preview" })
+        );
+
+        const previewStrip = tile.querySelector(".bento-collection-preview");
+        if (leaves.length > 0) {
+          for (const leaf of leaves.slice(0, 4)) {
+            const fav = this._favicon(leaf, "bento-collection-fav");
+            previewStrip.appendChild(fav);
+          }
+          if (count > 4) {
+            previewStrip.appendChild(el("span", { className: "bento-collection-more" }, `+${count - 4}`));
+          }
+        } else {
+          previewStrip.appendChild(el("span", { className: "bento-collection-empty-label" }, "Empty collection"));
+        }
+
+        tile.addEventListener("click", () => {
+          this._activeSelection = { type: "collection", id: coll.id, title: coll.name, collection: coll };
+          this._activeTag = null;
+          this._renderSidebar();
+          this._renderHeader();
+          this._renderContent();
+        });
+
+        colGrid.appendChild(tile);
+      }
+      collectionsBody.appendChild(colGrid);
+    }
+    collectionsTile.appendChild(collectionsBody);
+
+    // ── 2. Quickies Preview Tile ────────────────────────────────
+    const quickiesTile = el("div", { className: "bento-card bento-card-quickies" });
+    const quickieLeaves = this._quickieLeaves || [];
+    const quickiesHeader = el("div", { className: "bento-card-header" },
+      el("div", { className: "bento-card-header-left" },
+        el("span", { className: "bento-card-icon" }, icon("zap")),
+        el("h3", { className: "bento-card-title" }, "Quickies"),
+        el("span", { className: "bento-card-count" }, `${quickieLeaves.length}`)
+      ),
+      el("div", { className: "bento-card-header-actions" },
+        quickieLeaves.length > 0 ? el("button", {
+          type: "button",
+          className: "bento-btn-link",
+          title: "View all quickies"
+        }, "View all", icon("arrowRight")) : null
+      )
+    );
+
+    quickiesHeader.querySelector(".bento-btn-link")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this._activeSelection = { type: "quickie", title: "Quickie" };
+      this._renderSidebar();
+      this._renderHeader();
+      this._renderContent();
+    });
+    quickiesTile.appendChild(quickiesHeader);
+
+    const quickiesBody = el("div", { className: "bento-card-body bento-quickies-body" });
+    if (quickieLeaves.length === 0) {
+      const emptyQ = el("div", { className: "bento-empty-state" },
+        el("p", { className: "bento-empty-text" }, "Save links instantly from the extension popup with 1-Click Quick Add.")
+      );
+      quickiesBody.appendChild(emptyQ);
+    } else {
+      const qList = el("div", { className: "bento-quickies-list" });
+      const recentQuickies = [...quickieLeaves].reverse().slice(0, 5);
+      for (const b of recentQuickies) {
+        const domain = cleanDomain(b.url);
+        const item = el("div", {
+          className: "bento-quickie-item",
+          role: "button",
+          tabIndex: 0,
+          title: `${b.title}\n${b.url}`,
+        },
+          this._favicon(b, "bento-quickie-fav"),
+          el("div", { className: "bento-quickie-info" },
+            el("span", { className: "bento-quickie-title" }, b.title),
+            el("span", { className: "bento-quickie-url" }, domain)
+          ),
+          el("div", { className: "bento-quickie-actions" },
+            el("button", {
+              type: "button",
+              className: "bento-quickie-action-btn",
+              title: "Copy link",
+              "aria-label": "Copy link"
+            }, icon("copy")),
+            el("button", {
+              type: "button",
+              className: "bento-quickie-action-btn is-delete",
+              title: "Delete",
+              "aria-label": "Delete"
+            }, icon("trash"))
+          )
+        );
+
+        item.querySelector(".bento-quickie-action-btn[title='Copy link']").addEventListener("click", async (e) => {
+          e.stopPropagation();
+          try {
+            await navigator.clipboard.writeText(b.url);
+            this.toast?.show("Copied link to clipboard!");
+          } catch {
+            this.toast?.show("Could not copy link", { error: true });
+          }
+        });
+
+        item.querySelector(".bento-quickie-action-btn.is-delete").addEventListener("click", async (e) => {
+          e.stopPropagation();
+          try {
+            if (typeof chrome !== "undefined" && chrome.bookmarks && typeof chrome.bookmarks.remove === "function") {
+              await chrome.bookmarks.remove(b.id);
+            }
+            if (this.useCases?.deleteBookmark) {
+              await this.useCases.deleteBookmark.execute({ id: b.id });
+            }
+            this.toast?.show("Deleted bookmark");
+            await this._scheduleLoad();
+          } catch (err) {
+            this.toast?.show(err.message || "Could not delete", { error: true });
+          }
+        });
+
+        item.addEventListener("click", (e) => {
+          this._open(b, e.metaKey || e.ctrlKey || e.shiftKey);
+        });
+
+        qList.appendChild(item);
+      }
+      quickiesBody.appendChild(qList);
+    }
+    quickiesTile.appendChild(quickiesBody);
+
+    // ── 3. To-Do Tasks Tile ─────────────────────────────────────
+    const tasksTile = el("div", { className: "bento-card bento-card-tasks" });
+    const tasksHeader = el("div", { className: "bento-card-header" },
+      el("div", { className: "bento-card-header-left" },
+        el("span", { className: "bento-card-icon" }, icon("check")),
+        el("h3", { className: "bento-card-title" }, "Tasks"),
+        this._bentoTaskCount = el("span", { className: "bento-card-count" }, "")
+      )
+    );
+    tasksTile.appendChild(tasksHeader);
+
+    const tasksBody = el("div", { className: "bento-card-body bento-tasks-body" });
+
+    // Task input
+    const inputWrap = el("div", { className: "bento-tasks-input-wrap" });
+    const taskInput = el("input", {
+      type: "text",
+      className: "bento-tasks-input",
+      placeholder: "Add a task... (Press Enter)",
+      maxLength: 200,
+      autocomplete: "off",
+    });
+
+    const chips = el("div", { className: "bento-tasks-chips" });
+    const presets = [
+      { id: "today", label: "Today" },
+      { id: "tomorrow", label: "Tomorrow" },
+      { id: "thisWeek", label: "This week" },
+    ];
+    for (const p of presets) {
+      const btn = el("button", { type: "button", className: "bento-tasks-chip", "data-preset": p.id }, p.label);
+      btn.addEventListener("click", async () => {
+        const title = taskInput.value.trim();
+        if (!title) { this.toast?.show("Type a task first", { error: true }); taskInput.focus(); return; }
+        const dueDate = this._dueForPreset(p.id);
+        try {
+          if (this.useCases?.createTask) {
+            await this.useCases.createTask.execute({ title, dueDate });
+          }
+          taskInput.value = "";
+          taskInput.focus();
+          await this._refreshBentoTasks();
+        } catch (e) { this.toast?.show(e.message || "Could not add task", { error: true }); }
+      });
+      chips.append(btn);
+    }
+
+    taskInput.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter") {
+        const title = taskInput.value.trim();
+        if (!title) return;
+        const dueDate = this._dueForPreset("today");
+        try {
+          if (this.useCases?.createTask) {
+            await this.useCases.createTask.execute({ title, dueDate });
+          }
+          taskInput.value = "";
+          await this._refreshBentoTasks();
+        } catch (err) { this.toast?.show(err.message || "Could not add task", { error: true }); }
+      }
+    });
+
+    inputWrap.append(taskInput, chips);
+    tasksBody.appendChild(inputWrap);
+
+    this._bentoTasksList = el("div", { className: "bento-tasks-list" });
+    tasksBody.appendChild(this._bentoTasksList);
+    tasksTile.appendChild(tasksBody);
+
+    bentoContainer.append(collectionsTile, quickiesTile, tasksTile);
+
+    // Load initial tasks into the bento panel
+    this._refreshBentoTasks();
+
+    return bentoContainer;
+  }
+
+  async _refreshBentoTasks() {
+    if (!this._bentoTasksList) return;
+    try {
+      const tasks = this.useCases?.listTasks ? await this.useCases.listTasks.execute() : [];
+      const sorted = [...tasks].sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+        if (a.dueDate && !b.dueDate) return -1;
+        if (!a.dueDate && b.dueDate) return 1;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
+      this._bentoTasksList.replaceChildren();
+      const pendingCount = sorted.filter(t => !t.completed).length;
+      if (this._bentoTaskCount) this._bentoTaskCount.textContent = pendingCount ? `${pendingCount} left` : "0";
+
+      if (sorted.length === 0) {
+        this._bentoTasksList.append(el("div", { className: "bento-empty-state is-compact" },
+          el("p", { className: "bento-empty-text" }, "All caught up! No tasks.")
+        ));
+        return;
+      }
+
+      for (const t of sorted) {
+        const row = el("div", { className: `bento-task-item${t.completed ? " is-done" : ""}` });
+        const check = el("button", {
+          type: "button",
+          className: `bento-task-check${t.completed ? " is-done" : ""}`,
+          "aria-label": t.completed ? "Mark undone" : "Mark done",
+          title: t.completed ? "Mark undone" : "Mark done",
+        }, icon(t.completed ? "check" : "circle"));
+        check.addEventListener("click", async () => {
+          try {
+            await this.useCases.updateTask.execute({ id: t.id.value, completed: !t.completed });
+            await this._refreshBentoTasks();
+          } catch (e) { this.toast?.show(e.message || "Could not update task", { error: true }); }
+        });
+        const titleEl = el("span", { className: "bento-task-title" }, t.title);
+        const duePill = t.dueDate ? el("span", { className: "bento-task-due" }, this._labelForDue(t.dueDate)) : null;
+        const delBtn = el("button", {
+          type: "button",
+          className: "bento-task-delete",
+          title: "Delete task",
+          "aria-label": "Delete task"
+        }, icon("trash"));
+        delBtn.addEventListener("click", async () => {
+          try {
+            await this.useCases.deleteTask.execute(t.id.value);
+            await this._refreshBentoTasks();
+          } catch (e) { this.toast?.show(e.message || "Could not delete task", { error: true }); }
+        });
+        row.append(check, titleEl);
+        if (duePill) row.append(duePill);
+        row.append(delBtn);
+        this._bentoTasksList.append(row);
+      }
+    } catch {
+      this._bentoTasksList.replaceChildren(el("div", { className: "bento-empty-state is-compact" },
+        el("p", { className: "bento-empty-text" }, "Failed to load tasks")
+      ));
     }
   }
 
@@ -3353,8 +3671,6 @@ export class BookmarkDeckView {
   /* ── 6. Card Rendering ───────────────────────────────────── */
   _renderCard(bookmark, { inCollection = false } = {}) {
     const domain = cleanDomain(bookmark.url);
-    const cover = getThumbGradient(domain || bookmark.title);
-    const glyph = (domain ? domain.charAt(0) : initial(bookmark.title)).toUpperCase();
     const tags = this._tags[bookmark.id] || [];
     const breadcrumb = bookmark.path && bookmark.path.length ? bookmark.path.join(" / ") : "";
     const isSelected = this._selectedIds.has(bookmark.id);
@@ -3380,32 +3696,34 @@ export class BookmarkDeckView {
       card.appendChild(checkbox);
     }
 
-    const coverEl = el("div", { className: "raindrop-card-cover", style: `background:${cover};` },
-      el("span", { className: "raindrop-card-glyph" }, glyph)
-    );
-
     const body = el("div", { className: "raindrop-card-body" });
 
-    const heading = el("div", { className: "raindrop-card-heading" },
-      this._favicon(bookmark, "raindrop-card-fav"),
-      el("span", { className: "raindrop-card-title", title: bookmark.title }, bookmark.title)
-    );
+    // 1. Big Website Logo Icon
+    const favEl = this._favicon(bookmark, "raindrop-card-fav");
 
+    // 2. Website Name on top, URL below it beside the icon
+    const titleEl = el("div", { className: "raindrop-card-title", title: bookmark.title }, bookmark.title);
+    const urlEl = el("div", { className: "raindrop-card-url", title: bookmark.url }, domain || bookmark.url);
+    const infoCol = el("div", { className: "raindrop-card-info" }, titleEl, urlEl);
+
+    // Top Section: Big Icon + Website Info (Name & URL)
+    const topRow = el("div", { className: "raindrop-card-top" }, favEl, infoCol);
+
+    // 3. Bottom Section: Subfolder Address Location + Tags
     const pathEl = breadcrumb
       ? el("div", { className: "raindrop-card-path", title: breadcrumb }, icon("folder", "raindrop-card-path-icon"), breadcrumb)
       : el("div", { className: "raindrop-card-path is-empty" });
 
-    const urlEl = el("div", { className: "raindrop-card-url", title: bookmark.url }, domain || bookmark.url);
-
-    body.append(heading, pathEl, urlEl);
+    const bottomRow = el("div", { className: "raindrop-card-bottom" }, pathEl);
 
     if (tags.length) {
       const tagRow = el("div", { className: "raindrop-card-tags" });
       for (const tag of tags) tagRow.appendChild(el("span", { className: "raindrop-card-tag" }, `#${tag}`));
-      body.append(tagRow);
+      bottomRow.appendChild(tagRow);
     }
 
-    card.append(coverEl, body);
+    body.append(topRow, bottomRow);
+    card.append(body);
 
     card.addEventListener("click", (e) => {
       e.preventDefault();

@@ -219,6 +219,7 @@ async function writeLocal(key, value) {
 class PopupController {
   constructor() {
     this.themeToggleBtn = document.getElementById("btn-theme-toggle");
+    this.btnQuickAddQuickie = document.getElementById("btn-quick-add-quickie");
     this.typeBtnBookmark = document.getElementById("type-btn-bookmark");
     this.typeBtnShortcut = document.getElementById("type-btn-shortcut");
     this.typeBtnCollection = document.getElementById("type-btn-collection");
@@ -1057,6 +1058,7 @@ class PopupController {
 
     await this.seedFromActiveTab();
     this.form?.addEventListener("submit", (event) => this.onSubmit(event));
+    this.btnQuickAddQuickie?.addEventListener("click", () => this.onQuickAddQuickie());
   }
 
   async initTheme() {
@@ -1766,6 +1768,69 @@ class PopupController {
       this._saveResetTimer = setTimeout(() => {
         this._resetSavedState();
       }, 1800);
+    }
+  }
+
+  async onQuickAddQuickie() {
+    this.clearError();
+    this.closeAllDropdowns();
+
+    const title = this.titleInput?.value?.trim() || document.title || "Untitled";
+    const url = this.urlInput?.value?.trim() || "";
+
+    if (!url) {
+      this.showError("URL is required to save to Quickies.");
+      this.urlInput?.focus();
+      return;
+    }
+
+    const quickBtn = this.btnQuickAddQuickie;
+    const quickText = quickBtn?.querySelector(".popup-quickie-btn-text");
+    const quickBadge = quickBtn?.querySelector(".popup-quickie-badge");
+    if (quickBtn) quickBtn.disabled = true;
+    if (quickText) quickText.textContent = "Saving to Quickies...";
+
+    try {
+      let quickieFolderId = null;
+      if (this.useCases?.ensureQuickieFolder) {
+        quickieFolderId = await this.useCases.ensureQuickieFolder.execute();
+      }
+      if (!quickieFolderId) {
+        const other = this.folders?.find((f) => f.id === "2" || /other bookmarks/i.test(f.title));
+        quickieFolderId = other?.id || "2";
+      }
+
+      await chrome.bookmarks.create({
+        parentId: String(quickieFolderId),
+        title,
+        url,
+      });
+
+      if (quickBtn) {
+        quickBtn.classList.add("is-saved");
+        if (quickText) quickText.textContent = "Saved to Quickies! ⚡";
+        if (quickBadge) quickBadge.textContent = "✓ Saved";
+      }
+
+      if (this.isSidePanel) {
+        setTimeout(() => {
+          if (quickBtn) {
+            quickBtn.disabled = false;
+            quickBtn.classList.remove("is-saved");
+            if (quickText) quickText.textContent = "Quick Add to Quickies";
+            if (quickBadge) quickBadge.textContent = "1-Click";
+          }
+        }, 2000);
+      } else {
+        setTimeout(() => {
+          window.close();
+        }, 600);
+      }
+    } catch (err) {
+      if (quickBtn) quickBtn.disabled = false;
+      if (quickText) quickText.textContent = "Quick Add to Quickies";
+      if (quickBadge) quickBadge.textContent = "1-Click";
+      this.showError(err?.message || "Could not save to Quickies");
     }
   }
 }
