@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-success.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
-[![Tests: 273 Passing](https://img.shields.io/badge/Tests-273%20Passing-brightgreen.svg)](#development--testing)
+[![Tests: 372 Passing](https://img.shields.io/badge/Tests-372%20Passing-brightgreen.svg)](#development--testing)
 [![Zero Build](https://img.shields.io/badge/Build-Zero%20Dependencies-orange.svg)](#architecture--design-principles)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -54,6 +54,12 @@ Hit `Ctrl+K` (or `Cmd+K`) from anywhere to launch instant, sub-millisecond fuzzy
   <img src="public/screenshots/search.png" alt="Omni-Search with Tag Filtering" width="90%" />
 </p>
 
+### 4. Extensible Theme & Parametric Wallpaper Engine
+Personalize your dashboard with 14 built-in and atmospheric theme presets (Aurora, Cyberpunk, Nord, Retro Grid, Diamond Storm, Glacier Mist, and more), or design your own with the **Theme Studio**:
+- **Parametric Wallpapers**: Shader-driven backgrounds with custom noise, intensity, and perceptual OKLCH color derivation.
+- **Theme Studio & Import/Export**: Build custom themes with live color pickers, export to standalone JSON, or import community theme packages.
+- **Theme Developer Kit**: Complete theme template and schema validator in `packages/syncly-theme-template/` and `docs/THEME_DEVELOPMENT.md`.
+
 ---
 
 ## Core Capabilities
@@ -100,21 +106,22 @@ Syncly/
 │   │   ├── options/              # Settings & backup management page
 │   │   └── shared/               # DOM builder (el), SVG icons, theme engine, service worker
 │   ├── application/              # Application Layer: Use cases, EventBus & ports
-│   │   ├── useCases/             # Bookmarks, Workspaces, Collections, Tags, Sync
+│   │   ├── useCases/             # Bookmarks, Workspaces, Collections, Tags, Sync, Themes
 │   │   └── ports/                # Abstract repository and service contracts
 │   ├── domain/                   # Domain Layer: Entities, Value Objects & pure services
-│   │   ├── entities/             # Invariant-enforcing domain models
+│   │   ├── entities/             # Invariant-enforcing domain models (ThemeManifest, CustomTheme, Wallpaper)
 │   │   ├── valueObjects/         # Immutable value objects (Url, Greeting, Id)
-│   │   └── services/             # In-memory OmniSearchIndex, workspace naming
+│   │   └── services/             # In-memory OmniSearchIndex, ThemeRegistry, ShaderRegistry
 │   └── infrastructure/           # Infrastructure Layer: Storage, Chrome APIs, Backup
-│       ├── persistence/          # ChromeStorageClient & BaseChromeListRepository
+│       ├── persistence/          # ChromeStorageClient, ChromeThemeRepository
 │       ├── repositories/         # Concrete Bookmark, Collection, Tag & Group repos
 │       ├── services/             # GoogleSync, GitHubBackup, AutoBackup, patCrypto
 │       └── di/                   # Composition root (container.js)
-├── test/                         # Comprehensive unit test suite (273 tests)
+├── test/                         # Comprehensive unit test suite (372 tests)
 ├── public/                       # Extension icons, fonts (Plus Jakarta Sans, JetBrains Mono), screenshots
+├── packages/                     # Theme authoring template and validation tooling
 ├── scripts/                      # Performance benchmarking & smoke test harnesses
-└── docs/                         # Architecture, Security, Permissions & Agent guidance
+└── docs/                         # Architecture, Security, Theme Development & Agent guidance
 ```
 
 ---
@@ -195,7 +202,7 @@ Syncly is intentionally built with **zero runtime dependencies** and **no compil
 | Command | Purpose |
 | :--- | :--- |
 | `npm install` | Installs test devDependencies (`puppeteer-core`). |
-| `npm test` | Runs the full automated unit test suite (273 tests via `node:test`). |
+| `npm test` | Runs the full automated unit test suite (372 tests via `node:test`). |
 | `npm run perf` | Runs the automated performance baseline harness. |
 
 ### Development Workflow
