@@ -111,7 +111,7 @@ export class GroupProfileButtonsView {
       role: "menuitem",
     },
       el("span", { className: "workspace-menu-icon" }, icon("layers")),
-      el("span", { className: "workspace-menu-name" }, "All Bookmarks (Default)"),
+      el("span", { className: "workspace-menu-name" }, "All Bookmarks"),
       el("span", { className: "workspace-menu-count" }, "Global")
     );
     allRow.addEventListener("click", (e) => {

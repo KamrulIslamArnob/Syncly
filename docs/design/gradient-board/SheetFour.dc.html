@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  :root{
+    --ink:#E8EAEE; --ink-2:#F2F4F7; --dim:#8A919C; --dim-2:#6B7280;
+    --line:#24272D; --line-2:#343841; --page:#0E0E10; --card:#161619;
+    --sans:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased}
+  a{color:#B9BEC8}a:hover{color:#E8EAEE}
+  .defs{position:absolute;width:0;height:0;pointer-events:none}
+  .sample{position:relative;display:block;overflow:hidden;isolation:isolate}
+  .sample .ly{position:absolute;inset:0;display:block;pointer-events:none}
+  .sample .gr{position:absolute;inset:0;width:100%;height:100%;
+              mix-blend-mode:overlay;pointer-events:none}
+
+  .wrap{padding:40px}
+  .head{margin:0 0 26px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+          text-transform:uppercase;color:var(--dim-2);margin:0 0 10px}
+  .h1{font-size:27px;font-weight:600;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink-2)}
+  .sub{font-size:13px;line-height:1.55;color:var(--dim);margin:0;max-width:62ch;text-wrap:pretty}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+  .tile{display:flex;flex-direction:column;gap:0}
+  .tile .sample{height:230px;border-radius:10px 10px 0 0;
+                box-shadow:inset 0 0 0 1px rgba(232,234,238,.07)}
+  .cap{background:var(--card);border:1px solid var(--line);border-top:none;
+       border-radius:0 0 10px 10px;padding:11px 13px 12px}
+  .cap-top{display:flex;align-items:baseline;gap:8px}
+  .num{font-family:var(--mono);font-size:11px;color:var(--dim-2);flex-shrink:0}
+  .nm{font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--ink-2)}
+  .fam{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+       text-transform:uppercase;color:var(--dim-2);margin-left:auto;flex-shrink:0}
+  .note{font-size:11.5px;line-height:1.45;color:var(--dim);margin:5px 0 0}
+  .flag{display:inline-block;margin:7px 0 0;padding:2px 7px;border-radius:4px;
+        background:rgba(245,215,110,.12);color:#D8C078;font-family:var(--mono);
+        font-size:10px;letter-spacing:.04em}
+</style>
+</helmet>
+<svg class="defs" aria-hidden="true" focusable="false"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"></feTurbulence><feColorMatrix type="matrix" values="0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0 0 0 1 0"></feColorMatrix></filter></svg>
+
+<div class="wrap">
+  <header class="head">
+    <p class="kicker">Sheet 4 of 5 · Dark mode</p>
+    <h1 class="h1">Fog &amp; Sheen</h1>
+    <p class="sub">Fog — Stacked low-opacity washes, atmospheric depth. Sheen — Conic and ribbed fields — brushed metal.</p>
+  </header>
+  <div class="grid">
+      <figure class="tile">
+        <span class="sample" style="background:#0D0E10"><i class="ly" style="background:linear-gradient(180deg, rgba(255,255,255,0.10) 0%, transparent 35%);mix-blend-mode:screen;filter:blur(9px)"></i><i class="ly" style="background:linear-gradient(0deg, rgba(255,255,255,0.14) 0%, transparent 40%);mix-blend-mode:screen;filter:blur(14px)"></i><i class="ly" style="background:linear-gradient(90deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.4) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.34" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">31</span>
+            <span class="nm">Fog Layers</span>
+            <span class="fam">Fog</span>
+          </span>
+          <p class="note">Opposed vertical washes, dark side rails</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0B0C"><i class="ly" style="background:linear-gradient(195deg, rgba(255,255,255,0.16) 0%, transparent 45%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:linear-gradient(15deg, rgba(255,255,255,0.12) 0%, transparent 50%);mix-blend-mode:screen;filter:blur(24px)"></i><i class="ly" style="background:radial-gradient(130% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.6) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">32</span>
+            <span class="nm">Fog Deep</span>
+            <span class="fam">Fog</span>
+          </span>
+          <p class="note">Two long diagonal washes, soft outer vignette</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0C0C0E"><i class="ly" style="background:linear-gradient(180deg, transparent 25%, rgba(255,255,255,0.20) 55%, transparent 85%);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:linear-gradient(180deg, transparent 45%, rgba(255,255,255,0.12) 62%, transparent 78%);mix-blend-mode:screen;filter:blur(8px)"></i><i class="ly" style="background:linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.65) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.35" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">33</span>
+            <span class="nm">Fog Bank</span>
+            <span class="fam">Fog</span>
+          </span>
+          <p class="note">Dense mid-height bank with capped top and floor</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0B0C0F"><i class="ly" style="background:linear-gradient(160deg, rgba(255,255,255,0.18) 0%, transparent 40%);mix-blend-mode:screen;filter:blur(27px)"></i><i class="ly" style="background:radial-gradient(70% 50% at 30% 60%, rgba(255,255,255,0.14) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:linear-gradient(160deg, transparent 40%, rgba(0,0,0,0.55) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">34</span>
+            <span class="nm">Fog Drift</span>
+            <span class="fam">Fog</span>
+          </span>
+          <p class="note">Single drifting wash with an offset node</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#131417"><i class="ly" style="background:linear-gradient(180deg, rgba(255,255,255,0.20) 0%, transparent 60%);mix-blend-mode:screen;filter:blur(24px)"></i><i class="ly" style="background:linear-gradient(90deg, rgba(255,255,255,0.10) 0%, transparent 55%);mix-blend-mode:screen;filter:blur(27px)"></i><i class="ly" style="background:radial-gradient(140% 110% at 50% 30%, transparent 45%, rgba(0,0,0,0.5) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.31" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">35</span>
+            <span class="nm">Fog Pale</span>
+            <span class="fam">Fog</span>
+          </span>
+          <p class="note">Lightest of the fogs — raised floor, gentle vignette</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0E0E10"><i class="ly" style="background:repeating-linear-gradient(90deg, rgba(255,255,255,0.055) 0px, rgba(255,255,255,0.055) 1px, transparent 1px, transparent 3px);mix-blend-mode:screen"></i><i class="ly" style="background:conic-gradient(from 200deg at 50% 50%, rgba(255,255,255,0.02) 0deg, rgba(255,255,255,0.30) 90deg, rgba(255,255,255,0.02) 180deg, rgba(255,255,255,0.26) 270deg, rgba(255,255,255,0.02) 360deg);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:radial-gradient(110% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.65) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.3" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">36</span>
+            <span class="nm">Sheen Brushed</span>
+            <span class="fam">Sheen</span>
+          </span>
+          <p class="note">Fine vertical brush over a conic metal sweep</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#101013"><i class="ly" style="background:linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.30) 48%, rgba(255,255,255,0.05) 56%, transparent 70%);mix-blend-mode:screen;filter:blur(12px)"></i><i class="ly" style="background:repeating-linear-gradient(105deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 2px, transparent 2px, transparent 6px);mix-blend-mode:screen"></i><i class="ly" style="background:linear-gradient(105deg, rgba(0,0,0,0.5) 0%, transparent 40%, transparent 65%, rgba(0,0,0,0.55) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.31" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">37</span>
+            <span class="nm">Sheen Satin</span>
+            <span class="fam">Sheen</span>
+          </span>
+          <p class="note">Single satin highlight raking across a ribbed field</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0C0C0E"><i class="ly" style="background:conic-gradient(from 45deg at 30% 70%, rgba(255,255,255,0.34) 0deg, rgba(255,255,255,0.02) 70deg, rgba(255,255,255,0.28) 150deg, rgba(255,255,255,0.02) 220deg, rgba(255,255,255,0.30) 310deg, rgba(255,255,255,0.02) 360deg);mix-blend-mode:screen;filter:blur(14px)"></i><i class="ly" style="background:repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 4px);mix-blend-mode:screen"></i><i class="ly" style="background:radial-gradient(120% 110% at 30% 70%, transparent 30%, rgba(0,0,0,0.72) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.32" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">38</span>
+            <span class="nm">Sheen Foil</span>
+            <span class="fam">Sheen</span>
+          </span>
+          <p class="note">Multi-lobe conic foil, off-centre anchor</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0A0C"><i class="ly" style="background:linear-gradient(78deg, transparent 42%, rgba(255,255,255,0.55) 50%, transparent 58%);mix-blend-mode:screen;filter:blur(6px)"></i><i class="ly" style="background:linear-gradient(78deg, transparent 30%, rgba(255,255,255,0.14) 50%, transparent 72%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:radial-gradient(100% 100% at 50% 50%, transparent 30%, rgba(0,0,0,0.78) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.32" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">39</span>
+            <span class="nm">Sheen Blade</span>
+            <span class="fam">Sheen</span>
+          </span>
+          <p class="note">Hard specular edge with a wide soft echo</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#121316"><i class="ly" style="background:conic-gradient(from 120deg at 50% 40%, rgba(255,255,255,0.22) 0deg, rgba(255,255,255,0.04) 120deg, rgba(255,255,255,0.20) 240deg, rgba(255,255,255,0.04) 360deg);mix-blend-mode:screen;filter:blur(24px)"></i><i class="ly" style="background:radial-gradient(50% 40% at 50% 30%, rgba(255,255,255,0.20) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(15px)"></i><i class="ly" style="background:radial-gradient(120% 110% at 50% 40%, transparent 45%, rgba(0,0,0,0.55) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.3" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">40</span>
+            <span class="nm">Sheen Pearl</span>
+            <span class="fam">Sheen</span>
+          </span>
+          <p class="note">Softest metal — pearlescent, no hard edge</p>
+          
+        </figcaption>
+      </figure>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

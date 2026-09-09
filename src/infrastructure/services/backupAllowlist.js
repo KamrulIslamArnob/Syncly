@@ -23,6 +23,7 @@ export const BACKUP_ALLOWLIST = Object.freeze([
   "aiQuotaCache",
   "aiQuotaPrefs",
   "popupColorMode",
+  "customThemes",
 ]);
 
 // Keys that must NEVER leave the device. Listed explicitly so a future
@@ -56,6 +57,7 @@ const TYPE_EXPECTATIONS = Object.freeze({
   aiQuotaCache: "any",
   aiQuotaPrefs: "any",
   popupColorMode: "any",
+  customThemes: "any",
 });
 
 const sensitiveSet = new Set(SENSITIVE_KEYS);

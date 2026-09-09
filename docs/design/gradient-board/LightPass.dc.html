@@ -1,0 +1,404 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  :root{
+    --ink:#E8EAEE; --ink-2:#F2F4F7; --dim:#8A919C; --dim-2:#6B7280;
+    --line:#24272D; --line-2:#343841; --page:#0E0E10; --card:#161619;
+    --sans:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased}
+  a{color:#B9BEC8}a:hover{color:#E8EAEE}
+  .defs{position:absolute;width:0;height:0;pointer-events:none}
+  .sample{position:relative;display:block;overflow:hidden;isolation:isolate}
+  .sample .ly{position:absolute;inset:0;display:block;pointer-events:none}
+  .sample .gr{position:absolute;inset:0;width:100%;height:100%;
+              mix-blend-mode:overlay;pointer-events:none}
+
+  .wrap{padding:40px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+          text-transform:uppercase;color:var(--dim-2);margin:0 0 10px}
+  .h1{font-size:27px;font-weight:600;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink-2)}
+  .sub{font-size:13px;line-height:1.55;color:var(--dim);margin:0 0 26px;max-width:70ch;text-wrap:pretty}
+  .lgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+  .lt{display:flex;flex-direction:column;gap:6px}
+  .lt .sample{height:110px;border-radius:8px;
+              box-shadow:inset 0 0 0 1px rgba(232,234,238,.09)}
+  .ll{display:flex;align-items:baseline;gap:6px;padding:0 1px}
+  .ll .num{font-family:var(--mono);font-size:10px;color:var(--dim-2)}
+  .ll .nm{font-size:11px;color:var(--dim);letter-spacing:-.005em;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</helmet>
+<svg class="defs" aria-hidden="true" focusable="false"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"></feTurbulence><feColorMatrix type="matrix" values="0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0 0 0 1 0"></feColorMatrix></filter></svg>
+
+<div class="wrap">
+  <p class="kicker">All 50 · Light mode</p>
+  <h1 class="h1">Light pass</h1>
+  <p class="sub">The same fifty in their light-mode treatment. White fields become the ground and the light layers invert to soft dark washes, so each gradient keeps its composition across both modes.</p>
+  <div class="lgrid">
+      <figure class="lt">
+        <span class="sample" style="background:#F5F5F2"><i class="ly" style="background:radial-gradient(60% 55% at 50% 108%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(6px)"></i><i class="ly" style="background:radial-gradient(120% 85% at 50% 0%, rgba(28,28,32,0.20) 0%, rgba(28,28,32,0) 62%);mix-blend-mode:multiply;filter:blur(4px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">01</span>
+          <span class="nm">Vapor Rise</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F4F4F1"><i class="ly" style="background:radial-gradient(45% 45% at 18% 12%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(7px)"></i><i class="ly" style="background:radial-gradient(55% 55% at 84% 88%, rgba(30,30,34,0.16) 0%, rgba(30,30,34,0) 100%);mix-blend-mode:multiply;filter:blur(7px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">02</span>
+          <span class="nm">Vapor Twin</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F6F6F3"><i class="ly" style="background:linear-gradient(180deg, rgba(255,255,255,0) 18%, rgba(255,255,255,1) 50%, rgba(255,255,255,0) 82%);mix-blend-mode:screen;filter:blur(8px)"></i><i class="ly" style="background:linear-gradient(180deg, rgba(26,26,30,0.18) 0%, rgba(26,26,30,0) 34%, rgba(26,26,30,0) 66%, rgba(26,26,30,0.18) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.17" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">03</span>
+          <span class="nm">Vapor Band</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F3F3F0"><i class="ly" style="background:radial-gradient(70% 70% at 100% 0%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 72%);mix-blend-mode:screen;filter:blur(5px)"></i><i class="ly" style="background:linear-gradient(200deg, rgba(24,24,28,0) 32%, rgba(24,24,28,0.22) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">04</span>
+          <span class="nm">Vapor Corner</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F4F4F2"><i class="ly" style="background:radial-gradient(100% 80% at 30% 30%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(11px)"></i><i class="ly" style="background:radial-gradient(90% 80% at 75% 72%, rgba(28,28,32,0.14) 0%, rgba(28,28,32,0) 100%);mix-blend-mode:multiply;filter:blur(9px)"></i><svg class="gr" style="opacity:0.17" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">05</span>
+          <span class="nm">Vapor Field</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F4F4F1"><i class="ly" style="background:repeating-linear-gradient(100deg, #ffffff 0%, #ffffff 3%, rgba(120,120,126,0.5) 5%, rgba(255,255,255,0.8) 7%, transparent 10%, transparent 12%, #ffffff 16%);mix-blend-mode:multiply;filter:blur(11px);opacity:0.7;background-size:300% 200%"></i><i class="ly" style="background:radial-gradient(ellipse at 50% 120%, rgba(255,255,255,1) 15%, rgba(255,255,255,0) 80%);mix-blend-mode:screen;filter:blur(6px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">06</span>
+          <span class="nm">Beam Drift</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F3F3F0"><i class="ly" style="background:repeating-linear-gradient(70deg, #ffffff 0%, #ffffff 2%, rgba(126,126,132,0.45) 3.5%, rgba(255,255,255,0.9) 5%, transparent 8%, transparent 11%, #ffffff 13%);mix-blend-mode:multiply;filter:blur(9px);opacity:0.72;background-size:250% 200%"></i><i class="ly" style="background:radial-gradient(65% 60% at 20% 100%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(6px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">07</span>
+          <span class="nm">Beam Rake</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F5F5F2"><i class="ly" style="background:repeating-linear-gradient(90deg, transparent 0%, transparent 4%, rgba(120,120,126,0.28) 6%, transparent 8%, transparent 14%);mix-blend-mode:multiply;filter:blur(7px);opacity:0.8;background-size:200% 100%"></i><i class="ly" style="background:linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 50%);mix-blend-mode:screen;filter:blur(5px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">08</span>
+          <span class="nm">Beam Vertical</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F4F4F1"><i class="ly" style="background:repeating-linear-gradient(115deg, transparent 0%, transparent 5%, rgba(118,118,124,0.24) 7%, transparent 9%, transparent 16%);mix-blend-mode:multiply;filter:blur(9px);opacity:0.85;background-size:300% 200%"></i><i class="ly" style="background:repeating-linear-gradient(65deg, transparent 0%, transparent 6%, rgba(118,118,124,0.18) 8%, transparent 10%, transparent 18%);mix-blend-mode:multiply;filter:blur(10px);opacity:0.7;background-size:300% 200%"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">09</span>
+          <span class="nm">Beam Cross</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F5F5F3"><i class="ly" style="background:repeating-linear-gradient(105deg, #ffffff 0%, #ffffff 6%, rgba(122,122,128,0.3) 9%, rgba(255,255,255,0.9) 12%, transparent 18%, transparent 22%);mix-blend-mode:multiply;filter:blur(13px);opacity:0.8;background-size:320% 220%"></i><i class="ly" style="background:linear-gradient(160deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 55%);mix-blend-mode:screen;filter:blur(6px)"></i><svg class="gr" style="opacity:0.17" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">10</span>
+          <span class="nm">Beam Wash</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F5F5F2"><i class="ly" style="background:radial-gradient(42% 42% at 20% 25%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(6px)"></i><i class="ly" style="background:radial-gradient(48% 48% at 78% 30%, rgba(30,30,34,0.13) 0%, transparent 100%);mix-blend-mode:multiply;filter:blur(8px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">11</span>
+          <span class="nm">Mesh Quiet</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F4F4F1"><i class="ly" style="background:radial-gradient(58% 48% at 8% 92%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(8px)"></i><i class="ly" style="background:linear-gradient(135deg, rgba(26,26,30,0.16) 0%, rgba(26,26,30,0) 45%, rgba(26,26,30,0.16) 100%);mix-blend-mode:multiply;filter:blur(6px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">12</span>
+          <span class="nm">Mesh Diagonal</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F3F3F0"><i class="ly" style="background:radial-gradient(38% 38% at 35% 40%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(6px)"></i><i class="ly" style="background:radial-gradient(120% 110% at 50% 50%, transparent 32%, rgba(26,26,30,0.2) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">13</span>
+          <span class="nm">Mesh Cluster</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F5F5F2"><i class="ly" style="background:radial-gradient(95% 38% at 50% 78%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(7px)"></i><i class="ly" style="background:linear-gradient(180deg, rgba(26,26,30,0.22) 0%, rgba(26,26,30,0) 52%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">14</span>
+          <span class="nm">Mesh Horizon</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F4F4F2"><i class="ly" style="background:radial-gradient(30% 30% at 15% 18%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(5px)"></i><i class="ly" style="background:radial-gradient(38% 38% at 45% 88%, rgba(28,28,32,0.15) 0%, transparent 100%);mix-blend-mode:multiply;filter:blur(7px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">15</span>
+          <span class="nm">Mesh Scatter</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#EFEFEC"><i class="ly" style="background:linear-gradient(180deg, rgba(12,12,14,0) 68.5%, #101012 70%)"></i><i class="ly" style="background:radial-gradient(70% 26% at 50% 70%, rgba(255,255,255,0.7) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(4px)"></i><svg class="gr" style="opacity:0.15" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">16</span>
+          <span class="nm">Duotone Split</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F0F0ED"><i class="ly" style="background:linear-gradient(298deg, rgba(14,14,16,0) 70%, #0E0E10 71.5%)"></i><i class="ly" style="background:radial-gradient(46% 46% at 12% 88%, rgba(255,255,255,0.6) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(6px)"></i><svg class="gr" style="opacity:0.16" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">17</span>
+          <span class="nm">Duotone Diagonal</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F4F4F1"><i class="ly" style="background:linear-gradient(180deg, #FFFFFF 0%, #E8E8E4 45%, #A8A8A4 78%, #4A4A4E 100%)"></i><i class="ly" style="background:radial-gradient(80% 30% at 50% 0%, rgba(255,255,255,0.9) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(6px)"></i><svg class="gr" style="opacity:0.17" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">18</span>
+          <span class="nm">Duotone Ramp</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F1F1EE"><i class="ly" style="background:linear-gradient(90deg, rgba(14,14,16,0) 74.5%, #0E0E10 76%)"></i><i class="ly" style="background:radial-gradient(28% 80% at 88% 50%, rgba(255,255,255,0.6) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(5px)"></i><svg class="gr" style="opacity:0.16" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">19</span>
+          <span class="nm">Duotone Side</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F2F2EF"><i class="ly" style="background:linear-gradient(180deg, rgba(20,20,24,0) 60%, rgba(20,20,24,0.85) 68%, #16161A 100%)"></i><i class="ly" style="background:radial-gradient(75% 16% at 50% 63%, rgba(255,255,255,0.8) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(4px)"></i><svg class="gr" style="opacity:0.17" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">20</span>
+          <span class="nm">Duotone Horizon</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#EFEFEC"><i class="ly" style="background:radial-gradient(45% 45% at 50% 45%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(7px)"></i><i class="ly" style="background:radial-gradient(85% 85% at 50% 45%, transparent 18%, rgba(24,24,28,0.24) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">21</span>
+          <span class="nm">Spot Center</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F0F0ED"><i class="ly" style="background:radial-gradient(55% 45% at 50% 0%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(6px)"></i><i class="ly" style="background:radial-gradient(105% 92% at 50% 0%, transparent 22%, rgba(24,24,28,0.24) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">22</span>
+          <span class="nm">Spot High</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#EFEFEC"><i class="ly" style="background:radial-gradient(58% 48% at 50% 105%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(7px)"></i><i class="ly" style="background:radial-gradient(112% 96% at 50% 100%, transparent 20%, rgba(24,24,28,0.26) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">23</span>
+          <span class="nm">Spot Low</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F0F0ED"><i class="ly" style="background:radial-gradient(70% 60% at 6% 82%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(8px)"></i><i class="ly" style="background:radial-gradient(125% 112% at 6% 82%, transparent 16%, rgba(24,24,28,0.25) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">24</span>
+          <span class="nm">Spot Raking</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#EEEEEB"><i class="ly" style="background:linear-gradient(102deg, transparent 40%, rgba(255,255,255,1) 49%, rgba(255,255,255,1) 51%, transparent 60%);mix-blend-mode:screen;filter:blur(5px)"></i><i class="ly" style="background:radial-gradient(95% 92% at 50% 50%, transparent 24%, rgba(24,24,28,0.24) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">25</span>
+          <span class="nm">Spot Slit</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F1F1EE"><i class="ly" style="background:conic-gradient(from 210deg at 50% 110%, rgba(255,255,255,0) 0deg, rgba(255,255,255,1) 60deg, rgba(255,255,255,0) 120deg);mix-blend-mode:screen;filter:blur(6px)"></i><i class="ly" style="background:radial-gradient(115% 100% at 50% 110%, transparent 24%, rgba(26,26,30,0.22) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">26</span>
+          <span class="nm">Halo Sweep</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F0F0ED"><i class="ly" style="background:radial-gradient(closest-side circle at 50% 48%, transparent 58%, rgba(255,255,255,1) 66%, transparent 74%);mix-blend-mode:screen;filter:blur(3px)"></i><i class="ly" style="background:radial-gradient(closest-side circle at 50% 48%, transparent 60%, rgba(26,26,30,0.2) 78%, transparent 92%);mix-blend-mode:multiply;filter:blur(4px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">27</span>
+          <span class="nm">Halo Ring</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F2F2EF"><i class="ly" style="background:conic-gradient(from 300deg at 100% 100%, rgba(255,255,255,0) 0deg, rgba(255,255,255,1) 45deg, rgba(255,255,255,0) 95deg);mix-blend-mode:screen;filter:blur(7px)"></i><i class="ly" style="background:linear-gradient(315deg, rgba(26,26,30,0) 38%, rgba(26,26,30,0.2) 100%);mix-blend-mode:multiply;filter:blur(6px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">28</span>
+          <span class="nm">Halo Quarter</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F1F1EE"><i class="ly" style="background:conic-gradient(from 150deg at 20% 20%, rgba(255,255,255,0) 0deg, rgba(255,255,255,1) 50deg, rgba(255,255,255,0) 100deg);mix-blend-mode:screen;filter:blur(7px)"></i><i class="ly" style="background:conic-gradient(from 330deg at 80% 80%, rgba(26,26,30,0) 0deg, rgba(26,26,30,0.18) 50deg, rgba(26,26,30,0) 100deg);mix-blend-mode:multiply;filter:blur(7px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">29</span>
+          <span class="nm">Halo Double</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F2F2EF"><i class="ly" style="background:conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,0.2) 0deg, rgba(255,255,255,1) 90deg, rgba(255,255,255,0.2) 180deg, rgba(255,255,255,1) 270deg, rgba(255,255,255,0.2) 360deg);mix-blend-mode:screen;filter:blur(9px)"></i><i class="ly" style="background:radial-gradient(100% 100% at 50% 50%, transparent 30%, rgba(26,26,30,0.22) 100%);mix-blend-mode:multiply;filter:blur(6px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">30</span>
+          <span class="nm">Halo Iris</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F5F5F2"><i class="ly" style="background:linear-gradient(0deg, rgba(255,255,255,1) 0%, transparent 40%);mix-blend-mode:screen;filter:blur(5px)"></i><i class="ly" style="background:linear-gradient(90deg, rgba(26,26,30,0.15) 0%, transparent 30%, transparent 70%, rgba(26,26,30,0.15) 100%);mix-blend-mode:multiply;filter:blur(4px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">31</span>
+          <span class="nm">Fog Layers</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F4F4F1"><i class="ly" style="background:linear-gradient(195deg, rgba(255,255,255,1) 0%, transparent 45%);mix-blend-mode:screen;filter:blur(8px)"></i><i class="ly" style="background:radial-gradient(130% 100% at 50% 50%, transparent 38%, rgba(26,26,30,0.18) 100%);mix-blend-mode:multiply;filter:blur(6px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">32</span>
+          <span class="nm">Fog Deep</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F3F3F0"><i class="ly" style="background:linear-gradient(180deg, transparent 25%, rgba(255,255,255,1) 55%, transparent 85%);mix-blend-mode:screen;filter:blur(6px)"></i><i class="ly" style="background:linear-gradient(180deg, rgba(26,26,30,0.18) 0%, transparent 32%, transparent 68%, rgba(26,26,30,0.2) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">33</span>
+          <span class="nm">Fog Bank</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F4F4F2"><i class="ly" style="background:linear-gradient(160deg, rgba(255,255,255,1) 0%, transparent 42%);mix-blend-mode:screen;filter:blur(9px)"></i><i class="ly" style="background:linear-gradient(160deg, transparent 40%, rgba(26,26,30,0.18) 100%);mix-blend-mode:multiply;filter:blur(7px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">34</span>
+          <span class="nm">Fog Drift</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F7F7F4"><i class="ly" style="background:linear-gradient(180deg, rgba(255,255,255,1) 0%, transparent 58%);mix-blend-mode:screen;filter:blur(8px)"></i><i class="ly" style="background:radial-gradient(140% 110% at 50% 30%, transparent 46%, rgba(26,26,30,0.14) 100%);mix-blend-mode:multiply;filter:blur(6px)"></i><svg class="gr" style="opacity:0.17" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">35</span>
+          <span class="nm">Fog Pale</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F1F1EE"><i class="ly" style="background:repeating-linear-gradient(90deg, rgba(26,26,30,0.045) 0px, rgba(26,26,30,0.045) 1px, transparent 1px, transparent 3px);mix-blend-mode:multiply"></i><i class="ly" style="background:conic-gradient(from 200deg at 50% 50%, rgba(255,255,255,0.2) 0deg, rgba(255,255,255,1) 90deg, rgba(255,255,255,0.2) 180deg, rgba(255,255,255,1) 270deg, rgba(255,255,255,0.2) 360deg);mix-blend-mode:screen;filter:blur(6px)"></i><svg class="gr" style="opacity:0.17" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">36</span>
+          <span class="nm">Sheen Brushed</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F2F2EF"><i class="ly" style="background:linear-gradient(105deg, transparent 30%, rgba(255,255,255,1) 48%, rgba(255,255,255,0.4) 56%, transparent 70%);mix-blend-mode:screen;filter:blur(4px)"></i><i class="ly" style="background:linear-gradient(105deg, rgba(26,26,30,0.18) 0%, transparent 40%, transparent 65%, rgba(26,26,30,0.2) 100%);mix-blend-mode:multiply;filter:blur(4px)"></i><svg class="gr" style="opacity:0.17" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">37</span>
+          <span class="nm">Sheen Satin</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F1F1EE"><i class="ly" style="background:conic-gradient(from 45deg at 30% 70%, rgba(255,255,255,1) 0deg, rgba(255,255,255,0.1) 70deg, rgba(255,255,255,1) 150deg, rgba(255,255,255,0.1) 220deg, rgba(255,255,255,1) 310deg, rgba(255,255,255,0.1) 360deg);mix-blend-mode:screen;filter:blur(5px)"></i><i class="ly" style="background:radial-gradient(125% 112% at 30% 70%, transparent 28%, rgba(26,26,30,0.22) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">38</span>
+          <span class="nm">Sheen Foil</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F0F0ED"><i class="ly" style="background:linear-gradient(78deg, transparent 42%, rgba(255,255,255,1) 50%, transparent 58%);mix-blend-mode:screen;filter:blur(2px)"></i><i class="ly" style="background:radial-gradient(105% 105% at 50% 50%, transparent 30%, rgba(26,26,30,0.22) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">39</span>
+          <span class="nm">Sheen Blade</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F6F6F3"><i class="ly" style="background:conic-gradient(from 120deg at 50% 40%, rgba(255,255,255,1) 0deg, rgba(255,255,255,0.2) 120deg, rgba(255,255,255,1) 240deg, rgba(255,255,255,0.2) 360deg);mix-blend-mode:screen;filter:blur(9px)"></i><i class="ly" style="background:radial-gradient(125% 112% at 50% 40%, transparent 46%, rgba(26,26,30,0.15) 100%);mix-blend-mode:multiply;filter:blur(6px)"></i><svg class="gr" style="opacity:0.17" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">40</span>
+          <span class="nm">Sheen Pearl</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F0EFEB"><i class="ly" style="background:radial-gradient(80% 70% at 40% 30%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(6px)"></i><i class="ly" style="background:radial-gradient(130% 120% at 40% 30%, transparent 40%, rgba(30,30,28,0.16) 100%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.25" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">41</span>
+          <span class="nm">Plaster Matte</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#EFEEEA"><i class="ly" style="background:linear-gradient(170deg, rgba(255,255,255,1) 0%, transparent 55%);mix-blend-mode:screen;filter:blur(8px)"></i><i class="ly" style="background:repeating-linear-gradient(45deg, rgba(30,30,28,0.02) 0px, rgba(30,30,28,0.02) 3px, transparent 3px, transparent 7px);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.28" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">42</span>
+          <span class="nm">Plaster Raw</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F1F0EC"><i class="ly" style="background:radial-gradient(60% 50% at 70% 25%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(8px)"></i><i class="ly" style="background:radial-gradient(55% 50% at 25% 80%, rgba(30,30,28,0.14) 0%, transparent 100%);mix-blend-mode:multiply;filter:blur(7px)"></i><svg class="gr" style="opacity:0.23" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">43</span>
+          <span class="nm">Plaster Wash</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#EFEEEA"><i class="ly" style="background:linear-gradient(180deg, transparent 40%, rgba(255,255,255,1) 50%, transparent 60%);mix-blend-mode:screen;filter:blur(5px)"></i><i class="ly" style="background:repeating-linear-gradient(0deg, rgba(30,30,28,0.03) 0px, rgba(30,30,28,0.03) 1px, transparent 1px, transparent 9px);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.26" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">44</span>
+          <span class="nm">Plaster Seam</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F0EFEB"><i class="ly" style="background:radial-gradient(100% 80% at 50% 100%, rgba(255,255,255,1) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(9px)"></i><i class="ly" style="background:radial-gradient(130% 100% at 50% 100%, transparent 35%, rgba(30,30,28,0.18) 100%);mix-blend-mode:multiply;filter:blur(6px)"></i><svg class="gr" style="opacity:0.29" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">45</span>
+          <span class="nm">Plaster Dust</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#FAFAF7"><i class="ly" style="background:radial-gradient(60% 45% at 50% 100%, rgba(26,26,30,0.1) 0%, transparent 100%);mix-blend-mode:multiply;filter:blur(8px)"></i><svg class="gr" style="opacity:0.12" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">46</span>
+          <span class="nm">Noir Whisper</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#FAFAF7"><i class="ly" style="background:linear-gradient(90deg, rgba(26,26,30,0.12) 0%, transparent 22%);mix-blend-mode:multiply;filter:blur(5px)"></i><i class="ly" style="background:linear-gradient(270deg, rgba(26,26,30,0.08) 0%, transparent 18%);mix-blend-mode:multiply;filter:blur(5px)"></i><svg class="gr" style="opacity:0.11" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">47</span>
+          <span class="nm">Noir Edge</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F9F9F6"><i class="ly" style="background:radial-gradient(closest-side circle at 50% 105%, transparent 62%, rgba(26,26,30,0.16) 70%, transparent 80%);mix-blend-mode:multiply;filter:blur(4px)"></i><svg class="gr" style="opacity:0.13" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">48</span>
+          <span class="nm">Noir Arc</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#F8F8F5"><i class="ly" style="background:radial-gradient(120% 110% at 50% 40%, transparent 45%, rgba(26,26,30,0.14) 100%);mix-blend-mode:multiply;filter:blur(7px)"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">49</span>
+          <span class="nm">Noir Grain</span>
+        </figcaption>
+      </figure>
+      <figure class="lt">
+        <span class="sample" style="background:#FCFCF9"><i class="ly" style="background:radial-gradient(70% 60% at 100% 0%, rgba(26,26,30,0.09) 0%, transparent 100%);mix-blend-mode:multiply;filter:blur(7px)"></i><svg class="gr" style="opacity:0.10" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="ll">
+          <span class="num">50</span>
+          <span class="nm">Noir Void</span>
+        </figcaption>
+      </figure>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

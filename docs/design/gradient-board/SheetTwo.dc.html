@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  :root{
+    --ink:#E8EAEE; --ink-2:#F2F4F7; --dim:#8A919C; --dim-2:#6B7280;
+    --line:#24272D; --line-2:#343841; --page:#0E0E10; --card:#161619;
+    --sans:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased}
+  a{color:#B9BEC8}a:hover{color:#E8EAEE}
+  .defs{position:absolute;width:0;height:0;pointer-events:none}
+  .sample{position:relative;display:block;overflow:hidden;isolation:isolate}
+  .sample .ly{position:absolute;inset:0;display:block;pointer-events:none}
+  .sample .gr{position:absolute;inset:0;width:100%;height:100%;
+              mix-blend-mode:overlay;pointer-events:none}
+
+  .wrap{padding:40px}
+  .head{margin:0 0 26px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+          text-transform:uppercase;color:var(--dim-2);margin:0 0 10px}
+  .h1{font-size:27px;font-weight:600;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink-2)}
+  .sub{font-size:13px;line-height:1.55;color:var(--dim);margin:0;max-width:62ch;text-wrap:pretty}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+  .tile{display:flex;flex-direction:column;gap:0}
+  .tile .sample{height:230px;border-radius:10px 10px 0 0;
+                box-shadow:inset 0 0 0 1px rgba(232,234,238,.07)}
+  .cap{background:var(--card);border:1px solid var(--line);border-top:none;
+       border-radius:0 0 10px 10px;padding:11px 13px 12px}
+  .cap-top{display:flex;align-items:baseline;gap:8px}
+  .num{font-family:var(--mono);font-size:11px;color:var(--dim-2);flex-shrink:0}
+  .nm{font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--ink-2)}
+  .fam{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+       text-transform:uppercase;color:var(--dim-2);margin-left:auto;flex-shrink:0}
+  .note{font-size:11.5px;line-height:1.45;color:var(--dim);margin:5px 0 0}
+  .flag{display:inline-block;margin:7px 0 0;padding:2px 7px;border-radius:4px;
+        background:rgba(245,215,110,.12);color:#D8C078;font-family:var(--mono);
+        font-size:10px;letter-spacing:.04em}
+</style>
+</helmet>
+<svg class="defs" aria-hidden="true" focusable="false"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"></feTurbulence><feColorMatrix type="matrix" values="0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0 0 0 1 0"></feColorMatrix></filter></svg>
+
+<div class="wrap">
+  <header class="head">
+    <p class="kicker">Sheet 2 of 5 · Dark mode</p>
+    <h1 class="h1">Mesh &amp; Duotone</h1>
+    <p class="sub">Mesh — Offset radial nodes blended into a mesh. Duotone — Editorial splits between black and white.</p>
+  </header>
+  <div class="grid">
+      <figure class="tile">
+        <span class="sample" style="background:#0C0D0F"><i class="ly" style="background:radial-gradient(40% 40% at 20% 25%, rgba(255,255,255,0.26) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:radial-gradient(45% 45% at 78% 30%, rgba(255,255,255,0.20) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:radial-gradient(50% 50% at 50% 92%, rgba(255,255,255,0.24) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(24px)"></i><svg class="gr" style="opacity:0.32" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">11</span>
+            <span class="nm">Mesh Quiet</span>
+            <span class="fam">Mesh</span>
+          </span>
+          <p class="note">Three balanced nodes, no vignette</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0B0D"><i class="ly" style="background:radial-gradient(55% 45% at 8% 92%, rgba(255,255,255,0.32) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(23px)"></i><i class="ly" style="background:radial-gradient(50% 40% at 92% 8%, rgba(255,255,255,0.28) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(23px)"></i><i class="ly" style="background:linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.5) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">12</span>
+            <span class="nm">Mesh Diagonal</span>
+            <span class="fam">Mesh</span>
+          </span>
+          <p class="note">Corner-to-corner nodes with cross shadow</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#101115"><i class="ly" style="background:radial-gradient(35% 35% at 35% 40%, rgba(255,255,255,0.30) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(17px)"></i><i class="ly" style="background:radial-gradient(30% 30% at 58% 55%, rgba(255,255,255,0.24) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(14px)"></i><i class="ly" style="background:radial-gradient(120% 110% at 50% 50%, transparent 35%, rgba(0,0,0,0.7) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.34" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">13</span>
+            <span class="nm">Mesh Cluster</span>
+            <span class="fam">Mesh</span>
+          </span>
+          <p class="note">Tight central cluster, hard outer falloff</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0B0B0E"><i class="ly" style="background:radial-gradient(90% 35% at 50% 78%, rgba(255,255,255,0.34) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:radial-gradient(60% 25% at 25% 84%, rgba(255,255,255,0.22) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:linear-gradient(180deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 55%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">14</span>
+            <span class="nm">Mesh Horizon</span>
+            <span class="fam">Mesh</span>
+          </span>
+          <p class="note">Low wide node reading as a horizon line</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0D0E11"><i class="ly" style="background:radial-gradient(28% 28% at 15% 18%, rgba(255,255,255,0.24) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(15px)"></i><i class="ly" style="background:radial-gradient(32% 32% at 85% 40%, rgba(255,255,255,0.20) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:radial-gradient(36% 36% at 45% 88%, rgba(255,255,255,0.26) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(20px)"></i><svg class="gr" style="opacity:0.32" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">15</span>
+            <span class="nm">Mesh Scatter</span>
+            <span class="fam">Mesh</span>
+          </span>
+          <p class="note">Three loose nodes, uneven rhythm</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0A0A"><i class="ly" style="background:linear-gradient(180deg, rgba(236,236,232,0) 68.5%, #ECECE8 70%)"></i><i class="ly" style="background:radial-gradient(70% 30% at 50% 70%, rgba(255,255,255,0.35) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(12px)"></i><i class="ly" style="background:linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 40%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.28" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">16</span>
+            <span class="nm">Duotone Split</span>
+            <span class="fam">Duotone</span>
+          </span>
+          <p class="note">Hard horizontal split, light mass low</p>
+          <span class="flag">Large light field — check text contrast</span>
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0B0B0C"><i class="ly" style="background:linear-gradient(298deg, rgba(239,239,236,0) 70%, #EFEFEC 71.5%)"></i><i class="ly" style="background:radial-gradient(50% 50% at 12% 88%, rgba(255,255,255,0.3) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(17px)"></i><i class="ly" style="background:linear-gradient(118deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 45%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.29" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">17</span>
+            <span class="nm">Duotone Diagonal</span>
+            <span class="fam">Duotone</span>
+          </span>
+          <p class="note">Light wedge from the bottom-left corner</p>
+          <span class="flag">Large light field — check text contrast</span>
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0A0B"><i class="ly" style="background:linear-gradient(180deg, #0A0A0B 0%, #232327 42%, #6E6E74 72%, #DCDCD8 100%)"></i><i class="ly" style="background:radial-gradient(80% 30% at 50% 100%, rgba(255,255,255,0.4) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(18px)"></i><svg class="gr" style="opacity:0.3" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">18</span>
+            <span class="nm">Duotone Ramp</span>
+            <span class="fam">Duotone</span>
+          </span>
+          <p class="note">Continuous black-to-white ramp, light at the floor</p>
+          <span class="flag">Large light field — check text contrast</span>
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0C0C0E"><i class="ly" style="background:linear-gradient(90deg, rgba(238,238,234,0) 74.5%, #EEEEEA 76%)"></i><i class="ly" style="background:radial-gradient(30% 80% at 88% 50%, rgba(255,255,255,0.30) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(15px)"></i><i class="ly" style="background:linear-gradient(90deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 40%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.29" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">19</span>
+            <span class="nm">Duotone Side</span>
+            <span class="fam">Duotone</span>
+          </span>
+          <p class="note">Light mass on the right edge, clear of the sidebar</p>
+          <span class="flag">Large light field — check text contrast</span>
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0A0C"><i class="ly" style="background:linear-gradient(180deg, rgba(214,214,210,0) 60%, rgba(214,214,210,0.9) 66%, #D6D6D2 100%)"></i><i class="ly" style="background:radial-gradient(75% 18% at 50% 63%, rgba(255,255,255,0.5) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(12px)"></i><i class="ly" style="background:linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 45%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.31" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">20</span>
+            <span class="nm">Duotone Horizon</span>
+            <span class="fam">Duotone</span>
+          </span>
+          <p class="note">Soft-edged split with a bloom on the seam</p>
+          <span class="flag">Large light field — check text contrast</span>
+        </figcaption>
+      </figure>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://syncly.app/schemas/theme-manifest.schema.json",
+  "schemaVersion": "1.0.0",
+  "id": "starter-cyber-neon",
+  "name": "Cyber Neon Glow",
+  "version": "1.0.0",
+  "description": "High-contrast midnight dark surfaces with vivid electric cyan highlights and subtle atmospheric illumination",
+  "author": "Theme Creator <creator@example.com>",
+  "license": "MIT",
+  "type": "community",
+  "modes": {
+    "dark": {
+      "tokens": {
+        "--bg": "#090A0F",
+        "--surface": "#10131A",
+        "--surface-2": "#161B26",
+        "--surface-active": "#222B3D",
+        "--fg": "#00F0FF",
+        "--fg-secondary": "#E0E7FF",
+        "--muted": "#707B9E",
+        "--muted-2": "#4E5578",
+        "--border": "#1E2538",
+        "--border-strong": "#00F0FF",
+        "--accent": "#00F0FF",
+        "--accent-primary": "#00D0DE",
+        "--accent-dark": "#008A94",
+        "--accent-soft": "rgba(0, 240, 255, 0.14)",
+        "--on-accent": "#090A0F"
+      },
+      "aura": {
+        "enabled": true,
+        "layer1": {
+          "background": "radial-gradient(65% 65% at 50% 100%, rgba(0, 240, 255, 0.35) 0%, rgba(9, 10, 15, 0) 100%)",
+          "mixBlendMode": "screen",
+          "filter": "blur(110px)"
+        },
+        "layer2": {
+          "background": "repeating-linear-gradient(120deg, #10131A 0%, #10131A 3%, rgba(0, 240, 255, 0.3) 6%, transparent 10%, transparent 14%, rgba(255, 0, 127, 0.25) 18%, #10131A 22%)",
+          "mixBlendMode": "screen",
+          "filter": "blur(90px)",
+          "opacity": 0.75,
+          "backgroundSize": "250% 200%"
+        },
+        "layer3": null,
+        "grain": {
+          "enabled": true,
+          "opacity": 0.20,
+          "mixBlendMode": "overlay"
+        }
+      },
+      "customCss": "/* Custom glow accent on bookmark cards */\n.bookmark-card:hover {\n  box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);\n  border-color: rgba(0, 240, 255, 0.4);\n}"
+    },
+    "light": {
+      "tokens": {
+        "--bg": "#F0F9FF",
+        "--surface": "#FFFFFF",
+        "--surface-2": "#E0F2FE",
+        "--surface-active": "#BAE6FD",
+        "--fg": "#034E7B",
+        "--fg-secondary": "#0284C7",
+        "--muted": "#475569",
+        "--muted-2": "#64748B",
+        "--border": "#BAE6FD",
+        "--border-strong": "#0369A1",
+        "--accent": "#0369A1",
+        "--accent-primary": "#075985",
+        "--accent-dark": "#0C4A6E",
+        "--accent-soft": "rgba(2, 132, 199, 0.12)",
+        "--on-accent": "#FFFFFF"
+      },
+      "aura": {
+        "enabled": true,
+        "layer1": {
+          "background": "radial-gradient(60% 60% at 50% 100%, rgba(2, 132, 199, 0.2) 0%, rgba(240, 249, 255, 0) 100%)",
+          "mixBlendMode": "multiply",
+          "filter": "blur(90px)"
+        },
+        "layer2": null,
+        "layer3": null,
+        "grain": {
+          "enabled": true,
+          "opacity": 0.10,
+          "mixBlendMode": "overlay"
+        }
+      },
+      "customCss": ""
+    }
+  }
+}

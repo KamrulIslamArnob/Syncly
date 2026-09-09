@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  :root{
+    --ink:#E8EAEE; --ink-2:#F2F4F7; --dim:#8A919C; --dim-2:#6B7280;
+    --line:#24272D; --line-2:#343841; --page:#0E0E10; --card:#161619;
+    --sans:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased}
+  a{color:#B9BEC8}a:hover{color:#E8EAEE}
+  .defs{position:absolute;width:0;height:0;pointer-events:none}
+  .sample{position:relative;display:block;overflow:hidden;isolation:isolate}
+  .sample .ly{position:absolute;inset:0;display:block;pointer-events:none}
+  .sample .gr{position:absolute;inset:0;width:100%;height:100%;
+              mix-blend-mode:overlay;pointer-events:none}
+
+  .wrap{padding:40px}
+  .head{margin:0 0 26px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+          text-transform:uppercase;color:var(--dim-2);margin:0 0 10px}
+  .h1{font-size:27px;font-weight:600;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink-2)}
+  .sub{font-size:13px;line-height:1.55;color:var(--dim);margin:0;max-width:62ch;text-wrap:pretty}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+  .tile{display:flex;flex-direction:column;gap:0}
+  .tile .sample{height:230px;border-radius:10px 10px 0 0;
+                box-shadow:inset 0 0 0 1px rgba(232,234,238,.07)}
+  .cap{background:var(--card);border:1px solid var(--line);border-top:none;
+       border-radius:0 0 10px 10px;padding:11px 13px 12px}
+  .cap-top{display:flex;align-items:baseline;gap:8px}
+  .num{font-family:var(--mono);font-size:11px;color:var(--dim-2);flex-shrink:0}
+  .nm{font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--ink-2)}
+  .fam{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+       text-transform:uppercase;color:var(--dim-2);margin-left:auto;flex-shrink:0}
+  .note{font-size:11.5px;line-height:1.45;color:var(--dim);margin:5px 0 0}
+  .flag{display:inline-block;margin:7px 0 0;padding:2px 7px;border-radius:4px;
+        background:rgba(245,215,110,.12);color:#D8C078;font-family:var(--mono);
+        font-size:10px;letter-spacing:.04em}
+</style>
+</helmet>
+<svg class="defs" aria-hidden="true" focusable="false"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"></feTurbulence><feColorMatrix type="matrix" values="0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0 0 0 1 0"></feColorMatrix></filter></svg>
+
+<div class="wrap">
+  <header class="head">
+    <p class="kicker">Sheet 5 of 5 · Dark mode</p>
+    <h1 class="h1">Plaster &amp; Noir</h1>
+    <p class="sub">Plaster — Grain-dominant matte texture. Noir — Near-black, a single faint light.</p>
+  </header>
+  <div class="grid">
+      <figure class="tile">
+        <span class="sample" style="background:#131315"><i class="ly" style="background:radial-gradient(80% 70% at 40% 30%, rgba(255,255,255,0.10) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:repeating-radial-gradient(circle at 30% 40%, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 5px);mix-blend-mode:screen"></i><i class="ly" style="background:radial-gradient(130% 120% at 40% 30%, transparent 40%, rgba(0,0,0,0.5) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.45" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">41</span>
+            <span class="nm">Plaster Matte</span>
+            <span class="fam">Plaster</span>
+          </span>
+          <p class="note">Matte charcoal, texture forward, grain lifted</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#101012"><i class="ly" style="background:linear-gradient(170deg, rgba(255,255,255,0.12) 0%, transparent 55%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:repeating-linear-gradient(45deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 3px, transparent 3px, transparent 7px);mix-blend-mode:screen"></i><i class="ly" style="background:linear-gradient(170deg, transparent 45%, rgba(0,0,0,0.55) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.5" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">42</span>
+            <span class="nm">Plaster Raw</span>
+            <span class="fam">Plaster</span>
+          </span>
+          <p class="note">Diagonal trowel ribbing under a soft wash</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#141416"><i class="ly" style="background:radial-gradient(60% 50% at 70% 25%, rgba(255,255,255,0.16) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(23px)"></i><i class="ly" style="background:radial-gradient(50% 45% at 25% 80%, rgba(255,255,255,0.10) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(20px)"></i><i class="ly" style="background:radial-gradient(120% 110% at 50% 50%, transparent 45%, rgba(0,0,0,0.5) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.42" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">43</span>
+            <span class="nm">Plaster Wash</span>
+            <span class="fam">Plaster</span>
+          </span>
+          <p class="note">Two soft washes, mottled, no hard structure</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0F0F11"><i class="ly" style="background:linear-gradient(180deg, transparent 40%, rgba(255,255,255,0.14) 50%, transparent 60%);mix-blend-mode:screen;filter:blur(15px)"></i><i class="ly" style="background:repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 9px);mix-blend-mode:screen"></i><i class="ly" style="background:linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 35%, transparent 65%, rgba(0,0,0,0.5) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.48" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">44</span>
+            <span class="nm">Plaster Seam</span>
+            <span class="fam">Plaster</span>
+          </span>
+          <p class="note">Horizontal seam lines with a mid-height glow</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#121214"><i class="ly" style="background:radial-gradient(100% 80% at 50% 100%, rgba(255,255,255,0.14) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(26px)"></i><i class="ly" style="background:repeating-radial-gradient(circle at 60% 70%, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px);mix-blend-mode:screen"></i><i class="ly" style="background:radial-gradient(130% 100% at 50% 100%, transparent 35%, rgba(0,0,0,0.6) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.52" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">45</span>
+            <span class="nm">Plaster Dust</span>
+            <span class="fam">Plaster</span>
+          </span>
+          <p class="note">Heaviest grain, light pooling at the floor</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#050506"><i class="ly" style="background:radial-gradient(60% 45% at 50% 100%, rgba(255,255,255,0.16) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(24px)"></i><i class="ly" style="background:radial-gradient(120% 100% at 50% 100%, transparent 30%, rgba(0,0,0,0.9) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.22" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">46</span>
+            <span class="nm">Noir Whisper</span>
+            <span class="fam">Noir</span>
+          </span>
+          <p class="note">Near-black with the faintest floor lift</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#060607"><i class="ly" style="background:linear-gradient(90deg, rgba(255,255,255,0.14) 0%, transparent 22%);mix-blend-mode:screen;filter:blur(15px)"></i><i class="ly" style="background:linear-gradient(270deg, rgba(255,255,255,0.08) 0%, transparent 18%);mix-blend-mode:screen;filter:blur(15px)"></i><svg class="gr" style="opacity:0.2" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">47</span>
+            <span class="nm">Noir Edge</span>
+            <span class="fam">Noir</span>
+          </span>
+          <p class="note">Light only on the two vertical edges</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#050507"><i class="ly" style="background:radial-gradient(closest-side circle at 50% 105%, transparent 62%, rgba(255,255,255,0.22) 70%, transparent 80%);mix-blend-mode:screen;filter:blur(11px)"></i><i class="ly" style="background:radial-gradient(55% 35% at 50% 105%, rgba(255,255,255,0.10) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(18px)"></i><svg class="gr" style="opacity:0.24" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">48</span>
+            <span class="nm">Noir Arc</span>
+            <span class="fam">Noir</span>
+          </span>
+          <p class="note">A single thin arc rising off the bottom edge</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#070708"><i class="ly" style="background:radial-gradient(90% 70% at 50% 40%, rgba(255,255,255,0.09) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(27px)"></i><i class="ly" style="background:radial-gradient(120% 110% at 50% 40%, transparent 45%, rgba(0,0,0,0.85) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.6" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">49</span>
+            <span class="nm">Noir Grain</span>
+            <span class="fam">Noir</span>
+          </span>
+          <p class="note">Grain is the subject — barely any gradient at all</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#030304"><i class="ly" style="background:radial-gradient(70% 60% at 100% 0%, rgba(255,255,255,0.10) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(21px)"></i><svg class="gr" style="opacity:0.18" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">50</span>
+            <span class="nm">Noir Void</span>
+            <span class="fam">Noir</span>
+          </span>
+          <p class="note">True OLED black with one corner lift</p>
+          
+        </figcaption>
+      </figure>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

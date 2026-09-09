@@ -32,7 +32,10 @@
   --accent:          #555B66;  /* structural highlight, selection, focus */
   --accent-primary:  #6A7280;  /* primary CTA */
   --accent-dark:     #3F444E;
+  --accent-light:    #717886;
+  --accent-gradient: linear-gradient(135deg, #717886 0%, #3F444E 100%);
   --accent-soft:     rgba(85, 91, 102, 0.16);
+  --accent-glow:     rgba(85, 91, 102, 0.38);
   --on-accent:       #FFFFFF;
 
   /* ---- Glass ---- */
@@ -66,6 +69,7 @@
 
   /* ---- Typography ---- */
   --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-header:  var(--font-display);
   --font-body:    "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono:    "JetBrains Mono", ui-monospace, Menlo, monospace;
   --screen-font-boost: 1;

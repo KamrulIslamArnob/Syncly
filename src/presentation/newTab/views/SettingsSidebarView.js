@@ -2,8 +2,43 @@ import { el } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 import { filterBackupData, validateImportData } from "../../../infrastructure/services/backupAllowlist.js";
 import { ConfirmDialogView } from "./ConfirmDialogView.js";
-import { deriveAccentShades } from "../../shared/colorUtils.js";
+import { deriveAccentShades, calculateContrastRatio } from "../../shared/colorUtils.js";
 import { sanitizeCss } from "../../../infrastructure/security/cssSanitizer.js";
+import { ThemeRegistry } from "../../../domain/services/ThemeRegistry.js";
+import { ThemeEngine } from "../../shared/theme/ThemeEngine.js";
+
+const THEME_PALETTES = Object.freeze({
+  aurora: {
+    dark: ["#100e0b", "#3943c6", "#00f5ff", "#555b66"],
+    light: ["#faf8f2", "#38bdf8", "#818cf8", "#34d399"],
+  },
+  glacier_mist: {
+    dark: ["#0b1215", "#35e6c0", "#4dd2ff", "#5b6ef5"],
+    light: ["#faf8f2", "#35e6c0", "#4dd2ff", "#5b6ef5"],
+  },
+  orchid_bloom: {
+    dark: ["#120d18", "#f23de0", "#8b5cf6", "#ec4899"],
+    light: ["#faf8f2", "#f472b6", "#a855f7", "#ec4899"],
+  },
+  ocean_pearl: {
+    dark: ["#081318", "#4db6c8", "#b2ebf2", "#0284c7"],
+    light: ["#faf8f2", "#38bdf8", "#2dd4bf", "#0284c7"],
+  },
+});
+
+function getThemePaletteColors(themeId, mode = "dark") {
+  if (THEME_PALETTES[themeId]?.[mode]) {
+    return THEME_PALETTES[themeId][mode];
+  }
+  const manifest = ThemeRegistry.get(themeId);
+  const tokens = manifest?.modes?.[mode]?.tokens || {};
+  return [
+    tokens["--bg"] || (mode === "light" ? "#faf8f2" : "#100e0b"),
+    tokens["--accent"] || tokens["--accent-primary"] || "#555b66",
+    tokens["--border-strong"] || tokens["--fg-secondary"] || "#3b82f6",
+    tokens["--fg"] || (mode === "light" ? "#16181d" : "#e8eaee"),
+  ];
+}
 
 // SettingsSidebarView — trimmed to what still does something visible in
 // the bookmark-manager redesign: Appearance (dark/light), backup/export
@@ -12,7 +47,114 @@ import { sanitizeCss } from "../../../infrastructure/security/cssSanitizer.js";
 // that are no longer mounted (see newTabController.js) — carrying them
 // here would just be dead controls that silently do nothing, so they
 // were dropped rather than left to confuse users. Their settings fields
-// still exist on UserSettings for storage back-compat.
+const PRESET_METADATA = Object.freeze({
+  aurora: {
+    category: "glow",
+    tag: "Atmospheric",
+    description: "Layered atmospheric aura with oceanic & cyan glow",
+  },
+  glacier_mist: {
+    category: "glow",
+    tag: "Atmospheric",
+    description: "Cool atmospheric glacier mint & cyan aura",
+  },
+  orchid_bloom: {
+    category: "glow",
+    tag: "Atmospheric",
+    description: "Vivid atmospheric magenta & violet aura",
+  },
+  ocean_pearl: {
+    category: "glow",
+    tag: "Atmospheric",
+    description: "Cool atmospheric oceanic pearl & turquoise aura",
+  },
+  sky_deep_sea: {
+    category: "glow",
+    tag: "Oceanic",
+    description: "Deep sea sapphire & sea-foam atmospheric aura",
+  },
+  rose_gold: {
+    category: "glow",
+    tag: "Luxury",
+    description: "Kogane Momo warm rose gold gradient shimmer",
+  },
+  diamond_storm: {
+    category: "glow",
+    tag: "Prismatic",
+    description: "Cool crystalline diamond lattice & specular sheen",
+  },
+  graphite_flow: {
+    category: "glow",
+    tag: "Ambient",
+    description: "Silky monochrome graphite flux ambient aura",
+  },
+  retro_grid: {
+    category: "vibrant",
+    tag: "Synthwave",
+    description: "Cybernetic matrix blueprint grid perspective",
+  },
+  nord: {
+    category: "vibrant",
+    tag: "Nordic",
+    description: "Arctic polar night & frosted teal winter aura",
+  },
+  cyberpunk: {
+    category: "vibrant",
+    tag: "High-Voltage",
+    description: "High-voltage neon flame with magenta & electric gold",
+  },
+  sage: {
+    category: "vibrant",
+    tag: "Botanical",
+    description: "Calm herbal matcha leaf & cedar canopy ambiance",
+  },
+  minimal: {
+    category: "minimal",
+    tag: "Architectural",
+    description: "Monochromatic zinc with architectural hairline borders",
+  },
+  solid: {
+    category: "minimal",
+    tag: "OLED Canvas",
+    description: "Distraction-free pure solid canvas",
+  },
+});
+
+function createThemePreviewElement(presetId, isCustom = false) {
+  const preview = el("div", {
+    className: "settings-theme-preview" + (isCustom ? " is-custom-theme-preview" : ""),
+    "data-preview-preset": presetId,
+  });
+
+  const backdrop = el("div", { className: "preview-backdrop" },
+    el("div", { className: "preview-layer-1" }),
+    el("div", { className: "preview-layer-2" }),
+    el("div", { className: "preview-layer-grain" })
+  );
+
+  const mockup = el("div", { className: "preview-mockup", "aria-hidden": "true" },
+    el("div", { className: "preview-mockup-sidebar" },
+      el("div", { className: "preview-dot" }),
+      el("div", { className: "preview-line sm" }),
+      el("div", { className: "preview-line md" })
+    ),
+    el("div", { className: "preview-mockup-canvas" },
+      el("div", { className: "preview-mockup-search" }),
+      el("div", { className: "preview-mockup-cards" },
+        el("div", { className: "preview-card" }),
+        el("div", { className: "preview-card" })
+      )
+    )
+  );
+
+  const activeBadge = el("div", { className: "preview-active-badge" },
+    icon("check", "preview-check-icon", 11)
+  );
+
+  preview.append(backdrop, mockup, activeBadge);
+  return { preview, backdrop, mockup, activeBadge };
+}
+
 export class SettingsSidebarView {
   constructor({ useCases, events, toast, stateRef, internals, getActiveGroup }) {
     this.useCases = useCases;
@@ -27,6 +169,19 @@ export class SettingsSidebarView {
     this.overlay = null;
     this._escapeListener = null;
     this._tabListener = null;
+
+    if (this.events) {
+      this.events.on("settings:changed", () => {
+        if (!this.root || !this.root.classList.contains("open")) {
+          this.draft = null;
+        }
+      });
+      this.events.on("bookmarkGroup:changed", () => {
+        if (!this.root || !this.root.classList.contains("open")) {
+          this.draft = null;
+        }
+      });
+    }
   }
 
   ensureDraft() {
@@ -34,10 +189,13 @@ export class SettingsSidebarView {
     const s = this.stateRef.current.settings || {};
     const activeGroup = this.getActiveGroup?.() || null;
     const wsTheme = (activeGroup?.id && s.workspaceThemes) ? s.workspaceThemes[activeGroup.id] : null;
+    const featuredIds = ["aurora", "glacier_mist", "orchid_bloom", "ocean_pearl"];
+    const sanitizePreset = (id) => (id && (featuredIds.includes(id) || ThemeRegistry.get(id)?.type === "custom")) ? id : "aurora";
 
-    const darkPreset = wsTheme?.themePresetDark || wsTheme?.themePreset || s.themePresetDark || s.themePreset || "aurora";
-    const lightPreset = wsTheme?.themePresetLight || wsTheme?.themePreset || s.themePresetLight || s.themePreset || "aurora";
-    const colorMode = wsTheme?.colorMode ?? s.colorMode ?? "dark";
+    const darkPreset = sanitizePreset(wsTheme?.themePresetDark || wsTheme?.themePreset || s.themePresetDark || s.themePreset || "aurora");
+    const lightPreset = sanitizePreset(wsTheme?.themePresetLight || wsTheme?.themePreset || s.themePresetLight || s.themePreset || "aurora");
+    const docMode = typeof document !== "undefined" ? document.documentElement?.getAttribute("data-color-mode") : null;
+    const colorMode = wsTheme?.colorMode ?? (docMode || s.colorMode || "dark");
     const currentPreset = colorMode === "light" ? lightPreset : darkPreset;
 
     this.draft = {
@@ -269,62 +427,102 @@ export class SettingsSidebarView {
       title: "Appearance & Theme",
     });
 
-    const scopeBadge = el("div", { className: "settings-theme-scope-badge" },
-      icon(activeGroup ? (activeGroup.icon || "folder") : "layers", "scope-badge-icon"),
+    const s = this.stateRef.current.settings || {};
+    const hasWorkspaceThemeOverride = !!(activeGroup?.id && s.workspaceThemes?.[activeGroup.id]);
+
+    const scopeBadgeLeft = el("div", { className: "scope-badge-left" },
+      icon(activeGroup ? (activeGroup.icon || "folder") : "layers", "scope-badge-icon", 14),
       el("span", { className: "scope-badge-label" }, activeGroup ? "Theme for workspace: " : "Theme scope: "),
       el("strong", { className: "scope-badge-target" }, activeGroup ? activeGroup.name : "Global Default (All Bookmarks)")
+    );
+
+    let resetScopeBtn = null;
+    if (activeGroup?.id && hasWorkspaceThemeOverride) {
+      resetScopeBtn = el("button", {
+        type: "button",
+        className: "scope-badge-reset-btn",
+        title: "Reset this workspace to use the global theme",
+      }, "Reset to Default");
+
+      resetScopeBtn.addEventListener("click", async () => {
+        if (draft.workspaceThemes && draft.workspaceThemes[activeGroup.id]) {
+          delete draft.workspaceThemes[activeGroup.id];
+        }
+        if (s.workspaceThemes && s.workspaceThemes[activeGroup.id]) {
+          delete s.workspaceThemes[activeGroup.id];
+        }
+        draft.themePresetDark = s.themePresetDark || s.themePreset || "aurora";
+        draft.themePresetLight = s.themePresetLight || s.themePreset || "aurora";
+        draft.colorMode = s.colorMode || "dark";
+        draft.themePreset = draft.colorMode === "light" ? draft.themePresetLight : draft.themePresetDark;
+        draft.cssVarAccent = s.cssVarAccent || "#555B66";
+
+        ThemeEngine.applyTheme(document.documentElement, {
+          themeId: draft.themePreset,
+          colorMode: draft.colorMode,
+          accent: draft.cssVarAccent,
+          fontSize: draft.fontSize,
+          customCss: draft.customCss,
+        });
+
+        await this.save();
+        this.toast.show("Workspace reset to global theme ✓");
+        this.rebuild();
+      });
+    }
+
+    const scopeBadge = el("div", { className: "settings-theme-scope-badge" + (activeGroup ? " is-workspace" : "") },
+      scopeBadgeLeft,
+      resetScopeBtn || el("span", { className: "scope-badge-hint" }, activeGroup ? "Workspace" : "Global")
     );
 
     // Segmented Theme Mode
     const darkBtn = el("button", {
       type: "button",
       className: "settings-theme-pill" + (draft.colorMode === "dark" ? " is-active" : ""),
+      "aria-pressed": String(draft.colorMode === "dark"),
     }, icon("moon"), el("span", {}, "Dark"));
 
     const lightBtn = el("button", {
       type: "button",
       className: "settings-theme-pill" + (draft.colorMode === "light" ? " is-active" : ""),
+      "aria-pressed": String(draft.colorMode === "light"),
     }, icon("sun"), el("span", {}, "Light"));
 
-    const bgPresetButtons = [];
+    let updateThemeSelector = () => {};
 
     const bgPresetHint = el("span", { className: "settings-option-hint" },
-      `Canvas style for ${draft.colorMode === "light" ? "Light" : "Dark"} mode`
+      `Theme style for ${draft.colorMode === "light" ? "Light" : "Dark"} mode (remembered independently)`
     );
-
-    const updatePresetCards = () => {
-      const activePreset = draft.colorMode === "light" ? draft.themePresetLight : draft.themePresetDark;
-      bgPresetButtons.forEach(({ id, card }) => {
-        card.classList.toggle("is-active", id === activePreset);
-      });
-      bgPresetHint.textContent = `Canvas style for ${draft.colorMode === "light" ? "Light" : "Dark"} mode`;
-    };
 
     const switchTheme = (mode) => {
       draft.colorMode = mode;
-      const activePreset = mode === "light" ? draft.themePresetLight : draft.themePresetDark;
+      const activePreset = mode === "light" 
+        ? (draft.themePresetLight || "aurora") 
+        : (draft.themePresetDark || "aurora");
       draft.themePreset = activePreset;
 
-      if (document.documentElement.getAttribute("data-color-mode") !== mode) {
-        document.documentElement.classList.add("no-transitions");
-        document.documentElement.setAttribute("data-color-mode", mode);
-        document.documentElement.setAttribute("data-theme-preset", activePreset);
-        const accentVars = deriveAccentShades(draft.cssVarAccent || "#555B66", mode);
-        for (const [prop, val] of Object.entries(accentVars)) {
-          document.documentElement.style.setProperty(prop, val);
-        }
-        void document.documentElement.offsetHeight;
-        window.getComputedStyle(document.documentElement).opacity;
-        requestAnimationFrame(() => {
-          setTimeout(() => document.documentElement.classList.remove("no-transitions"), 50);
-        });
-      } else {
-        document.documentElement.setAttribute("data-theme-preset", activePreset);
-      }
+      document.documentElement.classList.add("no-transitions");
+      ThemeEngine.applyTheme(document.documentElement, {
+        themeId: activePreset,
+        colorMode: mode,
+        accent: draft.cssVarAccent,
+        fontSize: draft.fontSize,
+        customCss: draft.customCss,
+      });
+      void document.documentElement.offsetHeight;
+      requestAnimationFrame(() => {
+        setTimeout(() => document.documentElement.classList.remove("no-transitions"), 50);
+      });
 
       darkBtn.classList.toggle("is-active", mode === "dark");
       lightBtn.classList.toggle("is-active", mode === "light");
-      updatePresetCards();
+      darkBtn.setAttribute("aria-pressed", String(mode === "dark"));
+      lightBtn.setAttribute("aria-pressed", String(mode === "light"));
+      updateThemeSelector();
+      if (typeof updateContrastBadge === "function") {
+        updateContrastBadge(draft.cssVarAccent || "#555B66");
+      }
       this.save();
     };
 
@@ -387,29 +585,48 @@ export class SettingsSidebarView {
 
     // Accent Color Swatches
     const ACCENT_PRESETS = [
-      { hex: "#555B66", label: "Dark Grey" },
+      { hex: "#555B66", label: "Dark Slate" },
       { hex: "#D2683F", label: "Terracotta" },
       { hex: "#3B82F6", label: "Nord Blue" },
       { hex: "#10B981", label: "Emerald" },
-      { hex: "#8B5CF6", label: "Violet" },
-      { hex: "#F59E0B", label: "Amber" },
-      { hex: "#EC4899", label: "Rose" },
+      { hex: "#8B5CF6", label: "Electric Violet" },
+      { hex: "#F59E0B", label: "Honey Amber" },
+      { hex: "#EC4899", label: "Sakura Rose" },
+      { hex: "#06B6D4", label: "Cyan Ice" },
     ];
 
     const currentAccent = (draft.cssVarAccent || "#555B66").toUpperCase();
     const isCustomAccent = !ACCENT_PRESETS.some(p => p.hex.toUpperCase() === currentAccent);
 
-    const applyAccentLive = (hex) => {
-      draft.cssVarAccent = hex;
-      const accentVars = deriveAccentShades(hex, draft.colorMode || "dark");
-      for (const [prop, val] of Object.entries(accentVars)) {
-        document.documentElement.style.setProperty(prop, val);
+    // WCAG contrast calculation helper
+    const getContrastBadgeData = (hex, mode) => {
+      const bgHex = mode === "light" ? "#FAF8F2" : "#100E0B";
+      const ratio = calculateContrastRatio(hex, bgHex);
+      if (ratio >= 7.0) {
+        return { text: `AAA · ${ratio}:1`, class: "is-high-pass" };
       }
-      this.save();
+      if (ratio >= 4.5) {
+        return { text: `AA · ${ratio}:1`, class: "is-pass" };
+      }
+      if (ratio >= 3.0) {
+        return { text: `Large Text · ${ratio}:1`, class: "is-warning" };
+      }
+      return { text: `Low · ${ratio}:1`, class: "is-low" };
     };
 
-    const swatchRow = el("div", { className: "settings-swatch-row" });
-    const swatchButtons = [];
+    const contrastBadge = el("div", {
+      className: "settings-contrast-badge",
+      title: "WCAG 2.1 Contrast Ratio against canvas background",
+    });
+
+    const updateContrastBadge = (hex) => {
+      const data = getContrastBadgeData(hex, draft.colorMode || "dark");
+      contrastBadge.className = `settings-contrast-badge ${data.class}`;
+      contrastBadge.replaceChildren(
+        icon("check", "contrast-badge-icon"),
+        el("span", {}, data.text)
+      );
+    };
 
     const customColorInput = el("input", {
       type: "color",
@@ -417,9 +634,36 @@ export class SettingsSidebarView {
       className: "settings-custom-color-input",
     });
 
+    const hexTextInput = el("input", {
+      type: "text",
+      className: "settings-hex-input",
+      value: (draft.cssVarAccent || "#555B66").toUpperCase().replace(/^#/, ""),
+      maxLength: 6,
+      placeholder: "555B66",
+      spellcheck: "false",
+      "aria-label": "Custom accent hex color code",
+    });
+
+    const applyAccentLive = (hex) => {
+      draft.cssVarAccent = hex;
+      hexTextInput.value = hex.toUpperCase().replace(/^#/, "");
+      customColorInput.value = hex;
+      const accentVars = deriveAccentShades(hex, draft.colorMode || "dark");
+      for (const [prop, val] of Object.entries(accentVars)) {
+        document.documentElement.style.setProperty(prop, val);
+      }
+      updateContrastBadge(hex);
+      this.save();
+    };
+
+    updateContrastBadge(draft.cssVarAccent || "#555B66");
+
+    const swatchRow = el("div", { className: "settings-swatch-row" });
+    const swatchButtons = [];
+
     const customSwatch = el("label", {
       className: "settings-swatch-custom" + (isCustomAccent ? " is-active" : ""),
-      title: "Custom Accent Color",
+      title: "Custom Accent Color (Eyedropper)",
     }, customColorInput);
 
     customColorInput.addEventListener("input", (e) => {
@@ -429,20 +673,42 @@ export class SettingsSidebarView {
       applyAccentLive(hex);
     });
 
+    hexTextInput.addEventListener("change", () => {
+      let val = hexTextInput.value.trim().replace(/^#/, "");
+      if (/^[0-9a-fA-F]{6}$/.test(val)) {
+        const fullHex = "#" + val.toUpperCase();
+        swatchButtons.forEach(b => {
+          b.classList.toggle("is-active", b.dataset.hex.toUpperCase() === fullHex);
+        });
+        customSwatch.classList.toggle("is-active", !ACCENT_PRESETS.some(p => p.hex.toUpperCase() === fullHex));
+        applyAccentLive(fullHex);
+      } else {
+        hexTextInput.value = (draft.cssVarAccent || "#555B66").toUpperCase().replace(/^#/, "");
+      }
+    });
+
+    hexTextInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        hexTextInput.blur();
+      }
+    });
+
     ACCENT_PRESETS.forEach((preset) => {
       const isSelected = preset.hex.toUpperCase() === currentAccent;
       const swatch = el("button", {
         type: "button",
         className: "settings-swatch-btn" + (isSelected ? " is-active" : ""),
-        title: preset.label,
+        title: `${preset.label} (${preset.hex})`,
         style: `background-color: ${preset.hex};`,
+        "data-hex": preset.hex,
+        "aria-label": `${preset.label} accent color`,
       });
 
       swatch.addEventListener("click", () => {
         swatchButtons.forEach(b => b.classList.remove("is-active"));
         customSwatch.classList.remove("is-active");
         swatch.classList.add("is-active");
-        customColorInput.value = preset.hex;
         applyAccentLive(preset.hex);
       });
 
@@ -451,59 +717,285 @@ export class SettingsSidebarView {
     });
     swatchRow.appendChild(customSwatch);
 
+    const customHexRow = el("div", { className: "settings-hex-control-row" },
+      el("div", { className: "settings-hex-input-wrap" },
+        el("span", { className: "settings-hex-prefix" }, "#"),
+        hexTextInput
+      ),
+      contrastBadge
+    );
+
     const accentBlock = el("div", { className: "settings-option-block" },
       el("div", { className: "settings-option-meta" },
         el("span", { className: "settings-option-label" }, "Accent Color"),
-        el("span", { className: "settings-option-hint" }, "Highlights & active states")
+        el("span", { className: "settings-option-hint" }, "Highlights, active rings, badges, and focus boundaries")
       ),
-      swatchRow
+      swatchRow,
+      customHexRow
     );
 
-    // Background Theme Presets
-    const BG_THEME_PRESETS = [
-      { id: "aurora", label: "Aurora Beams", hint: "Layered atmospheric aura" },
-      { id: "retro_grid", label: "Retro Grid", hint: "Matrix blueprint grid pattern" },
-      { id: "diamond_storm", label: "Diamond Storm", hint: "Cool diamond lattice aura" },
-      { id: "graphite_flow", label: "Graphite Flow", hint: "Soft ambient flux aura" },
-      { id: "solid", label: "Minimal Solid", hint: "Clean distraction-free solid" },
-    ];
+    // Theme Presets (4 Core Themes: Aurora Beams, Glacier Mist, Orchid Bloom, Ocean Pearl + Custom Plugins)
+    const uiPresets = ThemeRegistry.getUIPresets({ featuredOnly: true });
 
-    const currentBgPreset = draft.colorMode === "light" ? draft.themePresetLight : draft.themePresetDark;
-    const bgPresetsGrid = el("div", { className: "settings-bg-presets-grid" });
+    const themeList = el("div", { className: "settings-theme-list", role: "radiogroup", "aria-label": "Theme Presets" });
+    const themeButtons = [];
 
-    BG_THEME_PRESETS.forEach((preset) => {
-      const isSelected = preset.id === currentBgPreset;
-      const card = el("button", {
-        type: "button",
-        className: "settings-bg-card-btn" + (isSelected ? " is-active" : ""),
-        title: preset.label,
-      },
-        el("span", { className: "settings-bg-card-title" }, preset.label),
-        el("span", { className: "settings-bg-card-hint" }, preset.hint)
+    uiPresets.forEach((preset) => {
+      const rawActiveId = draft.colorMode === "light" 
+        ? (draft.themePresetLight || "aurora") 
+        : (draft.themePresetDark || "aurora");
+      const hasActive = uiPresets.some(p => p.id === rawActiveId);
+      const activeId = hasActive ? rawActiveId : (uiPresets[0]?.id || "aurora");
+      const isSelected = preset.id === activeId;
+
+      const paletteContainer = el("div", { className: "settings-theme-palette", "aria-hidden": "true" });
+      const initialColors = getThemePaletteColors(preset.id, draft.colorMode || "dark");
+      for (const c of initialColors) {
+        paletteContainer.appendChild(el("span", {
+          className: "settings-palette-dot",
+          style: `background-color: ${c};`,
+          title: c,
+        }));
+      }
+
+      const checkIcon = el("span", {
+        className: "settings-theme-active-icon",
+        style: isSelected ? "display: flex;" : "display: none;",
+        "aria-hidden": "true",
+      }, icon("check", 11));
+
+      const infoWrap = el("div", { className: "settings-theme-btn-info" },
+        el("span", { className: "settings-theme-name" }, preset.label),
+        paletteContainer
       );
 
-      card.addEventListener("click", () => {
+      let deleteBtn = null;
+      if (preset.isCustom) {
+        deleteBtn = el("button", {
+          type: "button",
+          className: "settings-theme-delete-btn",
+          title: `Delete theme "${preset.label}"`,
+          "aria-label": `Delete theme "${preset.label}"`,
+        }, icon("trash", 12));
+
+        deleteBtn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const confirmed = await this.confirmDialog.show({
+            title: "Delete Custom Theme?",
+            message: `Are you sure you want to permanently delete "${preset.label}"?`,
+            confirmText: "Delete",
+            isDanger: true,
+          });
+          if (!confirmed) return;
+
+          try {
+            if (this.useCases?.deleteCustomTheme) {
+              await this.useCases.deleteCustomTheme.execute(preset.id);
+            } else {
+              ThemeRegistry.unregister(preset.id);
+            }
+
+            if (draft.themePresetDark === preset.id) draft.themePresetDark = "aurora";
+            if (draft.themePresetLight === preset.id) draft.themePresetLight = "aurora";
+            if (draft.themePreset === preset.id) {
+              draft.themePreset = "aurora";
+              ThemeEngine.applyTheme(document.documentElement, {
+                themeId: "aurora",
+                colorMode: draft.colorMode,
+                accent: draft.cssVarAccent,
+                fontSize: draft.fontSize,
+                customCss: draft.customCss,
+              });
+            }
+            await this.save();
+            this.toast.show(`Theme "${preset.label}" deleted`);
+            this.events.emit("themes:changed");
+            this.rebuild();
+          } catch (err) {
+            this.toast.show(`Could not delete theme: ${err.message}`, { error: true });
+          }
+        });
+      }
+
+      const rightWrap = el("div", { className: "settings-theme-btn-right" },
+        deleteBtn || null,
+        checkIcon
+      );
+
+      const btn = el("button", {
+        type: "button",
+        className: "settings-theme-btn" + (isSelected ? " is-active" : ""),
+        title: preset.label,
+        "aria-pressed": String(isSelected),
+        role: "radio",
+        "aria-checked": String(isSelected),
+      }, infoWrap, rightWrap);
+
+      btn.addEventListener("click", () => {
         if (draft.colorMode === "light") {
           draft.themePresetLight = preset.id;
         } else {
           draft.themePresetDark = preset.id;
         }
         draft.themePreset = preset.id;
-        document.documentElement.setAttribute("data-theme-preset", preset.id);
-        updatePresetCards();
+
+        ThemeEngine.applyTheme(document.documentElement, {
+          themeId: preset.id,
+          colorMode: draft.colorMode,
+          accent: draft.cssVarAccent,
+          fontSize: draft.fontSize,
+          customCss: draft.customCss,
+        });
+
+        updateThemeSelector();
         this.save();
       });
 
-      bgPresetButtons.push({ id: preset.id, card });
-      bgPresetsGrid.appendChild(card);
+      themeButtons.push({ id: preset.id, btn, paletteContainer, checkIcon });
+      themeList.appendChild(btn);
     });
+
+    updateThemeSelector = () => {
+      const mode = draft.colorMode === "light" ? "light" : "dark";
+      const rawActiveId = mode === "light" 
+        ? (draft.themePresetLight || "aurora") 
+        : (draft.themePresetDark || "aurora");
+      const hasActive = themeButtons.some(t => t.id === rawActiveId);
+      const activeId = hasActive ? rawActiveId : (themeButtons[0]?.id || "aurora");
+
+      bgPresetHint.textContent = `Theme style for ${mode === "light" ? "Light" : "Dark"} mode (remembered independently)`;
+
+      themeButtons.forEach(({ id, btn, paletteContainer, checkIcon }) => {
+        const isSelected = id === activeId;
+        btn.classList.toggle("is-active", isSelected);
+        btn.setAttribute("aria-pressed", String(isSelected));
+        btn.setAttribute("aria-checked", String(isSelected));
+        checkIcon.style.display = isSelected ? "flex" : "none";
+
+        const colors = getThemePaletteColors(id, mode);
+        paletteContainer.replaceChildren(...colors.map(c => el("span", {
+          className: "settings-palette-dot",
+          style: `background-color: ${c};`,
+          title: c,
+        })));
+      });
+    };
+
+    // Theme Plugin File Input (.json / .css)
+    const fileInput = el("input", {
+      type: "file",
+      accept: ".json,.css",
+      style: "display: none;",
+    });
+
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        let importedId = null;
+        let importedName = file.name;
+
+        if (file.name.endsWith(".css")) {
+          const themeId = `custom_${Date.now()}`;
+          const customName = file.name.replace(/\.css$/i, "").replace(/[-_]/g, " ");
+          const saved = await this.useCases.saveCustomTheme.execute({
+            id: themeId,
+            name: customName,
+            manifest: {
+              id: themeId,
+              name: customName,
+              type: "custom",
+              modes: {
+                dark: { tokens: {}, customCss: text },
+                light: { tokens: {}, customCss: text },
+              },
+            },
+          });
+          importedId = saved.id;
+          importedName = saved.name;
+        } else {
+          const imported = await this.useCases.importTheme.execute(text);
+          importedId = imported.id;
+          importedName = imported.name;
+        }
+
+        if (draft.colorMode === "light") {
+          draft.themePresetLight = importedId;
+        } else {
+          draft.themePresetDark = importedId;
+        }
+        draft.themePreset = importedId;
+        ThemeEngine.applyTheme(document.documentElement, {
+          themeId: importedId,
+          colorMode: draft.colorMode,
+          accent: draft.cssVarAccent,
+          fontSize: draft.fontSize,
+          customCss: draft.customCss,
+        });
+        await this.save();
+        this.toast.show(`Theme "${importedName}" imported and active!`, { duration: 2500 });
+        this.events.emit("themes:changed");
+        this.rebuild();
+      } catch (err) {
+        this.toast.show(`Import error: ${err.message}`, { error: true });
+      } finally {
+        fileInput.value = "";
+      }
+    });
+
+    const btnImportTheme = el("button", {
+      type: "button",
+      className: "settings-theme-action-btn",
+      title: "Import theme from .json manifest or .css plugin file",
+    },
+      icon("upload", 14),
+      el("span", {}, "Import Theme")
+    );
+    btnImportTheme.addEventListener("click", () => fileInput.click());
+
+    const btnExportTheme = el("button", {
+      type: "button",
+      className: "settings-theme-action-btn",
+      title: "Export active theme configuration as JSON",
+    },
+      icon("download", 14),
+      el("span", {}, "Export Theme")
+    );
+    btnExportTheme.addEventListener("click", () => {
+      this._runAsyncBtnAction(btnExportTheme, {
+        loadingText: "Exporting...",
+        successText: "Exported ✓",
+        errorText: "Export failed",
+      }, async () => {
+        if (!this.useCases?.exportTheme) throw new Error("Export use case unavailable");
+        const res = await this.useCases.exportTheme.execute(draft.themePreset || "aurora");
+        const blob = new Blob([res.jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = res.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.toast.show(`Theme "${res.manifest.name}" exported!`, { duration: 2500 });
+      });
+    });
+
+    const themeActionsRow = el("div", { className: "settings-theme-actions" },
+      fileInput,
+      btnImportTheme,
+      btnExportTheme
+    );
 
     const bgPresetBlock = el("div", { className: "settings-option-block" },
       el("div", { className: "settings-option-meta" },
-        el("span", { className: "settings-option-label" }, "Background Pattern"),
+        el("span", { className: "settings-option-label" }, "Theme Presets"),
         bgPresetHint
       ),
-      bgPresetsGrid
+      themeList,
+      themeActionsRow
     );
 
     // Website Previews Toggle Switch
@@ -722,7 +1214,7 @@ export class SettingsSidebarView {
     const exportBtn = el("button", {
       type: "button",
       className: "settings-btn settings-btn-secondary",
-    }, icon("download"), el("span", {}, "Export JSON"));
+    }, icon("download", "settings-btn-icon"), el("span", {}, "Export JSON"));
     exportBtn.addEventListener("click", () => {
       this._runAsyncBtnAction(exportBtn, {
         loadingText: "Exporting...",
@@ -745,7 +1237,7 @@ export class SettingsSidebarView {
     const importBtn = el("label", {
       className: "settings-btn settings-btn-secondary",
       htmlFor: "settings-import-file",
-    }, icon("upload"), el("span", {}, "Import JSON"));
+    }, icon("upload", "settings-btn-icon"), el("span", {}, "Import JSON"));
 
     const backupBtnRow = el("div", { className: "settings-btn-row" }, exportBtn, importBtn, importInput);
 
@@ -763,7 +1255,7 @@ export class SettingsSidebarView {
     const autoBackupBtn = el("button", {
       type: "button",
       className: "settings-btn settings-btn-secondary",
-    }, icon("folder"), el("span", {}, "Choose Backup File..."));
+    }, icon("folder", "settings-btn-icon"), el("span", {}, "Choose Backup File..."));
 
     const updateAutoBackupStatus = async () => {
       if (!autoBackupService) return;
@@ -832,8 +1324,8 @@ export class SettingsSidebarView {
       spellcheck: "false",
     });
     const patStatus = el("span", { className: "settings-option-hint" }, "Checking...");
-    const patSaveBtn = el("button", { type: "button", className: "settings-btn settings-btn-primary" }, icon("check"), el("span", {}, "Save Token"));
-    const patClearBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("trash"), el("span", {}, "Clear All"));
+    const patSaveBtn = el("button", { type: "button", className: "settings-btn settings-btn-primary" }, icon("check", "settings-btn-icon"), el("span", {}, "Save Token"));
+    const patClearBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("trash", "settings-btn-icon"), el("span", {}, "Clear All"));
     const patRow = el("div", { className: "settings-option-block" },
       el("div", { className: "settings-option-meta" },
         el("span", { className: "settings-option-label" }, "Personal Access Token"),
@@ -852,14 +1344,14 @@ export class SettingsSidebarView {
       spellcheck: "false",
     });
     const gistIdStatus = el("span", { className: "settings-option-hint" }, "Checking...");
-    const gistLinkBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("check"), el("span", {}, "Link Gist ID"));
+    const gistLinkBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("check", "settings-btn-icon"), el("span", {}, "Link Gist ID"));
     const gistOpenLink = el("a", {
       className: "settings-btn settings-btn-secondary",
       target: "_blank",
       rel: "noopener noreferrer",
       style: "display: none; text-decoration: none;",
       title: "View Gist on GitHub",
-    }, icon("external"), el("span", {}, "View Gist"));
+    }, icon("external", "settings-btn-icon"), el("span", {}, "View Gist"));
 
     const filenameInput = el("input", {
       type: "text",
@@ -869,7 +1361,7 @@ export class SettingsSidebarView {
       autocomplete: "off",
       spellcheck: "false",
     });
-    const filenameSaveBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("check"), el("span", {}, "Save Name"));
+    const filenameSaveBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("check", "settings-btn-icon"), el("span", {}, "Save Name"));
 
     const configRow = el("div", { className: "settings-option-block" },
       el("div", { className: "settings-option-meta" },
@@ -887,8 +1379,8 @@ export class SettingsSidebarView {
     );
 
     // 3. Gist Operations
-    const gistPushBtn = el("button", { type: "button", className: "settings-btn settings-btn-primary" }, icon("upload"), el("span", {}, "Push / Update Gist"));
-    const gistPullBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("download"), el("span", {}, "Pull from Gist"));
+    const gistPushBtn = el("button", { type: "button", className: "settings-btn settings-btn-primary" }, icon("upload", "settings-btn-icon"), el("span", {}, "Push / Update Gist"));
+    const gistPullBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("download", "settings-btn-icon"), el("span", {}, "Pull from Gist"));
     const gistBtnRow = el("div", { className: "settings-btn-row" }, gistPushBtn, gistPullBtn);
     const gistRow = el("div", { className: "settings-option-block" },
       el("div", { className: "settings-option-meta" },
@@ -1060,9 +1552,9 @@ export class SettingsSidebarView {
       "Uses chrome.storage.sync (same Google account). Mirrors categories, bookmarks, settings, workspaces, collections, tags. Auto-sync on every local save."
     );
     const googleStatus = el("span", { className: "settings-option-hint" }, "Checking...");
-    const googlePushBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("upload"), el("span", {}, "Push Local → Cloud"));
-    const googlePullBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("download"), el("span", {}, "Pull Cloud → Local"));
-    const googleSyncBtn = el("button", { type: "button", className: "settings-btn settings-btn-primary" }, icon("refresh"), el("span", {}, "Sync Now"));
+    const googlePushBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("upload", "settings-btn-icon"), el("span", {}, "Push Local → Cloud"));
+    const googlePullBtn = el("button", { type: "button", className: "settings-btn settings-btn-secondary" }, icon("download", "settings-btn-icon"), el("span", {}, "Pull Cloud → Local"));
+    const googleSyncBtn = el("button", { type: "button", className: "settings-btn settings-btn-primary" }, icon("refresh", "settings-btn-icon"), el("span", {}, "Sync Now"));
     const googleBtnRow = el("div", { className: "settings-btn-row" }, googlePushBtn, googlePullBtn, googleSyncBtn);
     const googleBlock = el("div", { className: "settings-option-block" },
       el("div", { className: "settings-option-meta" },
@@ -1163,7 +1655,7 @@ export class SettingsSidebarView {
     const cssSaveBtn = el("button", {
       type: "button",
       className: "settings-btn settings-btn-primary",
-    }, icon("check"), el("span", {}, "Save CSS"));
+    }, icon("check", "settings-btn-icon"), el("span", {}, "Save CSS"));
     cssSaveBtn.addEventListener("click", () => {
       this._runAsyncBtnAction(cssSaveBtn, {
         loadingText: "Saving CSS...",
@@ -1177,7 +1669,7 @@ export class SettingsSidebarView {
     const cssClearBtn = el("button", {
       type: "button",
       className: "settings-btn settings-btn-secondary",
-    }, icon("trash"), el("span", {}, "Clear"));
+    }, icon("trash", "settings-btn-icon"), el("span", {}, "Clear"));
     cssClearBtn.addEventListener("click", () => {
       cssArea.value = "";
       draft.customCss = "";

@@ -390,7 +390,7 @@ describe("Entity: UserSettings DE-21..DE-25", () => {
     assert.throws(() => new UserSettings({ backgroundBlur: 21 }), /0 and 20/);
     assert.throws(() => new UserSettings({ backgroundOverlay: 2 }), /0 and 1/);
     assert.throws(() => new UserSettings({ searchEngine: "bad" }), /Invalid/);
-    const themes = ["aurora", "retro_grid", "diamond_storm", "graphite_flow", "solid", "minimal", "nord", "cyberpunk", "sage"];
+    const themes = ["aurora", "retro_grid", "diamond_storm", "graphite_flow", "sky_deep_sea", "rose_gold", "solid", "minimal", "nord", "cyberpunk", "sage"];
     assert.throws(() => new UserSettings({ themePreset: "bad" }), /Invalid/);
     assert.throws(() => new UserSettings({ colorMode: "bad" }), /Invalid/);
     assert.throws(() => new UserSettings({ weatherUnit: "k" }), /c or f/);
@@ -452,6 +452,9 @@ describe("Entity: UserSettings DE-21..DE-25", () => {
     assert.equal(s.themePresetDark, "solid");
     s.setThemePresetLight("minimal");
     assert.equal(s.themePresetLight, "minimal");
+    s.setThemePreset("sky_deep_sea");
+    assert.equal(s.themePreset, "sky_deep_sea");
+    assert.equal(s.themePresetDark, "sky_deep_sea");
   });
   it("DE-25 fromJSON resilience", () => {
     const s = UserSettings.fromJSON(null);

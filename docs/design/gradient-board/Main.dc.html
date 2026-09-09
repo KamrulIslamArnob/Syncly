@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  :root{
+    --ink:#E8EAEE; --ink-2:#F2F4F7; --dim:#8A919C; --dim-2:#6B7280;
+    --line:#24272D; --line-2:#343841; --page:#0E0E10; --card:#161619;
+    --sans:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased}
+  a{color:#B9BEC8}a:hover{color:#E8EAEE}
+  .defs{position:absolute;width:0;height:0;pointer-events:none}
+  .sample{position:relative;display:block;overflow:hidden;isolation:isolate}
+  .sample .ly{position:absolute;inset:0;display:block;pointer-events:none}
+  .sample .gr{position:absolute;inset:0;width:100%;height:100%;
+              mix-blend-mode:overlay;pointer-events:none}
+
+  .wrap{padding:40px}
+  .head{margin:0 0 26px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+          text-transform:uppercase;color:var(--dim-2);margin:0 0 10px}
+  .h1{font-size:27px;font-weight:600;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink-2)}
+  .sub{font-size:13px;line-height:1.55;color:var(--dim);margin:0;max-width:62ch;text-wrap:pretty}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+  .tile{display:flex;flex-direction:column;gap:0}
+  .tile .sample{height:230px;border-radius:10px 10px 0 0;
+                box-shadow:inset 0 0 0 1px rgba(232,234,238,.07)}
+  .cap{background:var(--card);border:1px solid var(--line);border-top:none;
+       border-radius:0 0 10px 10px;padding:11px 13px 12px}
+  .cap-top{display:flex;align-items:baseline;gap:8px}
+  .num{font-family:var(--mono);font-size:11px;color:var(--dim-2);flex-shrink:0}
+  .nm{font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--ink-2)}
+  .fam{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+       text-transform:uppercase;color:var(--dim-2);margin-left:auto;flex-shrink:0}
+  .note{font-size:11.5px;line-height:1.45;color:var(--dim);margin:5px 0 0}
+  .flag{display:inline-block;margin:7px 0 0;padding:2px 7px;border-radius:4px;
+        background:rgba(245,215,110,.12);color:#D8C078;font-family:var(--mono);
+        font-size:10px;letter-spacing:.04em}
+</style>
+</helmet>
+<svg class="defs" aria-hidden="true" focusable="false"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"></feTurbulence><feColorMatrix type="matrix" values="0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0 0 0 1 0"></feColorMatrix></filter></svg>
+
+<div class="wrap">
+  <header class="head">
+    <p class="kicker">Sheet 1 of 5 · Dark mode</p>
+    <h1 class="h1">Vapor &amp; Beams</h1>
+    <p class="sub">Vapor — Soft radial blooms, heavy blur, low contrast. Beams — Blurred repeating-linear streaks.</p>
+  </header>
+  <div class="grid">
+      <figure class="tile">
+        <span class="sample" style="background:#0B0B0D"><i class="ly" style="background:radial-gradient(60% 55% at 50% 108%, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:radial-gradient(40% 30% at 50% 100%, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(9px)"></i><i class="ly" style="background:radial-gradient(120% 90% at 50% 0%, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0) 60%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.34" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">01</span>
+            <span class="nm">Vapor Rise</span>
+            <span class="fam">Vapor</span>
+          </span>
+          <p class="note">Bottom bloom, deep top falloff</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0C0D10"><i class="ly" style="background:radial-gradient(45% 45% at 18% 12%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:radial-gradient(50% 50% at 84% 88%, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(24px)"></i><i class="ly" style="background:radial-gradient(90% 90% at 50% 50%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.5) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.32" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">02</span>
+            <span class="nm">Vapor Twin</span>
+            <span class="fam">Vapor</span>
+          </span>
+          <p class="note">Opposing corner blooms, centre vignette</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0A0C"><i class="ly" style="background:linear-gradient(180deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.30) 50%, rgba(255,255,255,0) 80%);mix-blend-mode:screen;filter:blur(27px)"></i><i class="ly" style="background:radial-gradient(80% 40% at 50% 50%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(12px)"></i><svg class="gr" style="opacity:0.3" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">03</span>
+            <span class="nm">Vapor Band</span>
+            <span class="fam">Vapor</span>
+          </span>
+          <p class="note">Horizontal light band through the midline</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0E0F12"><i class="ly" style="background:radial-gradient(70% 70% at 100% 0%, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0) 70%);mix-blend-mode:screen;filter:blur(15px)"></i><i class="ly" style="background:radial-gradient(30% 30% at 96% 6%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(7px)"></i><i class="ly" style="background:linear-gradient(200deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.6) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">04</span>
+            <span class="nm">Vapor Corner</span>
+            <span class="fam">Vapor</span>
+          </span>
+          <p class="note">Tight top-right source, diagonal shadow</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#101114"><i class="ly" style="background:radial-gradient(100% 80% at 30% 30%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(30px)"></i><i class="ly" style="background:radial-gradient(80% 70% at 75% 70%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(34px)"></i><i class="ly" style="background:radial-gradient(120% 100% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.55) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.31" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">05</span>
+            <span class="nm">Vapor Field</span>
+            <span class="fam">Vapor</span>
+          </span>
+          <p class="note">Two wide diffuse fields, very low contrast</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0B0B0D"><i class="ly" style="background:repeating-linear-gradient(100deg, #1a1a1c 0%, #1a1a1c 3%, rgba(255,255,255,0.55) 5%, rgba(26,26,28,0.7) 7%, transparent 10%, transparent 12%, rgba(26,26,28,0.7) 14%, #1a1a1c 16%);mix-blend-mode:screen;filter:blur(30px);opacity:0.75;background-size:300% 200%"></i><i class="ly" style="background:repeating-linear-gradient(100deg, #f5f5f5 0%, #f5f5f5 1.5%, rgba(200,200,200,0.8) 2%, #727272 3%, #727272 4%, rgba(200,200,200,0.8) 4.5%, #f5f5f5 5%);mix-blend-mode:screen;filter:blur(27px);opacity:0.35;background-size:200% 200%"></i><i class="ly" style="background:radial-gradient(ellipse at 50% 120%, #d8d8d8 15%, #0a0a0a 78%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.34" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">06</span>
+            <span class="nm">Beam Drift</span>
+            <span class="fam">Beams</span>
+          </span>
+          <p class="note">Monochrome aurora — twin blurred streak sets</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0A0B"><i class="ly" style="background:repeating-linear-gradient(70deg, #131316 0%, #131316 2%, rgba(255,255,255,0.5) 3.5%, rgba(19,19,22,0.6) 5%, transparent 8%, transparent 11%, #131316 13%);mix-blend-mode:screen;filter:blur(24px);opacity:0.8;background-size:250% 200%"></i><i class="ly" style="background:radial-gradient(60% 60% at 20% 100%, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:radial-gradient(ellipse at 30% 110%, #cfcfcf 12%, #08080a 80%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.35" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">07</span>
+            <span class="nm">Beam Rake</span>
+            <span class="fam">Beams</span>
+          </span>
+          <p class="note">Steeper rake, light pooling bottom-left</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0C0C0E"><i class="ly" style="background:repeating-linear-gradient(90deg, transparent 0%, transparent 4%, rgba(255,255,255,0.35) 6%, transparent 8%, transparent 14%);mix-blend-mode:screen;filter:blur(21px);opacity:0.7;background-size:200% 100%"></i><i class="ly" style="background:linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 55%);mix-blend-mode:screen;filter:blur(12px)"></i><i class="ly" style="background:radial-gradient(100% 70% at 50% 0%, #c8c8c8 10%, #0a0a0c 75%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.32" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">08</span>
+            <span class="nm">Beam Vertical</span>
+            <span class="fam">Beams</span>
+          </span>
+          <p class="note">Vertical light columns, top wash</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0B0C0E"><i class="ly" style="background:repeating-linear-gradient(115deg, transparent 0%, transparent 5%, rgba(255,255,255,0.30) 7%, transparent 9%, transparent 16%);mix-blend-mode:screen;filter:blur(26px);opacity:0.7;background-size:300% 200%"></i><i class="ly" style="background:repeating-linear-gradient(65deg, transparent 0%, transparent 6%, rgba(255,255,255,0.22) 8%, transparent 10%, transparent 18%);mix-blend-mode:screen;filter:blur(29px);opacity:0.6;background-size:300% 200%"></i><i class="ly" style="background:radial-gradient(90% 90% at 50% 60%, #bdbdbd 8%, #09090b 78%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">09</span>
+            <span class="nm">Beam Cross</span>
+            <span class="fam">Beams</span>
+          </span>
+          <p class="note">Two beam sets crossing at opposing angles</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0E0E11"><i class="ly" style="background:repeating-linear-gradient(105deg, #1c1c20 0%, #1c1c20 6%, rgba(255,255,255,0.4) 9%, rgba(28,28,32,0.5) 12%, transparent 18%, transparent 22%);mix-blend-mode:screen;filter:blur(40px);opacity:0.85;background-size:320% 220%"></i><i class="ly" style="background:linear-gradient(160deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 60%);mix-blend-mode:screen;filter:blur(15px)"></i><svg class="gr" style="opacity:0.3" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">10</span>
+            <span class="nm">Beam Wash</span>
+            <span class="fam">Beams</span>
+          </span>
+          <p class="note">Widest, softest beams — nearly a haze</p>
+          
+        </figcaption>
+      </figure>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import { BackgroundConfig, BackgroundKind } from "../valueObjects/BackgroundConfig.js";
 import { ClockFormat, TimeFormat } from "../valueObjects/TimeFormat.js";
 import { WorldClockConfig } from "../valueObjects/WorldClockConfig.js";
+import { ThemeRegistry } from "../services/ThemeRegistry.js";
 
 // Domain entity: UserSettings
 // The user's stable preferences. Bookmarks, categories, tasks, and
@@ -134,14 +135,13 @@ export class UserSettings {
     if (!engines.includes(searchEngine)) {
       throw new Error("Invalid searchEngine");
     }
-    const themes = ["aurora", "retro_grid", "diamond_storm", "graphite_flow", "solid", "minimal", "nord", "cyberpunk", "sage"];
-    if (themePreset && !themes.includes(themePreset)) {
+    if (themePreset && !ThemeRegistry.isValid(themePreset)) {
       throw new Error("Invalid themePreset");
     }
-    if (themePresetDark && !themes.includes(themePresetDark)) {
+    if (themePresetDark && !ThemeRegistry.isValid(themePresetDark)) {
       throw new Error("Invalid themePresetDark");
     }
-    if (themePresetLight && !themes.includes(themePresetLight)) {
+    if (themePresetLight && !ThemeRegistry.isValid(themePresetLight)) {
       throw new Error("Invalid themePresetLight");
     }
     const colorModes = ["dark", "light"];
@@ -186,8 +186,9 @@ export class UserSettings {
     this.#searchEnabled = searchEnabled;
     this.#searchEngine = searchEngine;
     this.#searchOpenNewTab = typeof searchOpenNewTab === "boolean" ? searchOpenNewTab : false;
-    this.#themePresetDark = themePresetDark && themes.includes(themePresetDark) ? themePresetDark : (themePreset && themes.includes(themePreset) ? themePreset : "aurora");
-    this.#themePresetLight = themePresetLight && themes.includes(themePresetLight) ? themePresetLight : (themePreset && themes.includes(themePreset) ? themePreset : "aurora");
+    const defaultTheme = ThemeRegistry.DEFAULT_PRESET;
+    this.#themePresetDark = themePresetDark && ThemeRegistry.isValid(themePresetDark) ? themePresetDark : (themePreset && ThemeRegistry.isValid(themePreset) ? themePreset : defaultTheme);
+    this.#themePresetLight = themePresetLight && ThemeRegistry.isValid(themePresetLight) ? themePresetLight : (themePreset && ThemeRegistry.isValid(themePreset) ? themePreset : defaultTheme);
     this.#themePreset = colorMode === "light" ? this.#themePresetLight : this.#themePresetDark;
     this.#colorMode = colorMode;
     this.#fontSize = fontSize && fontSizes.includes(fontSize) ? fontSize : "default";
@@ -363,8 +364,7 @@ export class UserSettings {
   }
 
   setThemePreset(value) {
-    const themes = ["aurora", "retro_grid", "diamond_storm", "graphite_flow", "solid", "minimal", "nord", "cyberpunk", "sage"];
-    if (!themes.includes(value)) throw new Error("Invalid themePreset");
+    if (!ThemeRegistry.isValid(value)) throw new Error("Invalid themePreset");
     this.#themePreset = value;
     if (this.#colorMode === "light") {
       this.#themePresetLight = value;
@@ -374,15 +374,13 @@ export class UserSettings {
   }
 
   setThemePresetDark(value) {
-    const themes = ["aurora", "retro_grid", "diamond_storm", "graphite_flow", "solid", "minimal", "nord", "cyberpunk", "sage"];
-    if (!themes.includes(value)) throw new Error("Invalid themePresetDark");
+    if (!ThemeRegistry.isValid(value)) throw new Error("Invalid themePresetDark");
     this.#themePresetDark = value;
     if (this.#colorMode === "dark") this.#themePreset = value;
   }
 
   setThemePresetLight(value) {
-    const themes = ["aurora", "retro_grid", "diamond_storm", "graphite_flow", "solid", "minimal", "nord", "cyberpunk", "sage"];
-    if (!themes.includes(value)) throw new Error("Invalid themePresetLight");
+    if (!ThemeRegistry.isValid(value)) throw new Error("Invalid themePresetLight");
     this.#themePresetLight = value;
     if (this.#colorMode === "light") this.#themePreset = value;
   }
@@ -539,10 +537,10 @@ export class UserSettings {
       loadedClocks = safe.clocks.map(c => WorldClockConfig.fromJSON(c));
     }
 
-    const themes = ["aurora", "retro_grid", "diamond_storm", "graphite_flow", "solid", "minimal", "nord", "cyberpunk", "sage"];
-    const themePreset = safe.themePreset && themes.includes(safe.themePreset) ? safe.themePreset : "aurora";
-    const themePresetDark = safe.themePresetDark && themes.includes(safe.themePresetDark) ? safe.themePresetDark : themePreset;
-    const themePresetLight = safe.themePresetLight && themes.includes(safe.themePresetLight) ? safe.themePresetLight : themePreset;
+    const defaultTheme = ThemeRegistry.DEFAULT_PRESET;
+    const themePreset = safe.themePreset && ThemeRegistry.isValid(safe.themePreset) ? safe.themePreset : defaultTheme;
+    const themePresetDark = safe.themePresetDark && ThemeRegistry.isValid(safe.themePresetDark) ? safe.themePresetDark : themePreset;
+    const themePresetLight = safe.themePresetLight && ThemeRegistry.isValid(safe.themePresetLight) ? safe.themePresetLight : themePreset;
 
     const fontSizes = ["small", "default", "large", "xlarge"];
     const fontSize = safe.fontSize && fontSizes.includes(safe.fontSize) ? safe.fontSize : "default";

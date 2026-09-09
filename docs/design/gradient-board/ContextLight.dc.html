@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  :root{
+    --ink:#E8EAEE; --ink-2:#F2F4F7; --dim:#8A919C; --dim-2:#6B7280;
+    --line:#24272D; --line-2:#343841; --page:#0E0E10; --card:#161619;
+    --sans:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased}
+  a{color:#B9BEC8}a:hover{color:#E8EAEE}
+  .defs{position:absolute;width:0;height:0;pointer-events:none}
+  .sample{position:relative;display:block;overflow:hidden;isolation:isolate}
+  .sample .ly{position:absolute;inset:0;display:block;pointer-events:none}
+  .sample .gr{position:absolute;inset:0;width:100%;height:100%;
+              mix-blend-mode:overlay;pointer-events:none}
+
+  .dash{position:relative;display:flex;width:100%;height:100vh;overflow:hidden;
+        isolation:isolate;color:#16181D}
+  .dash .sample{position:absolute;inset:0;height:100%;z-index:0}
+  .side{position:relative;z-index:10;width:260px;min-width:260px;height:100%;
+        background:#FCFCFD;
+        border-right:1px solid #E6E8EC;
+        display:flex;flex-direction:column;isolation:isolate}
+  .ws{display:flex;align-items:center;gap:9px;padding:14px 14px 12px}
+  .ws-mark{width:26px;height:26px;border-radius:7px;flex-shrink:0;
+           background:linear-gradient(135deg,#9AA0AC,#5A606C)}
+  .ws-nm{font-size:13px;font-weight:600;letter-spacing:-.01em}
+  .sbody{display:flex;flex-direction:column;gap:2px;padding:6px 10px;flex:1}
+  .slabel{font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+          text-transform:uppercase;color:#8A8F98;padding:12px 8px 6px}
+  .row{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;
+       font-size:12.5px;color:#3A3F48}
+  .row.on{background:rgba(22,24,29,.05);color:#16181D;font-weight:500}
+  .dot{width:7px;height:7px;border-radius:2px;flex-shrink:0;
+       background:#A8AEB8}
+  .ct{margin-left:auto;font-family:var(--mono);font-size:10px;color:#8A8F98}
+  .main{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .hdr{height:56px;min-height:56px;display:flex;align-items:center;
+       gap:12px;padding:0 24px;background:transparent}
+  .htitle{font-size:15px;font-weight:600;letter-spacing:-.01em}
+  .hcount{font-family:var(--mono);font-size:11px;color:#555B66}
+  .hspace{flex:1}
+  .pill{height:30px;display:flex;align-items:center;padding:0 13px;border-radius:999px;
+        font-size:12px;border:1px solid #CFD4DC;
+        background:rgba(255,255,255,.6);
+        color:#3A3F48}
+  .content{flex:1;padding:20px 24px 24px;overflow:hidden}
+  .cgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;max-width:1180px}
+  .card{background:#FFFFFF;
+        border:1px solid #E6E8EC;border-radius:12px;padding:13px;
+        display:flex;flex-direction:column;gap:9px;
+        box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .fav{width:34px;height:34px;border-radius:9px;
+       background:#F2F4F7;
+       border:1px solid #E6E8EC}
+  .ctitle{font-size:12.5px;font-weight:600;line-height:1.3;letter-spacing:-.01em}
+  .curl{font-family:var(--mono);font-size:10.5px;color:#8A8F98}
+  .stamp{position:absolute;right:22px;bottom:18px;z-index:20;display:flex;
+         align-items:center;gap:8px;padding:7px 12px;border-radius:999px;
+         background:rgba(255,255,255,.8);
+         border:1px solid #CFD4DC;
+         backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .stamp b{font-size:12px;font-weight:600}
+  .stamp span{font-family:var(--mono);font-size:10.5px;color:#555B66}
+</style>
+</helmet>
+<svg class="defs" aria-hidden="true" focusable="false"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"></feTurbulence><feColorMatrix type="matrix" values="0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0 0 0 1 0"></feColorMatrix></filter></svg>
+
+<div class="dash">
+  <span class="sample" style="background:#F4F4F1"><i class="ly" style="background:repeating-linear-gradient(100deg, #ffffff 0%, #ffffff 3%, rgba(120,120,126,0.5) 5%, rgba(255,255,255,0.8) 7%, transparent 10%, transparent 12%, #ffffff 16%);mix-blend-mode:multiply;filter:blur(90px);opacity:0.7;background-size:300% 200%"></i><i class="ly" style="background:radial-gradient(ellipse at 50% 120%, rgba(255,255,255,1) 15%, rgba(255,255,255,0) 80%);mix-blend-mode:screen;filter:blur(50px)"></i><svg class="gr" style="opacity:0.19" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+  <aside class="side">
+    <div class="ws"><i class="ws-mark"></i><span class="ws-nm">Syncly</span></div>
+    <div class="sbody">
+      <div class="slabel">Collections</div>
+      <div class="row"><i class="dot"></i>Reading list<span class="ct">128</span></div><div class="row on"><i class="dot"></i>Design systems<span class="ct">64</span></div><div class="row"><i class="dot"></i>Engineering<span class="ct">212</span></div><div class="row"><i class="dot"></i>Typography<span class="ct">37</span></div><div class="row"><i class="dot"></i>Archive<span class="ct">481</span></div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="hdr">
+      <span class="htitle">Design systems</span>
+      <span class="hcount">64</span>
+      <span class="hspace"></span>
+      <span class="pill">Recent</span>
+      <span class="pill">Grid</span>
+    </div>
+    <div class="content">
+      <div class="cgrid"><article class="card"><i class="fav"></i><span class="ctitle">Refactoring UI</span><span class="curl">refactoringui.com</span></article><article class="card"><i class="fav"></i><span class="ctitle">Type scale</span><span class="curl">typescale.com</span></article><article class="card"><i class="fav"></i><span class="ctitle">Radix Primitives</span><span class="curl">radix-ui.com</span></article><article class="card"><i class="fav"></i><span class="ctitle">Web.dev — Core Vitals</span><span class="curl">web.dev</span></article><article class="card"><i class="fav"></i><span class="ctitle">Sources of light</span><span class="curl">alistapart.com</span></article><article class="card"><i class="fav"></i><span class="ctitle">Grain &amp; noise in UI</span><span class="curl">css-tricks.com</span></article><article class="card"><i class="fav"></i><span class="ctitle">Motion principles</span><span class="curl">motion.dev</span></article><article class="card"><i class="fav"></i><span class="ctitle">OKLCH picker</span><span class="curl">oklch.com</span></article></div>
+    </div>
+  </main>
+  <div class="stamp"><b>Beam Drift</b><span>No. 06 · Light</span></div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -10,8 +10,8 @@
          (tokens.css/newTab.css may not load under strict MV3 CSP, so
           explicit colors here prevent invisible text on black bg). -->
     <style>
-      html, body { background-color: #100e0b; color: #E8EAEE; margin: 0; padding: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
-      html[data-color-mode="light"], html[data-color-mode="light"] body { background-color: #faf8f2; color: #16181D; }
+      html, body { background-color: var(--aura-base, #100e0b); color: var(--fg, #E8EAEE); margin: 0; padding: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
+      html[data-color-mode="light"], html[data-color-mode="light"] body { background-color: var(--aura-base, #faf8f2); color: var(--fg, #16181D); }
       #stage { min-height: 80px; }
     </style>
     <link rel="stylesheet" href="../../../public/fonts/fonts.css" />

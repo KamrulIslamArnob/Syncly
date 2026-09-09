@@ -1,0 +1,22 @@
+{
+  "name": "syncly-theme-starter",
+  "version": "1.0.0",
+  "description": "Starter template for authoring and publishing custom themes for Syncly New Tab",
+  "main": "theme.json",
+  "type": "module",
+  "scripts": {
+    "test": "node scripts/validate.mjs",
+    "validate": "node scripts/validate.mjs",
+    "preview": "node scripts/validate.mjs --preview"
+  },
+  "keywords": [
+    "syncly",
+    "syncly-theme",
+    "chrome-extension",
+    "new-tab-theme",
+    "design-system",
+    "theme"
+  ],
+  "author": "Your Name <you@example.com>",
+  "license": "MIT"
+}

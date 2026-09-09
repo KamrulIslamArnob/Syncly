@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+  <style>
+  :root{
+    --ink:#E8EAEE; --ink-2:#F2F4F7; --dim:#8A919C; --dim-2:#6B7280;
+    --line:#24272D; --line-2:#343841; --page:#0E0E10; --card:#161619;
+    --sans:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased}
+  a{color:#B9BEC8}a:hover{color:#E8EAEE}
+  .defs{position:absolute;width:0;height:0;pointer-events:none}
+  .sample{position:relative;display:block;overflow:hidden;isolation:isolate}
+  .sample .ly{position:absolute;inset:0;display:block;pointer-events:none}
+  .sample .gr{position:absolute;inset:0;width:100%;height:100%;
+              mix-blend-mode:overlay;pointer-events:none}
+
+  .wrap{padding:40px}
+  .head{margin:0 0 26px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+          text-transform:uppercase;color:var(--dim-2);margin:0 0 10px}
+  .h1{font-size:27px;font-weight:600;letter-spacing:-.02em;margin:0 0 8px;color:var(--ink-2)}
+  .sub{font-size:13px;line-height:1.55;color:var(--dim);margin:0;max-width:62ch;text-wrap:pretty}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+  .tile{display:flex;flex-direction:column;gap:0}
+  .tile .sample{height:230px;border-radius:10px 10px 0 0;
+                box-shadow:inset 0 0 0 1px rgba(232,234,238,.07)}
+  .cap{background:var(--card);border:1px solid var(--line);border-top:none;
+       border-radius:0 0 10px 10px;padding:11px 13px 12px}
+  .cap-top{display:flex;align-items:baseline;gap:8px}
+  .num{font-family:var(--mono);font-size:11px;color:var(--dim-2);flex-shrink:0}
+  .nm{font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--ink-2)}
+  .fam{font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+       text-transform:uppercase;color:var(--dim-2);margin-left:auto;flex-shrink:0}
+  .note{font-size:11.5px;line-height:1.45;color:var(--dim);margin:5px 0 0}
+  .flag{display:inline-block;margin:7px 0 0;padding:2px 7px;border-radius:4px;
+        background:rgba(245,215,110,.12);color:#D8C078;font-family:var(--mono);
+        font-size:10px;letter-spacing:.04em}
+</style>
+</helmet>
+<svg class="defs" aria-hidden="true" focusable="false"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" stitchTiles="stitch"></feTurbulence><feColorMatrix type="matrix" values="0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0.181 0.608 0.061 0 0.075 0 0 0 1 0"></feColorMatrix></filter></svg>
+
+<div class="wrap">
+  <header class="head">
+    <p class="kicker">Sheet 3 of 5 · Dark mode</p>
+    <h1 class="h1">Spotlight &amp; Halo</h1>
+    <p class="sub">Spotlight — One light source, deep vignette falloff. Halo — Conic sweeps, rings and arcs.</p>
+  </header>
+  <div class="grid">
+      <figure class="tile">
+        <span class="sample" style="background:#08080A"><i class="ly" style="background:radial-gradient(50% 50% at 50% 45%, rgba(255,255,255,0.40) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:radial-gradient(20% 20% at 50% 45%, rgba(255,255,255,0.5) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(9px)"></i><i class="ly" style="background:radial-gradient(80% 80% at 50% 45%, transparent 20%, rgba(0,0,0,0.85) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.34" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">21</span>
+            <span class="nm">Spot Center</span>
+            <span class="fam">Spotlight</span>
+          </span>
+          <p class="note">Centred source with a hot core and deep vignette</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#090A0C"><i class="ly" style="background:radial-gradient(55% 45% at 50% 0%, rgba(255,255,255,0.45) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(20px)"></i><i class="ly" style="background:linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 40%);mix-blend-mode:screen"></i><i class="ly" style="background:radial-gradient(100% 90% at 50% 0%, transparent 25%, rgba(0,0,0,0.8) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">22</span>
+            <span class="nm">Spot High</span>
+            <span class="fam">Spotlight</span>
+          </span>
+          <p class="note">Overhead source washing down from the top edge</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0A0C"><i class="ly" style="background:radial-gradient(60% 50% at 50% 105%, rgba(255,255,255,0.48) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:radial-gradient(28% 22% at 50% 100%, rgba(255,255,255,0.55) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(11px)"></i><i class="ly" style="background:radial-gradient(110% 95% at 50% 100%, transparent 22%, rgba(0,0,0,0.82) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.35" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">23</span>
+            <span class="nm">Spot Low</span>
+            <span class="fam">Spotlight</span>
+          </span>
+          <p class="note">Uplight from below the frame — stage-lit</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#08090B"><i class="ly" style="background:radial-gradient(70% 60% at 6% 82%, rgba(255,255,255,0.42) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(24px)"></i><i class="ly" style="background:linear-gradient(75deg, rgba(255,255,255,0.16) 0%, transparent 45%);mix-blend-mode:screen;filter:blur(12px)"></i><i class="ly" style="background:radial-gradient(120% 110% at 6% 82%, transparent 18%, rgba(0,0,0,0.8) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.34" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">24</span>
+            <span class="nm">Spot Raking</span>
+            <span class="fam">Spotlight</span>
+          </span>
+          <p class="note">Low side light raking across the field</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#08080A"><i class="ly" style="background:linear-gradient(102deg, transparent 40%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0.5) 51%, transparent 60%);mix-blend-mode:screen;filter:blur(17px)"></i><i class="ly" style="background:radial-gradient(45% 60% at 50% 50%, rgba(255,255,255,0.20) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:radial-gradient(90% 90% at 50% 50%, transparent 25%, rgba(0,0,0,0.85) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.34" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">25</span>
+            <span class="nm">Spot Slit</span>
+            <span class="fam">Spotlight</span>
+          </span>
+          <p class="note">Narrow shaft of light through a dark field</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0B0B0E"><i class="ly" style="background:conic-gradient(from 210deg at 50% 110%, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.45) 60deg, rgba(255,255,255,0) 120deg);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:radial-gradient(50% 30% at 50% 105%, rgba(255,255,255,0.35) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(12px)"></i><i class="ly" style="background:radial-gradient(110% 100% at 50% 110%, transparent 25%, rgba(0,0,0,0.75) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">26</span>
+            <span class="nm">Halo Sweep</span>
+            <span class="fam">Halo</span>
+          </span>
+          <p class="note">Conic sweep rising from below the frame</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0A0C"><i class="ly" style="background:radial-gradient(closest-side circle at 50% 48%, transparent 58%, rgba(255,255,255,0.42) 66%, transparent 74%);mix-blend-mode:screen;filter:blur(9px)"></i><i class="ly" style="background:radial-gradient(closest-side circle at 50% 48%, rgba(255,255,255,0.14) 0%, transparent 60%);mix-blend-mode:screen;filter:blur(15px)"></i><i class="ly" style="background:radial-gradient(100% 100% at 50% 48%, transparent 45%, rgba(0,0,0,0.8) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">27</span>
+            <span class="nm">Halo Ring</span>
+            <span class="fam">Halo</span>
+          </span>
+          <p class="note">Thin luminous ring with an interior glow</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0C0C0F"><i class="ly" style="background:conic-gradient(from 300deg at 100% 100%, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.40) 45deg, rgba(255,255,255,0) 95deg);mix-blend-mode:screen;filter:blur(21px)"></i><i class="ly" style="background:radial-gradient(60% 60% at 100% 100%, rgba(255,255,255,0.22) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(18px)"></i><i class="ly" style="background:linear-gradient(315deg, rgba(0,0,0,0) 35%, rgba(0,0,0,0.6) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.32" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">28</span>
+            <span class="nm">Halo Quarter</span>
+            <span class="fam">Halo</span>
+          </span>
+          <p class="note">Quarter sweep anchored bottom-right</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#09090C"><i class="ly" style="background:conic-gradient(from 150deg at 20% 20%, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.32) 50deg, rgba(255,255,255,0) 100deg);mix-blend-mode:screen;filter:blur(20px)"></i><i class="ly" style="background:conic-gradient(from 330deg at 80% 80%, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.32) 50deg, rgba(255,255,255,0) 100deg);mix-blend-mode:screen;filter:blur(20px)"></i><i class="ly" style="background:radial-gradient(120% 120% at 50% 50%, transparent 35%, rgba(0,0,0,0.7) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.33" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">29</span>
+            <span class="nm">Halo Double</span>
+            <span class="fam">Halo</span>
+          </span>
+          <p class="note">Opposed sweeps with a dark centre</p>
+          
+        </figcaption>
+      </figure>
+      <figure class="tile">
+        <span class="sample" style="background:#0A0B0D"><i class="ly" style="background:conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,0.05) 0deg, rgba(255,255,255,0.34) 90deg, rgba(255,255,255,0.05) 180deg, rgba(255,255,255,0.30) 270deg, rgba(255,255,255,0.05) 360deg);mix-blend-mode:screen;filter:blur(27px)"></i><i class="ly" style="background:radial-gradient(40% 40% at 50% 50%, rgba(255,255,255,0.18) 0%, transparent 100%);mix-blend-mode:screen;filter:blur(12px)"></i><i class="ly" style="background:radial-gradient(95% 95% at 50% 50%, transparent 30%, rgba(0,0,0,0.78) 100%);mix-blend-mode:multiply"></i><svg class="gr" style="opacity:0.32" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"></rect></svg></span>
+        <figcaption class="cap">
+          <span class="cap-top">
+            <span class="num">30</span>
+            <span class="nm">Halo Iris</span>
+            <span class="fam">Halo</span>
+          </span>
+          <p class="note">Full conic rotation, heavily blurred to an iris</p>
+          
+        </figcaption>
+      </figure>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

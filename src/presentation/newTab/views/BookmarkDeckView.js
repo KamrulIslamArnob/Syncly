@@ -204,8 +204,8 @@ function createGrainOverlay() {
 
   const feTurbulence = document.createElementNS("http://www.w3.org/2000/svg", "feTurbulence");
   feTurbulence.setAttribute("type", "fractalNoise");
-  feTurbulence.setAttribute("baseFrequency", "0.7");
-  feTurbulence.setAttribute("numOctaves", "4");
+  feTurbulence.setAttribute("baseFrequency", "0.85");
+  feTurbulence.setAttribute("numOctaves", "3");
   feTurbulence.setAttribute("stitchTiles", "stitch");
 
   const feColorMatrix = document.createElementNS("http://www.w3.org/2000/svg", "feColorMatrix");
@@ -349,39 +349,43 @@ export class BookmarkDeckView {
         this.events.on("bookmarks:changed", () => this._scheduleLoad()),
         this.events.on("bookmarkCollections:changed", () => this._scheduleLoad()),
         this.events.on("bookmarkTags:changed", () => this._scheduleLoad()),
+        this.events.on("bookmarkGroup:changed", () => this._updateThemeToggleButtons()),
         this.events.on("settings:changed", (newSettings) => {
           const oldSettings = this._settings;
           if (newSettings) {
             this._settings = newSettings;
           }
 
-          if (this._sidebarFooter) {
-            const mode = this.getColorMode();
-            const darkBtn = this._sidebarFooter.querySelector(".raindrop-sidebar-theme-btn[data-theme='dark']");
-            const lightBtn = this._sidebarFooter.querySelector(".raindrop-sidebar-theme-btn[data-theme='light']");
-            if (darkBtn) darkBtn.classList.toggle("is-active", mode === "dark");
-            if (lightBtn) lightBtn.classList.toggle("is-active", mode === "light");
-          }
-
-          if (this._header) {
-            const mode = this.getColorMode();
-            const isDark = mode === "dark";
-            const themeBtn = this._header.querySelector(".raindrop-theme-toggle-btn");
-            if (themeBtn) {
-              themeBtn.title = isDark ? "Switch to Light mode" : "Switch to Dark mode";
-              themeBtn.setAttribute("aria-label", themeBtn.title);
-              themeBtn.replaceChildren(icon(isDark ? "sun" : "moon", "theme-btn-icon"));
-            }
-          }
+          this._updateThemeToggleButtons();
 
           const nameChanged = oldSettings && newSettings && (oldSettings.name !== newSettings.name || oldSettings.messageText !== newSettings.messageText);
           const previewsChanged = oldSettings && newSettings && (oldSettings.showWebsitePreviews !== newSettings.showWebsitePreviews);
 
           if (nameChanged || previewsChanged) {
+            this._renderHeader();
             this._renderContent();
           }
         })
       );
+    }
+  }
+
+  _updateThemeToggleButtons(forceMode = null) {
+    const mode = forceMode || this.getColorMode();
+    const isDark = mode === "dark";
+    if (this._sidebarFooter) {
+      const darkBtn = this._sidebarFooter.querySelector(".raindrop-sidebar-theme-btn[data-theme='dark']");
+      const lightBtn = this._sidebarFooter.querySelector(".raindrop-sidebar-theme-btn[data-theme='light']");
+      if (darkBtn) darkBtn.classList.toggle("is-active", isDark);
+      if (lightBtn) lightBtn.classList.toggle("is-active", !isDark);
+    }
+    if (this._header) {
+      const themeBtn = this._header.querySelector(".raindrop-theme-toggle-btn");
+      if (themeBtn) {
+        themeBtn.title = isDark ? "Switch to Light mode" : "Switch to Dark mode";
+        themeBtn.setAttribute("aria-label", themeBtn.title);
+        themeBtn.replaceChildren(icon(isDark ? "sun" : "moon", "theme-btn-icon"));
+      }
     }
   }
 
@@ -1136,13 +1140,11 @@ export class BookmarkDeckView {
     }, icon("sun"));
 
     darkBtn.addEventListener("click", () => {
-      darkBtn.classList.add("is-active");
-      lightBtn.classList.remove("is-active");
+      this._updateThemeToggleButtons("dark");
       this.setColorMode("dark");
     });
     lightBtn.addEventListener("click", () => {
-      lightBtn.classList.add("is-active");
-      darkBtn.classList.remove("is-active");
+      this._updateThemeToggleButtons("light");
       this.setColorMode("light");
     });
 
@@ -1484,11 +1486,8 @@ export class BookmarkDeckView {
 
     themeBtn.addEventListener("click", () => {
       const nextMode = this.getColorMode() === "dark" ? "light" : "dark";
+      this._updateThemeToggleButtons(nextMode);
       this.setColorMode(nextMode);
-      const nextIsDark = nextMode === "dark";
-      themeBtn.title = nextIsDark ? "Switch to Light mode" : "Switch to Dark mode";
-      themeBtn.setAttribute("aria-label", themeBtn.title);
-      themeBtn.replaceChildren(icon(nextIsDark ? "sun" : "moon", "theme-btn-icon"));
     });
 
     const focusThemeGroup = el("div", { className: "raindrop-focus-theme-group" },

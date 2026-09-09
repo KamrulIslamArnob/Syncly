@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syncly.app/schemas/theme-manifest.schema.json",
+  "title": "SynclyThemeManifest",
+  "description": "Standard schema definition for official and community themes for Syncly New Tab",
+  "type": "object",
+  "required": ["id", "name", "version", "modes"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "default": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^(@[a-z0-9-_.]+\\/)?[a-z0-9_-]{2,64}$",
+      "description": "Unique alphanumeric theme identifier (e.g. obsidian-neon or @username/theme-name)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "description": "Human-readable display name of the theme"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-zA-Z0-9.]+)?$",
+      "description": "SemVer version number"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "Short description of the theme visual aesthetic and purpose"
+    },
+    "author": {
+      "type": ["string", "object"],
+      "description": "Author name or author metadata object"
+    },
+    "license": {
+      "type": "string",
+      "default": "MIT"
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri"
+    },
+    "repository": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["builtin", "custom", "community"],
+      "default": "community"
+    },
+    "modes": {
+      "type": "object",
+      "required": ["dark", "light"],
+      "additionalProperties": false,
+      "properties": {
+        "dark": {
+          "$ref": "#/$defs/modeDefinition"
+        },
+        "light": {
+          "$ref": "#/$defs/modeDefinition"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "modeDefinition": {
+      "type": "object",
+      "required": ["tokens"],
+      "additionalProperties": false,
+      "properties": {
+        "tokens": {
+          "$ref": "#/$defs/tokenMapping"
+        },
+        "aura": {
+          "$ref": "#/$defs/auraConfiguration"
+        },
+        "customCss": {
+          "type": "string",
+          "maxLength": 20000,
+          "description": "Sanitized custom CSS stylesheet scoped to this theme"
+        }
+      }
+    },
+    "tokenMapping": {
+      "type": "object",
+      "required": ["--bg", "--surface", "--fg", "--accent"],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "properties": {
+        "--bg": { "type": "string", "description": "Canvas base background color" },
+        "--surface": { "type": "string", "description": "Sidebar and main surface background" },
+        "--surface-2": { "type": "string", "description": "Card, tile, and modal background" },
+        "--surface-active": { "type": "string", "description": "Elevated or hovered surface" },
+        "--fg": { "type": "string", "description": "Primary text color" },
+        "--fg-secondary": { "type": "string", "description": "Headings and prominent text" },
+        "--muted": { "type": "string", "description": "Subtitles, secondary labels, icons" },
+        "--muted-2": { "type": "string", "description": "Monospace and tertiary text" },
+        "--border": { "type": "string", "description": "Hairline divider and border color" },
+        "--border-strong": { "type": "string", "description": "Strong divider and focus border" },
+        "--accent": { "type": "string", "description": "Base accent highlight color" },
+        "--accent-primary": { "type": "string", "description": "Primary action button background" },
+        "--accent-dark": { "type": "string", "description": "Deep accent shade for borders/hover" },
+        "--accent-soft": { "type": "string", "description": "Translucent accent fill for chips/tags" },
+        "--on-accent": { "type": "string", "description": "Text color over primary accent background" }
+      }
+    },
+    "auraConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "layer1": {
+          "type": ["object", "null"],
+          "properties": {
+            "background": { "type": "string" },
+            "mixBlendMode": { "type": "string" },
+            "filter": { "type": "string" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "inset": { "type": "string" }
+          }
+        },
+        "layer2": {
+          "type": ["object", "null"],
+          "properties": {
+            "background": { "type": "string" },
+            "backgroundSize": { "type": "string" },
+            "mixBlendMode": { "type": "string" },
+            "filter": { "type": "string" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "layer3": {
+          "type": ["object", "null"],
+          "properties": {
+            "background": { "type": "string" },
+            "mixBlendMode": { "type": "string" }
+          }
+        },
+        "grain": {
+          "type": ["object", "null"],
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "mixBlendMode": { "type": "string", "default": "overlay" }
+          }
+        },
+        "gridPattern": {
+          "type": ["object", "null"],
+          "properties": {
+            "backgroundImage": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -14,12 +14,14 @@ import { ChromeSubfolderRepository } from "../persistence/chromeStorage/ChromeSu
 import { ChromeBookmarkGroupRepository } from "../repositories/ChromeBookmarkGroupRepository.js";
 import { ChromeBookmarkTagRepository } from "../repositories/ChromeBookmarkTagRepository.js";
 import { ChromeBookmarkCollectionRepository } from "../repositories/ChromeBookmarkCollectionRepository.js";
+import { ChromeThemeRepository } from "../persistence/chromeStorage/ChromeThemeRepository.js";
 import { SystemClock } from "../services/SystemClock.js";
 import { UuidGenerator } from "../services/UuidGenerator.js";
 import { BasicSanitizer } from "../security/BasicSanitizer.js";
 import { AutoBackupService } from "../services/AutoBackupService.js";
 import { GitHubBackupService } from "../services/GitHubBackupService.js";
 import { GoogleSyncService, SYNC_KEYS, TOMBSTONE_KEY } from "../services/GoogleSyncService.js";
+import "../../presentation/shared/theme/ThemeEngine.js";
 
 import { EventBus } from "../../application/ports/EventBus.js";
 
@@ -73,6 +75,12 @@ import { SetActiveGroup } from "../../application/useCases/SetActiveGroup.js";
 
 import { PushBackupToGitHubUseCase } from "../../application/useCases/backup/PushBackupToGitHubUseCase.js";
 
+import { ListCustomThemesUseCase } from "../../application/useCases/themes/ListCustomThemesUseCase.js";
+import { SaveCustomThemeUseCase } from "../../application/useCases/themes/SaveCustomThemeUseCase.js";
+import { DeleteCustomThemeUseCase } from "../../application/useCases/themes/DeleteCustomThemeUseCase.js";
+import { ImportThemeUseCase } from "../../application/useCases/themes/ImportThemeUseCase.js";
+import { ExportThemeUseCase } from "../../application/useCases/themes/ExportThemeUseCase.js";
+
 
 export function buildContainer() {
   // ---- infrastructure singletons ----
@@ -86,6 +94,7 @@ export function buildContainer() {
   const bookmarkGroupRepo = new ChromeBookmarkGroupRepository();
   const bookmarkTagRepo = new ChromeBookmarkTagRepository();
   const bookmarkCollectionRepo = new ChromeBookmarkCollectionRepository();
+  const themeRepo = new ChromeThemeRepository(storage);
   const clock = new SystemClock();
   const ids = new UuidGenerator();
   const sanitizer = new BasicSanitizer();
@@ -117,6 +126,7 @@ export function buildContainer() {
     if (changes.bookmarkGroups) bookmarkGroupRepo.clearCache();
     if (changes.bookmarkTags) bookmarkTagRepo.clearCache();
     if (changes.bookmarkCollections) bookmarkCollectionRepo.clearCache();
+    if (changes.customThemes) themeRepo.clearCache();
 
     if (changes.bookmarks) events.emit("bookmarks:changed", undefined);
     if (changes.categories) events.emit("categories:changed", undefined);
@@ -127,6 +137,7 @@ export function buildContainer() {
     if (changes.bookmarkGroups) events.emit("bookmarkGroups:changed", undefined);
     if (changes.bookmarkCollections) events.emit("bookmarkCollections:changed", undefined);
     if (changes.bookmarkTags) events.emit("bookmarkTags:changed", undefined);
+    if (changes.customThemes) events.emit("themes:changed", undefined);
   });
 
   // Cross-device Google Sync change listener.
@@ -317,6 +328,27 @@ export function buildContainer() {
       events,
     }),
 
+    listCustomThemes: new ListCustomThemesUseCase({ themeRepository: themeRepo }),
+    saveCustomTheme: new SaveCustomThemeUseCase({
+      themeRepository: themeRepo,
+      events,
+      sanitizer,
+      idGenerator: ids,
+    }),
+    deleteCustomTheme: new DeleteCustomThemeUseCase({
+      themeRepository: themeRepo,
+      events,
+    }),
+    importTheme: new ImportThemeUseCase({
+      themeRepository: themeRepo,
+      events,
+      sanitizer,
+      idGenerator: ids,
+    }),
+    exportTheme: new ExportThemeUseCase({
+      themeRepository: themeRepo,
+    }),
+
   });
 
   return Object.freeze({
@@ -334,6 +366,7 @@ export function buildContainer() {
       bookmarkGroupRepo,
       bookmarkTagRepo,
       bookmarkCollectionRepo,
+      themeRepo,
       clock,
       ids,
       sanitizer,

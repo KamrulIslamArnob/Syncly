@@ -6,6 +6,7 @@ import { sanitizeCss } from "../../infrastructure/security/cssSanitizer.js";
 import { SettingsSidebarView } from "./views/SettingsSidebarView.js";
 import { ToastView } from "./views/ToastView.js";
 import { BookmarkDeckView } from "./views/BookmarkDeckView.js";
+import { ThemeEngine } from "../shared/theme/ThemeEngine.js";
 
 // NewTabController — composition root for the new-tab page.
 //
@@ -140,8 +141,10 @@ export class NewTabController {
 
   subscribe() {
     this.unsubs.push(this.events.on("settings:changed", () => this.refreshSettings()));
+    this.unsubs.push(this.events.on("themes:changed", () => this.applyTheme(this.state.settings)));
     this.unsubs.push(this.events.on("bookmarkGroup:changed", (groupId) => {
       this.applyTheme(this.state.settings, groupId);
+      this.views?.deck?._updateThemeToggleButtons?.();
     }));
   }
 
@@ -157,32 +160,35 @@ export class NewTabController {
 
   getCurrentThemeConfig(settings = this.state.settings, activeGroupId = undefined) {
     const s = settings || {};
+    const featuredIds = ["aurora", "glacier_mist", "orchid_bloom", "ocean_pearl"];
+    const sanitizePreset = (id) => (id && (featuredIds.includes(id) || ThemeRegistry.get(id)?.type === "custom")) ? id : "aurora";
+
     const effectiveGroupId = (activeGroupId !== undefined) ? activeGroupId : (this.getActiveGroup()?.id || null);
     if (effectiveGroupId && s.workspaceThemes && s.workspaceThemes[effectiveGroupId]) {
       const wsTheme = s.workspaceThemes[effectiveGroupId];
       const mode = wsTheme.colorMode || s.colorMode || "dark";
-      const preset = (mode === "light")
-        ? (wsTheme.themePresetLight || wsTheme.themePreset || s.themePresetLight || s.themePreset || "aurora")
-        : (wsTheme.themePresetDark || wsTheme.themePreset || s.themePresetDark || s.themePreset || "aurora");
+      const darkPreset = sanitizePreset(wsTheme.themePresetDark || wsTheme.themePreset || s.themePresetDark || s.themePreset || "aurora");
+      const lightPreset = sanitizePreset(wsTheme.themePresetLight || wsTheme.themePreset || s.themePresetLight || s.themePreset || "aurora");
+      const preset = (mode === "light") ? lightPreset : darkPreset;
       return {
         colorMode: mode,
         themePreset: preset,
-        themePresetDark: wsTheme.themePresetDark || wsTheme.themePreset || s.themePresetDark || s.themePreset || "aurora",
-        themePresetLight: wsTheme.themePresetLight || wsTheme.themePreset || s.themePresetLight || s.themePreset || "aurora",
+        themePresetDark: darkPreset,
+        themePresetLight: lightPreset,
         cssVarAccent: wsTheme.cssVarAccent || s.cssVarAccent || "#555B66",
         isWorkspace: true,
         workspaceId: effectiveGroupId,
       };
     }
     const mode = s.colorMode || "dark";
-    const preset = (mode === "light")
-      ? (s.themePresetLight || s.themePreset || "aurora")
-      : (s.themePresetDark || s.themePreset || "aurora");
+    const darkPreset = sanitizePreset(s.themePresetDark || s.themePreset || "aurora");
+    const lightPreset = sanitizePreset(s.themePresetLight || s.themePreset || "aurora");
+    const preset = (mode === "light") ? lightPreset : darkPreset;
     return {
       colorMode: mode,
       themePreset: preset,
-      themePresetDark: s.themePresetDark || s.themePreset || "aurora",
-      themePresetLight: s.themePresetLight || s.themePreset || "aurora",
+      themePresetDark: darkPreset,
+      themePresetLight: lightPreset,
       cssVarAccent: s.cssVarAccent || "#555B66",
       isWorkspace: false,
       workspaceId: null,
@@ -192,6 +198,8 @@ export class NewTabController {
   async setColorMode(mode) {
     const activeGroup = this.getActiveGroup();
     const s = this.state.settings;
+    const featuredIds = ["aurora", "glacier_mist", "orchid_bloom", "ocean_pearl"];
+    const sanitizePreset = (id) => (id && (featuredIds.includes(id) || ThemeRegistry.get(id)?.type === "custom")) ? id : "aurora";
 
     // Instant switch: disable all CSS transitions during attribute change to avoid laggy border→block stagger
     const doInstant = (fn) => {
@@ -209,8 +217,8 @@ export class NewTabController {
       if (activeGroup?.id) {
         const currentThemes = s?.workspaceThemes || {};
         const wsCurrent = currentThemes[activeGroup.id] || {};
-        const darkPreset = wsCurrent.themePresetDark || wsCurrent.themePreset || s?.themePresetDark || s?.themePreset || "aurora";
-        const lightPreset = wsCurrent.themePresetLight || wsCurrent.themePreset || s?.themePresetLight || s?.themePreset || "aurora";
+        const darkPreset = sanitizePreset(wsCurrent.themePresetDark || wsCurrent.themePreset || s?.themePresetDark || s?.themePreset || "aurora");
+        const lightPreset = sanitizePreset(wsCurrent.themePresetLight || wsCurrent.themePreset || s?.themePresetLight || s?.themePreset || "aurora");
         const activePreset = mode === "light" ? lightPreset : darkPreset;
         const wsAccent = wsCurrent.cssVarAccent || s?.cssVarAccent || "#555B66";
         const nextThemes = {
@@ -225,75 +233,63 @@ export class NewTabController {
           },
         };
         doInstant(() => {
-          document.documentElement.setAttribute("data-color-mode", mode);
-          document.documentElement.setAttribute("data-theme-preset", activePreset);
-          const accentVars = deriveAccentShades(wsAccent, mode);
-          for (const [prop, val] of Object.entries(accentVars)) {
-            document.documentElement.style.setProperty(prop, val);
-          }
+          ThemeEngine.applyTheme(document.documentElement, {
+            themeId: activePreset,
+            colorMode: mode,
+            accent: wsAccent,
+            fontSize: s?.fontSize || "default",
+            customCss: s?.customCss || "",
+          });
         });
-        await this.useCases.saveUserSettings.execute({ workspaceThemes: nextThemes });
+        const savedSettings = await this.useCases.saveUserSettings.execute({
+          colorMode: mode,
+          themePresetDark: darkPreset,
+          themePresetLight: lightPreset,
+          themePreset: activePreset,
+          workspaceThemes: nextThemes,
+        });
+        if (savedSettings) this.state.settings = savedSettings;
       } else {
-        const darkPreset = s?.themePresetDark || s?.themePreset || "aurora";
-        const lightPreset = s?.themePresetLight || s?.themePreset || "aurora";
+        const darkPreset = sanitizePreset(s?.themePresetDark || s?.themePreset || "aurora");
+        const lightPreset = sanitizePreset(s?.themePresetLight || s?.themePreset || "aurora");
         const activePreset = mode === "light" ? lightPreset : darkPreset;
         const accent = s?.cssVarAccent || "#555B66";
         doInstant(() => {
-          document.documentElement.setAttribute("data-color-mode", mode);
-          document.documentElement.setAttribute("data-theme-preset", activePreset);
-          const accentVars = deriveAccentShades(accent, mode);
-          for (const [prop, val] of Object.entries(accentVars)) {
-            document.documentElement.style.setProperty(prop, val);
-          }
+          ThemeEngine.applyTheme(document.documentElement, {
+            themeId: activePreset,
+            colorMode: mode,
+            accent,
+            fontSize: s?.fontSize || "default",
+            customCss: s?.customCss || "",
+          });
         });
-        await this.useCases.saveUserSettings.execute({
+        const savedSettings = await this.useCases.saveUserSettings.execute({
           colorMode: mode,
           themePresetDark: darkPreset,
           themePresetLight: lightPreset,
           themePreset: activePreset,
         });
+        if (savedSettings) this.state.settings = savedSettings;
       }
     } catch (err) {
+      console.error("Failed to set color mode:", err);
       this.toast.show(err.message || "Could not save theme", { error: true });
     }
   }
 
   applyTheme(settings, activeGroupId = undefined) {
     const config = this.getCurrentThemeConfig(settings, activeGroupId);
-    if (document.documentElement.getAttribute("data-color-mode") !== config.colorMode) {
-      document.documentElement.setAttribute("data-color-mode", config.colorMode);
-    }
-
-    if (document.documentElement.getAttribute("data-theme-preset") !== config.themePreset) {
-      document.documentElement.setAttribute("data-theme-preset", config.themePreset);
-    }
-
-    const fontSize = settings?.fontSize || "default";
-    if (document.documentElement.getAttribute("data-font-size") !== fontSize) {
-      document.documentElement.setAttribute("data-font-size", fontSize);
-    }
-    const fontScales = { small: "0.88", default: "1", large: "1.14", xlarge: "1.28" };
-    const scale = fontScales[fontSize] || "1";
-    document.documentElement.style.setProperty("--ui-font-scale", scale);
-
-    const accentVars = deriveAccentShades(config.cssVarAccent, config.colorMode);
-    for (const [prop, val] of Object.entries(accentVars)) {
-      document.documentElement.style.setProperty(prop, val);
-    }
-
-    const themeColorMeta = document.getElementById("theme-color-meta") || document.querySelector("meta[name='theme-color']");
-    if (themeColorMeta) {
-      themeColorMeta.setAttribute("content", config.colorMode === "light" ? "#faf8f2" : "#100e0b");
-    }
+    ThemeEngine.applyTheme(document.documentElement, {
+      themeId: config.themePreset,
+      colorMode: config.colorMode,
+      accent: config.cssVarAccent,
+      fontSize: settings?.fontSize || "default",
+      customCss: settings?.customCss || "",
+    });
   }
 
   applyCustomCss(css) {
-    let styleTag = document.getElementById("syncly-custom-css") || document.getElementById("neptab-custom-css");
-    if (!styleTag) {
-      styleTag = el("style", { id: "syncly-custom-css" });
-      document.head.appendChild(styleTag);
-    }
-    styleTag.textContent = sanitizeCss(css || "");
+    ThemeEngine.applyCustomCss(css);
   }
 
   async triggerAutoBackup() {

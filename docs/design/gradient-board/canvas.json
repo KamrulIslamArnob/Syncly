@@ -1,0 +1,86 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 980,
+      "h": 1680
+    },
+    {
+      "file": "SheetTwo.dc.html",
+      "x": 1080,
+      "y": 0,
+      "w": 980,
+      "h": 1680
+    },
+    {
+      "file": "SheetThree.dc.html",
+      "x": 2160,
+      "y": 0,
+      "w": 980,
+      "h": 1680
+    },
+    {
+      "file": "SheetFour.dc.html",
+      "x": 3240,
+      "y": 0,
+      "w": 980,
+      "h": 1680
+    },
+    {
+      "file": "SheetFive.dc.html",
+      "x": 4320,
+      "y": 0,
+      "w": 980,
+      "h": 1680
+    },
+    {
+      "file": "LightPass.dc.html",
+      "x": 5400,
+      "y": 0,
+      "w": 1000,
+      "h": 1660
+    },
+    {
+      "file": "ContextDark.dc.html",
+      "x": 0,
+      "y": 1820,
+      "w": 1440,
+      "h": 900
+    },
+    {
+      "file": "ContextLight.dc.html",
+      "x": 1580,
+      "y": 1820,
+      "w": 1440,
+      "h": 900
+    }
+  ],
+  "annotations": [
+    {
+      "id": "how-to-read",
+      "x": 0,
+      "y": -230,
+      "w": 620,
+      "text": "50 monochrome background gradients for the Syncly new tab.\n\nSheets 1–5 hold ten each, grouped into families, in dark mode — that is the picking set. Each sample is built from the app's real aura contract: up to three stacked layers with mix-blend-mode, plus the same feTurbulence grain overlay the app already renders. Blur radii are scaled to tile size, so a swatch is a true miniature of the full-bleed result.\n\nThe two artboards below show No. 06 Beam Drift behind the actual homepage layout, dark and light. Components are unchanged — only the background moves."
+    },
+    {
+      "id": "in-context",
+      "x": 0,
+      "y": 1670,
+      "w": 560,
+      "text": "In context — the sidebar stays solid (#121212) and sits above the aura with isolation:isolate, so a gradient only reads through the main area. That is existing behaviour, not a choice made here."
+    },
+    {
+      "id": "next-step",
+      "x": 5400,
+      "y": -230,
+      "w": 480,
+      "text": "Every recipe lives in gradients.mjs, keyed the same way a theme manifest is (base / layers / grain). Porting a keeper is a copy across, not a re-derivation.\n\nTell me the numbers you want and I will wire them into the theme system."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

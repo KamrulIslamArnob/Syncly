@@ -663,13 +663,37 @@ export const ICONS = Object.freeze({
     ["circle", { cx: "12", cy: "12", r: "4" }],
     ["path", { d: "M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" }],
   ],
+  download: [
+    ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }],
+    ["polyline", { points: "7 10 12 15 17 10" }],
+    ["line", { x1: "12", x2: "12", y1: "15", y2: "3" }],
+  ],
+  upload: [
+    ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }],
+    ["polyline", { points: "17 8 12 3 7 8" }],
+    ["line", { x1: "12", x2: "12", y1: "3", y2: "15" }],
+  ],
 });
 
 export const ICON_NAMES = Object.keys(ICONS);
 
-export function icon(name, className = "icon") {
+export function icon(name, classNameOrSize = "icon", size) {
   const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("class", className);
+  if (typeof classNameOrSize === "number") {
+    svg.setAttribute("class", "icon");
+    svg.style.width = `${classNameOrSize}px`;
+    svg.style.height = `${classNameOrSize}px`;
+    svg.style.minWidth = `${classNameOrSize}px`;
+    svg.style.maxWidth = `${classNameOrSize}px`;
+  } else {
+    svg.setAttribute("class", classNameOrSize || "icon");
+    if (typeof size === "number") {
+      svg.style.width = `${size}px`;
+      svg.style.height = `${size}px`;
+      svg.style.minWidth = `${size}px`;
+      svg.style.maxWidth = `${size}px`;
+    }
+  }
   svg.setAttribute("viewBox", "0 0 24 24");
   svg.setAttribute("aria-hidden", "true");
   svg.setAttribute("fill", "none");
