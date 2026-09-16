@@ -14,8 +14,33 @@ import { ShortcutDialogView, guessTitleFromUrl } from "./ShortcutDialogView.js";
 import { BookmarkEditDialogView } from "./BookmarkEditDialogView.js";
 import { CombinedClockView } from "./CombinedClockView.js";
 import { GreetingView } from "./GreetingView.js";
-import { getThumbGradient, getFolderColor } from "../../shared/colorHash.js";
+import { getThumbGradient, getFolderColor, hashStr } from "../../shared/colorHash.js";
+import {
+  signalBand,
+  lastOpenedFor,
+  relativeAge,
+  openCountLabel,
+  tallySignal,
+  findDuplicates,
+  siblingColor,
+  assignFolderColors,
+  LAST_OPENED_MAP_KEY,
+  SIGNAL_SINCE_KEY,
+} from "../../shared/signal.js";
 import { OmniSearchIndex } from "../../../domain/services/OmniSearchIndex.js";
+import { Greeting } from "../../../domain/valueObjects/Greeting.js";
+import {
+  toISODateLocal,
+  dueForPreset,
+  labelForDue,
+  isOverdue,
+  isToday,
+  daysUntil,
+  matchesTaskFilter,
+  getMonthGrid,
+  formatHeaderDate,
+  reminderForTask,
+} from "../../../domain/services/dateUtils.js";
 
 /* ============================================================
    BookmarkDeckView — the entire new-tab page.
@@ -67,18 +92,37 @@ export function cleanDomain(url) {
   }
 }
 
-/** Flatten every bookmark leaf into {id,title,url,parentId,path}. `path`
- *  is the chain of ancestor folder titles (nearest last), used for the
- *  card breadcrumb chip. */
-export function flattenLeaves(nodes, out = [], path = []) {
+/** Flatten every bookmark leaf into {id,title,url,parentId,path} plus
+ *  Chrome's dateAdded/dateLastUsed when known. `path` is the chain of
+ *  ancestor folder titles (nearest last), used for the card meta line. */
+export function flattenLeaves(nodes, out = [], path = [], parentId = null) {
   for (const n of nodes) {
     if (n.type === "bookmark") {
-      if (n.url) out.push({ id: n.id, title: n.title, url: n.url, parentId: n.parentId ?? null, path });
+      if (n.url) out.push(leafFrom(n, n.parentId ?? parentId, path));
     } else {
-      flattenLeaves(n.children, out, [...path, n.title]);
+      flattenLeaves(n.children, out, [...path, n.title], n.id);
     }
   }
   return out;
+}
+
+export function directLeaves(folder) {
+  if (!folder || !Array.isArray(folder.children)) return [];
+  const path = folder.title ? [folder.title] : [];
+  const out = [];
+  for (const n of folder.children) {
+    if (n.type === "bookmark" && n.url) {
+      out.push(leafFrom(n, n.parentId ?? folder.id ?? null, path));
+    }
+  }
+  return out;
+}
+
+function leafFrom(node, parentId, path) {
+  const leaf = { id: node.id, title: node.title, url: node.url, parentId: parentId ?? null, path };
+  if (node.dateAdded) leaf.dateAdded = node.dateAdded;
+  if (node.dateLastUsed) leaf.dateLastUsed = node.dateLastUsed;
+  return leaf;
 }
 
 /**
@@ -225,7 +269,7 @@ function createGrainOverlay() {
 }
 
 export class BookmarkDeckView {
-  constructor({ getTree, toast, storage, useCases, events, onOpenSettings, getColorMode, setColorMode } = {}) {
+  constructor({ getTree, toast, storage, useCases, events, onOpenSettings, getColorMode, setColorMode, clock } = {}) {
     this.getTree = typeof getTree === "function" ? getTree : () => Promise.resolve([]);
     this.toast = toast;
     this.storage = storage || null;
@@ -234,6 +278,7 @@ export class BookmarkDeckView {
     this.onOpenSettings = typeof onOpenSettings === "function" ? onOpenSettings : null;
     this.getColorMode = typeof getColorMode === "function" ? getColorMode : () => "dark";
     this.setColorMode = typeof setColorMode === "function" ? setColorMode : () => {};
+    this.clock = typeof clock?.now === "function" ? clock : { now: () => new Date() };
 
     this._roots = [];
     this._folders = [];
@@ -250,6 +295,14 @@ export class BookmarkDeckView {
     this._activeColorPopover = null;
     this._tags = {};
     this._usage = {};
+    this._lastOpenedAt = {};
+    this._signalSince = null;
+    this._subfolderFilter = null; // sub-folder id, "direct" for the folder's own links, or null for all
+    this._signalFilter = null; // "cold" while pruning
+    this._chipsExpanded = false;
+    this._filterScope = null;
+    this._folderColorIndex = new Map();
+    this._collectionSort = "opened"; // "opened" | "name" | "size"
     this._query = "";
     this._viewMode = "compact"; // "compact" | "list" | "grid" (defaults to compact density)
     this._settings = null;
@@ -267,6 +320,9 @@ export class BookmarkDeckView {
     this._unsubEvents = [];
     this._bentoTaskCount = null;
     this._bentoTasksList = null;
+    this._bentoTaskPreset = "today";
+    this._rightPanelPreset = "today";
+    this._calendarCursor = null; // { y, m } for month nav; null = current month
 
     if (this.events?.on) {
       const unsub = this.events.on("tasks:changed", () => {
@@ -292,7 +348,14 @@ export class BookmarkDeckView {
     this.groupDialog.onDelete = () => this._scheduleLoad();
 
     this.newFolderDialog = new NewFolderDialogView({ getTree: this.getTree, toast: this.toast });
-    this.newFolderDialog.onCreate = () => this._scheduleLoad();
+    this.newFolderDialog.onCreate = (createdNode) => {
+      const parentId = createdNode?.parentId || (this._activeSelection.type === "folder" ? this._activeSelection.id : null);
+      if (parentId) {
+        const cleanParentId = parentId.startsWith("loose:") ? parentId.replace("loose:", "") : parentId;
+        this._expandedFolders.add(cleanParentId);
+      }
+      this._scheduleLoad();
+    };
 
     this.collectionDialog = new CollectionDialogView({ useCases, toast: this.toast });
     this.confirmDialog = new ConfirmDialogView({ toast: this.toast });
@@ -310,11 +373,11 @@ export class BookmarkDeckView {
 
     this._greetingView = new GreetingView({
       useCases,
-      clock: { now: () => new Date() },
+      clock: this.clock,
     });
 
     this._clockView = new CombinedClockView({
-      clock: { now: () => new Date() },
+      clock: this.clock,
     });
 
     let storedLayoutStyle = "standard"; // "standard" | "focus" (clock + centered search + shortcuts + bottom bookmarks)
@@ -384,7 +447,7 @@ export class BookmarkDeckView {
       if (themeBtn) {
         themeBtn.title = isDark ? "Switch to Light mode" : "Switch to Dark mode";
         themeBtn.setAttribute("aria-label", themeBtn.title);
-        themeBtn.replaceChildren(icon(isDark ? "sun" : "moon", "theme-btn-icon"));
+        themeBtn.replaceChildren(icon(isDark ? "moon" : "sun", "theme-btn-icon"));
       }
     }
   }
@@ -462,13 +525,13 @@ export class BookmarkDeckView {
     // with both ensure use cases (same-tick contract) instead of each one
     // issuing its own chrome.bookmarks.getTree() IPC round-trip.
     const raw = await this.getTree().catch(() => []);
-    const [quickieId, shortcutsFolderId, collectionsFolderId, , , usage, tags, settings, folderColors] = await Promise.all([
+    const [quickieId, shortcutsFolderId, collectionsFolderId, , , openLog, tags, settings, folderColors] = await Promise.all([
       this.useCases?.ensureQuickieFolder ? this.useCases.ensureQuickieFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
       this.useCases?.ensureShortcutsFolder ? this.useCases.ensureShortcutsFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
       this.useCases?.ensureCollectionsFolder ? this.useCases.ensureCollectionsFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
       Promise.resolve(null),
       this.groupButtons.loadState().catch(() => null),
-      this.storage ? this.storage.get([USAGE_KEY, LAST_KEY]).then((d) => d?.[USAGE_KEY] || {}).catch(() => ({})) : Promise.resolve({}),
+      this.storage ? this.storage.get([USAGE_KEY, LAST_OPENED_MAP_KEY, SIGNAL_SINCE_KEY]).then((d) => d || {}).catch(() => ({})) : Promise.resolve({}),
       this.useCases?.listBookmarkTags ? this.useCases.listBookmarkTags.execute().catch(() => ({})) : Promise.resolve({}),
       this.useCases?.getSettings ? this.useCases.getSettings.execute().catch(() => null) : Promise.resolve(null),
       this.storage ? this.storage.get(FOLDER_COLORS_KEY).then((d) => d?.[FOLDER_COLORS_KEY] || {}).catch(() => ({})) : Promise.resolve({}),
@@ -487,7 +550,13 @@ export class BookmarkDeckView {
 
     this._quickieFolderId = quickieId;
     this._collections = collections || [];
-    this._usage = usage || {};
+    this._usage = openLog?.[USAGE_KEY] || {};
+    this._lastOpenedAt = openLog?.[LAST_OPENED_MAP_KEY] || {};
+    this._signalSince = openLog?.[SIGNAL_SINCE_KEY] || null;
+    if (!this._signalSince && this.storage) {
+      this._signalSince = Date.now();
+      this.storage.set({ [SIGNAL_SINCE_KEY]: this._signalSince }).catch(() => {});
+    }
     this._tags = tags || {};
     this._settings = settings || null;
     this._folderColors = folderColors || {};
@@ -626,10 +695,24 @@ export class BookmarkDeckView {
     // Final dedupe: ensure no system folder sneaks into tree via duplicate names
     this._folders = this._folders.filter((f) => !isSystemFolder(f));
     this._leaves = flattenLeaves(this._folders);
+    this._folderColorIndex = assignFolderColors(this._folders);
 
     const visibleCollections = this._getVisibleCollections();
     if (this._activeSelection.type === "collection" && !visibleCollections.some((c) => c.id === this._activeSelection.id)) {
       this._activeSelection = { type: "all" };
+    }
+
+    if (this._activeSelection.type === "folder" && this._activeSelection.id) {
+      const realId = this._activeSelection.id.startsWith("loose:")
+        ? this._activeSelection.id.replace("loose:", "")
+        : this._activeSelection.id;
+      const updatedFolder = findFolderById(this._roots, realId);
+      if (updatedFolder) {
+        this._activeSelection.folder = updatedFolder;
+        this._activeSelection.title = updatedFolder.title || this._activeSelection.title;
+      } else {
+        this._activeSelection = { type: "all" };
+      }
     }
 
     this._searchIndex.index({
@@ -648,13 +731,6 @@ export class BookmarkDeckView {
     const activeGroup = this.groupButtons?.activeGroup;
     if (!activeGroup) return this._collections || [];
     return (this._collections || []).filter((c) => !c.workspaceId || c.workspaceId === activeGroup.id);
-  }
-
-  _getFolderColor(node) {
-    if (this._folderColors && node?.id && this._folderColors[node.id]) {
-      return this._folderColors[node.id];
-    }
-    return getFolderColor((node?.title || "") + (node?.id || ""));
   }
 
   async _saveFolderColor(folderId, color) {
@@ -713,7 +789,7 @@ export class BookmarkDeckView {
     }
 
     const popover = el("div", { className: "raindrop-color-popover" });
-    const current = this._getFolderColor(folder);
+    const current = this._colorForFolder(folder);
 
     for (const color of PALETTE_COLORS) {
       const dot = el("button", {
@@ -767,12 +843,14 @@ export class BookmarkDeckView {
   }
 
   async _loadUsage() {
-    if (!this.storage) { this._usage = {}; return; }
+    if (!this.storage) { this._usage = {}; this._lastOpenedAt = {}; return; }
     try {
-      const data = await this.storage.get([USAGE_KEY, LAST_KEY]);
+      const data = await this.storage.get([USAGE_KEY, LAST_OPENED_MAP_KEY]);
       this._usage = data?.[USAGE_KEY] || {};
+      this._lastOpenedAt = data?.[LAST_OPENED_MAP_KEY] || {};
     } catch {
       this._usage = {};
+      this._lastOpenedAt = {};
     }
   }
 
@@ -786,9 +864,17 @@ export class BookmarkDeckView {
   }
 
   async _recordOpen(bookmark) {
+    const now = Date.now();
     this._usage[bookmark.id] = (this._usage[bookmark.id] || 0) + 1;
+    this._lastOpenedAt[bookmark.id] = now;
     if (this.storage) {
-      try { await this.storage.set({ [USAGE_KEY]: this._usage, [LAST_KEY]: { title: bookmark.title, ts: Date.now() } }); } catch {}
+      try {
+        await this.storage.set({
+          [USAGE_KEY]: this._usage,
+          [LAST_OPENED_MAP_KEY]: this._lastOpenedAt,
+          [LAST_KEY]: { title: bookmark.title, ts: now },
+        });
+      } catch {}
     }
   }
 
@@ -939,6 +1025,8 @@ export class BookmarkDeckView {
           title: this._activeSelection.title,
           isFolder: true,
         };
+      } else if (this._activeSelection.type === "quickie" && this._quickieFolderId) {
+        finalTarget = { id: this._quickieFolderId, title: "Quickie", isFolder: true };
       } else {
         const activeGroup = this.groupButtons.activeGroup;
         if (activeGroup && activeGroup.folderIds?.[0]) {
@@ -985,7 +1073,7 @@ export class BookmarkDeckView {
 
     // Collections: in global mode shows all collections, in workspace mode shows workspace-specific collections
     const visibleCollections = this._getVisibleCollections();
-    const collectionsItem = this._renderQuickItem("collections", icon("layers"), "Collections", visibleCollections.length);
+    const collectionsItem = this._renderQuickItem("collections", icon("collection"), "Collections", visibleCollections.length);
     collectionsItem.addEventListener("dblclick", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -997,15 +1085,16 @@ export class BookmarkDeckView {
     const isCollectionsOpen = (this._activeSelection.type === "collections" || this._activeSelection.type === "collection") && this._collectionsExpanded;
     if (visibleCollections.length > 0 && isCollectionsOpen) {
       const collSubWrap = el("div", { className: "raindrop-coll-sub-list" });
-      for (const coll of visibleCollections) {
+      for (const [index, coll] of visibleCollections.entries()) {
         const isCollActive = this._activeSelection.type === "collection" && this._activeSelection.id === coll.id;
         const leaves = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
         const collRow = el("button", {
           type: "button",
           className: "raindrop-nav-row raindrop-coll-sub-row" + (isCollActive ? " is-active" : ""),
           title: `${coll.name} (${leaves.length})`,
+          style: { "--row-accent": coll.color || siblingColor(index) },
         },
-          el("span", { className: "raindrop-coll-sub-bullet" }, "•"),
+          el("span", { className: "raindrop-nav-icon is-collection" }, icon("collection")),
           el("span", { className: "raindrop-nav-label" }, coll.name),
           el("span", { className: "raindrop-nav-count" }, String(leaves.length))
         );
@@ -1206,29 +1295,28 @@ export class BookmarkDeckView {
     const hasChildren = subfolders.length > 0;
     const isExpanded = this._expandedFolders.has(node.id);
     const isActive = this._activeSelection.type === "folder" && this._activeSelection.id === node.id;
-    const slashColor = this._getFolderColor(node);
 
-    const slashBtn = el("button", {
+    // The folder icon carries the folder's colour; clicking it picks another.
+    const colorBtn = el("button", {
       type: "button",
-      className: "raindrop-tree-slash",
-      style: `color:${slashColor};`,
+      className: "raindrop-tree-icon",
       title: `Change color for "${node.title}"`,
       "aria-label": `Change color for ${node.title}`,
-    }, "/");
+    }, icon("folder"));
 
-    slashBtn.addEventListener("click", (e) => {
+    colorBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       e.preventDefault();
-      this._openColorPicker(slashBtn, node);
+      this._openColorPicker(colorBtn, node);
     });
 
     const row = el("button", {
       type: "button",
       className: "raindrop-nav-row raindrop-tree-row" + (isActive ? " is-active" : ""),
-      style: `padding-left: ${9 + depth * 14}px;`,
+      style: { paddingLeft: `${9 + depth * 14}px`, "--row-accent": this._colorForFolder(node) },
       title: `${node.title} (${count})`,
     },
-      slashBtn,
+      colorBtn,
       el("span", { className: "raindrop-nav-label" }, node.title),
       el("span", { className: "raindrop-nav-count" }, String(count))
     );
@@ -1289,44 +1377,9 @@ export class BookmarkDeckView {
   _renderHeader() {
     this._header.replaceChildren();
 
+    const selection = this._activeSelection;
     const activeGroup = this.groupButtons.activeGroup;
-    const isHomeSelection = this._activeSelection.type === "all" && !activeGroup;
-    let title = activeGroup ? activeGroup.name : "Home";
-    let headerIcon = activeGroup ? icon(activeGroup.icon || "folder") : icon("home");
-    // count not needed per user request — removed from header
-
-    if (this._activeSelection.type === "quickie") {
-      title = "Quickie";
-      headerIcon = icon("inbox");
-    } else if (this._activeSelection.type === "collections") {
-      title = "Collections";
-      headerIcon = icon("layers");
-    } else if (this._activeSelection.type === "collection") {
-      title = this._activeSelection.title;
-      headerIcon = icon("layers");
-    } else if (this._activeSelection.type === "folder") {
-      title = this._activeSelection.title;
-      headerIcon = icon("folder");
-    } else if (isHomeSelection) {
-      title = "/ Home";
-      headerIcon = null;
-    }
-
-    const isFolder = this._activeSelection.type === "folder" && this._activeSelection.id && !this._activeSelection.id.startsWith("loose:");
-    const isCollection = this._activeSelection.type === "collection" && this._activeSelection.id;
-
-    const isHomeTitle = isHomeSelection && title === "/ Home";
-    const titleEl = el("h2", {
-      className: "raindrop-header-title" + (isFolder || isCollection ? " is-editable" : "") + (isHomeTitle ? " is-home" : ""),
-      title: (isFolder || isCollection) ? "Click to rename" : "",
-      style: isHomeTitle ? "font-size:14px; font-weight:700; letter-spacing:0.02em;" : "",
-    }, title);
-
-    if (isFolder || isCollection) {
-      titleEl.addEventListener("click", () => {
-        this._startHeaderInlineRename(titleEl, this._activeSelection);
-      });
-    }
+    const isHome = selection.type === "all" && !activeGroup;
 
     const sidebarToggleBtn = el("button", {
       type: "button",
@@ -1336,15 +1389,110 @@ export class BookmarkDeckView {
     }, icon(this._sidebarCollapsed ? "sidebarOpen" : "sidebar"));
     sidebarToggleBtn.addEventListener("click", () => this.toggleSidebar());
 
-    const metaLeftChildren = [sidebarToggleBtn];
-    if (headerIcon) metaLeftChildren.push(el("span", { className: "raindrop-header-icon" }, headerIcon));
-    metaLeftChildren.push(titleEl);
-    const metaLeft = el("div", { className: "raindrop-header-left" }, ...metaLeftChildren);
+    // Focus mode keeps Home minimal: the hero below carries search and the clock.
+    if (this._layoutStyle === "focus" && selection.type === "all" && !this._query) {
+      const focusThemeGroup = el("div", { className: "raindrop-focus-theme-group" },
+        this._renderLayoutModeButton(),
+        el("div", { className: "raindrop-btn-divider", "aria-hidden": "true" }),
+        this._renderThemeToggle(),
+      );
+      this._header.append(
+        el("div", { className: "raindrop-header-left focus-header-left" }, sidebarToggleBtn),
+        el("div", { className: "raindrop-header-spacer" }),
+        el("div", { className: "raindrop-header-right focus-header-right" }, focusThemeGroup),
+      );
+      return;
+    }
 
+    this._header.append(
+      this._renderHeaderHeading(sidebarToggleBtn),
+      this._renderHeaderSearch(isHome),
+      this._renderHeaderActions(isHome && !this._query),
+    );
+  }
+
+  _greetingText() {
+    const name = (this._settings?.name || "").trim();
+    const { partOfDay } = Greeting.fromHour(this.clock.now().getHours(), name);
+    return name ? `Good ${partOfDay}, ${name}` : `Good ${partOfDay}`;
+  }
+
+  /** Left side: sidebar toggle, tinted icon, title and a mono count. */
+  _renderHeaderHeading(sidebarToggleBtn) {
+    const { type, id, title: selectionTitle } = this._activeSelection;
+    const activeGroup = this.groupButtons.activeGroup;
+    const links = (n) => `${n} link${n === 1 ? "" : "s"}`;
+
+    let title = selectionTitle;
+    let iconName = null;
+    let color = null;
+    let meta = "";
+    let isGreeting = false;
+
+    if (type === "folder") {
+      iconName = "folder";
+      color = this._colorForFolder({ id, title: selectionTitle });
+      meta = links(this._selectionLeaves().length);
+    } else if (type === "collection") {
+      iconName = "collection";
+      const collections = this._getVisibleCollections();
+      const index = collections.findIndex((c) => c.id === id);
+      color = collections[index]?.color || siblingColor(Math.max(index, 0));
+      meta = links(this._selectionLeaves().length);
+    } else if (type === "collections") {
+      const collections = this._getVisibleCollections();
+      const total = collections.reduce((n, c) => n + this._collectionLeaves(c).length, 0);
+      title = "Collections";
+      iconName = "collection";
+      color = siblingColor(1);
+      meta = `${collections.length} collection${collections.length === 1 ? "" : "s"} · ${links(total)}`;
+    } else if (type === "quickie") {
+      title = "Quickie";
+      iconName = "inbox";
+      meta = links(this._quickieLeaves.length);
+    } else if (type === "cold") {
+      title = "Gone cold";
+      iconName = "activity";
+      color = "var(--signal-cold)";
+      meta = links(this._selectionLeaves().length);
+    } else if (type === "duplicates") {
+      title = "Duplicates";
+      iconName = "copy";
+      meta = links(this._selectionLeaves().length);
+    } else if (activeGroup) {
+      title = activeGroup.name;
+      iconName = activeGroup.icon || "folder";
+      meta = links(this._leaves.length);
+    } else {
+      title = this._greetingText();
+      isGreeting = true;
+    }
+
+    const isEditable = (type === "folder" && !String(id).startsWith("loose:")) || type === "collection";
+    const titleEl = el("h2", {
+      className: "raindrop-header-title" + (isEditable ? " is-editable" : "") + (isGreeting ? " is-greeting" : ""),
+      title: isEditable ? "Click to rename" : null,
+    }, title);
+    if (isEditable) {
+      titleEl.addEventListener("click", () => this._startHeaderInlineRename(titleEl, this._activeSelection));
+    }
+
+    return el("div", { className: "raindrop-header-left" },
+      sidebarToggleBtn,
+      iconName ? el("span", { className: "raindrop-header-icon", style: color ? { color } : null }, icon(iconName)) : null,
+      titleEl,
+      isGreeting ? el("span", { className: "raindrop-header-dot", "aria-hidden": "true" }) : null,
+      meta ? el("span", { className: "raindrop-header-meta" }, meta) : null,
+      this._settings?.showDate !== false ? el("span", { className: "raindrop-header-date" }, formatHeaderDate(this.clock?.now?.() || new Date())) : null,
+    );
+  }
+
+  _renderHeaderSearch(isHome) {
+    const isFocus = this._layoutStyle === "focus";
     this._searchInput = el("input", {
       type: "search",
       className: "raindrop-search-input",
-      placeholder: "Search anything",
+      placeholder: isHome ? "Filter bookmarks · Enter for Google" : "Search anything",
       value: this._query,
       "aria-label": "Search bookmarks",
       autocomplete: "off",
@@ -1353,14 +1501,11 @@ export class BookmarkDeckView {
       const prevQuery = this._query;
       this._query = this._searchInput.value.trim().toLowerCase();
 
-      // If in focus home mode and query was cleared, transition back to minimal header & center hero
+      // Query cleared on focus-mode Home: go back to the minimal header and centred hero.
       if (isFocus && this._activeSelection.type === "all" && !this._query && prevQuery) {
         this._renderHeader();
         this._renderContent();
-        const heroInput = this._content.querySelector(".home-focus-search-input");
-        if (heroInput) {
-          heroInput.focus();
-        }
+        this._content.querySelector(".home-focus-search-input")?.focus();
       } else {
         this._renderContent();
       }
@@ -1375,166 +1520,191 @@ export class BookmarkDeckView {
 
     const isMac = typeof navigator !== "undefined" && (navigator.platform?.includes("Mac") || navigator.userAgent?.includes("Mac"));
     const kbd = el("span", { className: "raindrop-search-kbd" }, isMac ? "⌘K" : "Ctrl K");
-    const searchWrap = el("div", { className: "raindrop-search-bar" }, icon("search", "raindrop-search-icon"), this._searchInput, kbd);
+    return el("div", { className: "raindrop-search-bar" }, icon("search", "raindrop-search-icon"), this._searchInput, kbd);
+  }
 
-    // Select mode toggle button (icon-only checkmark)
-    const selectBtn = el("button", {
-      type: "button",
-      className: "raindrop-select-btn" + (this._selectMode ? " is-active" : ""),
-      title: this._selectMode ? "Exit selection mode" : "Select bookmarks",
-      "aria-label": this._selectMode ? "Exit selection mode" : "Select bookmarks",
-      "aria-pressed": this._selectMode ? "true" : "false",
-    }, icon("check"));
-    selectBtn.addEventListener("click", () => {
-      this._selectMode = !this._selectMode;
-      if (!this._selectMode) this._selectedIds.clear();
-      this._renderHeader();
-      this._renderContent();
-    });
+  /** Right side. Home: Add, theme, To-Do. Collections: sort, New Collection,
+   *  theme. Every link view: density, Add, theme and the more menu. */
+  _renderHeaderActions(isHome) {
+    const { type } = this._activeSelection;
+    const right = el("div", { className: "raindrop-header-right" });
 
-    // View mode switch: single active view icon + dropdown on hover/click
-    const views = [
-      { id: "compact", name: "grip", label: "Compact" },
-      { id: "list", name: "sliders", label: "List" },
-      { id: "grid", name: "grid", label: "Grid" },
-    ];
-    const currentView = views.find((v) => v.id === this._viewMode) || views[0];
-
-    const currentViewBtn = el("button", {
-      type: "button",
-      className: "raindrop-view-current-btn",
-      title: `View: ${currentView.label} (click or hover for options)`,
-      "aria-label": `View: ${currentView.label}`,
-      "aria-haspopup": "true",
-    }, icon(currentView.name));
-
-    const viewDropdownMenu = el("div", { className: "raindrop-view-dropdown-menu", role: "menu" });
-    for (const v of views) {
-      const optBtn = el("button", {
-        type: "button",
-        className: "raindrop-view-option" + (this._viewMode === v.id ? " is-active" : ""),
-        title: `${v.label} view`,
-        role: "menuitem",
-      },
-        icon(v.name, "raindrop-view-option-icon"),
-        el("span", { className: "raindrop-view-option-label" }, v.label)
+    if (type === "collections") {
+      right.append(
+        this._renderCollectionSort(),
+        this._renderAddButton("New Collection", () => this._promptCreateBookmarkCollection()),
+        this._renderThemeToggle(),
       );
-      optBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this._viewMode = v.id;
-        this._renderHeader();
-        this._renderContent();
-      });
-      viewDropdownMenu.appendChild(optBtn);
+      return right;
     }
 
-    const viewSwitch = el("div", { className: "raindrop-view-dropdown-wrap" }, currentViewBtn, viewDropdownMenu);
-    currentViewBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      viewSwitch.classList.toggle("is-open");
-    });
-    document.addEventListener("click", (e) => {
-      if (!viewSwitch.contains(e.target)) {
-        viewSwitch.classList.remove("is-open");
-      }
-    }, { passive: true });
-
-    const isFocus = this._layoutStyle === "focus";
-    const zapIcon = icon("zap", "focus-btn-icon");
-
-    const layoutModeBtn = el("button", {
-      type: "button",
-      className: "raindrop-layout-mode-btn" + (isFocus ? " is-active" : ""),
-      title: isFocus ? "Switch to Standard View" : "Switch to Focus Mode (Clock, Search & Shortcuts)",
-      "aria-label": isFocus ? "Switch to Standard View" : "Switch to Focus Mode",
-    }, zapIcon);
-
-    layoutModeBtn.addEventListener("click", () => {
-      this._layoutStyle = this._layoutStyle === "focus" ? "standard" : "focus";
-      try { localStorage.setItem("syncly_home_layout_style", this._layoutStyle); } catch { /* non-fatal */ }
-      if (this.root) {
-        this.root.classList.toggle("is-focus-mode", this._layoutStyle === "focus");
-      }
-      if (this._layoutStyle === "focus") {
-        this._sidebarCollapsed = true;
-        this._allBookmarksCollapsed = true;
-      } else {
-        // When switching to standard (non-focus) mode, always expand sidebar and all bookmarks
-        this._sidebarCollapsed = false;
-        this._allBookmarksCollapsed = false;
-      }
-      try {
-        localStorage.setItem("syncly_sidebar_collapsed", String(this._sidebarCollapsed));
-        localStorage.setItem("syncly_all_bookmarks_collapsed", String(this._allBookmarksCollapsed));
-      } catch { /* non-fatal */ }
-      if (this.root) {
-        this.root.classList.toggle("is-sidebar-collapsed", this._sidebarCollapsed);
-      }
-      this._renderSidebar();
-      this._renderHeader();
-      this._renderContent();
-    });
-
-    const mode = this.getColorMode();
-    const isDark = mode === "dark";
-    const themeBtn = el("button", {
-      type: "button",
-      className: "raindrop-theme-toggle-btn",
-      title: isDark ? "Switch to Light mode" : "Switch to Dark mode",
-      "aria-label": isDark ? "Switch to Light mode" : "Switch to Dark mode",
-    }, icon(isDark ? "sun" : "moon", "theme-btn-icon"));
-
-    themeBtn.addEventListener("click", () => {
-      const nextMode = this.getColorMode() === "dark" ? "light" : "dark";
-      this._updateThemeToggleButtons(nextMode);
-      this.setColorMode(nextMode);
-    });
-
-    const focusThemeGroup = el("div", { className: "raindrop-focus-theme-group" },
-      layoutModeBtn,
-      el("div", { className: "raindrop-btn-divider", "aria-hidden": "true" }),
-      themeBtn
-    );
-
-    const makePanelBtn = () => {
-      const b = el("button", {
+    if (isHome) {
+      const todoBtn = el("button", {
         type: "button",
         className: "raindrop-panel-trigger-btn",
         title: "To-Do",
         "aria-label": "Open To-Do",
       }, icon("checkSquare"));
-      b.addEventListener("click", () => this._openRightPanel());
-      return b;
+      todoBtn.addEventListener("click", () => this._openRightPanel());
+      right.append(this._renderAddButton("Add", () => this._openBookmarkPicker()), this._renderThemeToggle(), todoBtn);
+      return right;
+    }
+
+    // Gone cold and Duplicates are review lists across folders: nothing to add into.
+    const canAdd = type !== "cold" && type !== "duplicates";
+    right.append(...[
+      this._renderViewSwitch(),
+      canAdd ? this._renderAddButton("Add", () => this._openBookmarkPicker()) : null,
+      this._renderThemeToggle(),
+      this._renderMoreMenu({ canAddFolder: type === "folder" || Boolean(this.groupButtons.activeGroup) }),
+    ].filter(Boolean));
+    return right;
+  }
+
+  _renderAddButton(label, onClick) {
+    const btn = el("button", {
+      type: "button",
+      className: "raindrop-add-btn",
+      title: label === "Add" ? "Add bookmarks" : label,
+    }, icon("plus"), el("span", {}, label));
+    btn.addEventListener("click", onClick);
+    return btn;
+  }
+
+  /** Compact / List / Grid as one segmented control; the active segment is labelled. */
+  _renderViewSwitch() {
+    const views = [
+      { id: "compact", icon: "grip", label: "Compact" },
+      { id: "list", icon: "list", label: "List" },
+      { id: "grid", icon: "grid", label: "Grid" },
+    ];
+    const group = el("div", { className: "raindrop-view-switch", role: "group", "aria-label": "Card density" });
+    for (const view of views) {
+      const isActive = this._viewMode === view.id;
+      const segment = el("button", {
+        type: "button",
+        className: "raindrop-view-seg" + (isActive ? " is-active" : ""),
+        "data-view": view.id,
+        title: `${view.label} view`,
+        "aria-label": `${view.label} view`,
+        "aria-pressed": isActive ? "true" : "false",
+      }, icon(view.icon), isActive ? el("span", { className: "raindrop-view-seg-label" }, view.label) : null);
+      segment.addEventListener("click", () => {
+        if (this._viewMode === view.id) return;
+        this._viewMode = view.id;
+        this._renderHeader();
+        this._renderContent();
+      });
+      group.appendChild(segment);
+    }
+    return group;
+  }
+
+  /** Shows the current mode: a moon in dark, a sun in light. */
+  _renderThemeToggle() {
+    const isDark = this.getColorMode() === "dark";
+    const btn = el("button", {
+      type: "button",
+      className: "raindrop-theme-toggle-btn",
+      title: isDark ? "Switch to Light mode" : "Switch to Dark mode",
+      "aria-label": isDark ? "Switch to Light mode" : "Switch to Dark mode",
+    }, icon(isDark ? "moon" : "sun", "theme-btn-icon"));
+    btn.addEventListener("click", () => {
+      const nextMode = this.getColorMode() === "dark" ? "light" : "dark";
+      this._updateThemeToggleButtons(nextMode);
+      this.setColorMode(nextMode);
+    });
+    return btn;
+  }
+
+  _renderLayoutModeButton() {
+    const isFocus = this._layoutStyle === "focus";
+    const btn = el("button", {
+      type: "button",
+      className: "raindrop-layout-mode-btn" + (isFocus ? " is-active" : ""),
+      title: isFocus ? "Switch to Standard View" : "Switch to Focus Mode (Clock, Search & Shortcuts)",
+      "aria-label": isFocus ? "Switch to Standard View" : "Switch to Focus Mode",
+    }, icon("zap", "focus-btn-icon"));
+    btn.addEventListener("click", () => this._toggleLayoutStyle());
+    return btn;
+  }
+
+  _toggleLayoutStyle() {
+    this._layoutStyle = this._layoutStyle === "focus" ? "standard" : "focus";
+    try { localStorage.setItem("syncly_home_layout_style", this._layoutStyle); } catch { /* non-fatal */ }
+    if (this.root) {
+      this.root.classList.toggle("is-focus-mode", this._layoutStyle === "focus");
+    }
+    // Focus collapses the sidebar and all-bookmarks board; standard brings both back.
+    this._sidebarCollapsed = this._layoutStyle === "focus";
+    this._allBookmarksCollapsed = this._layoutStyle === "focus";
+    try {
+      localStorage.setItem("syncly_sidebar_collapsed", String(this._sidebarCollapsed));
+      localStorage.setItem("syncly_all_bookmarks_collapsed", String(this._allBookmarksCollapsed));
+    } catch { /* non-fatal */ }
+    if (this.root) {
+      this.root.classList.toggle("is-sidebar-collapsed", this._sidebarCollapsed);
+    }
+    this._renderSidebar();
+    this._renderHeader();
+    this._renderContent();
+  }
+
+  /** Less frequent actions: selection mode, a new folder here, focus mode. */
+  _renderMoreMenu({ canAddFolder }) {
+    const wrap = el("div", { className: "raindrop-more-wrap" });
+    const trigger = el("button", {
+      type: "button",
+      className: "raindrop-more-btn" + (this._selectMode ? " is-active" : ""),
+      title: "More actions",
+      "aria-label": "More actions",
+      "aria-haspopup": "menu",
+    }, icon("moreVertical"));
+    trigger.addEventListener("click", (e) => {
+      e?.stopPropagation?.();
+      wrap.classList.toggle("is-open");
+    });
+
+    const menu = el("div", { className: "raindrop-more-menu", role: "menu" });
+    const item = (label, iconName, onSelect, extraClass = "") => {
+      const btn = el("button", {
+        type: "button",
+        className: `raindrop-more-item ${extraClass}`.trim(),
+        role: "menuitem",
+      }, icon(iconName), el("span", {}, label));
+      btn.addEventListener("click", (e) => {
+        e?.stopPropagation?.();
+        wrap.classList.remove("is-open");
+        onSelect();
+      });
+      return btn;
     };
 
-    if (isFocus && this._activeSelection.type === "all" && !this._query) {
-      const focusLeft = el("div", { className: "raindrop-header-left focus-header-left" },
-        sidebarToggleBtn
-      );
-      const focusRight = el("div", { className: "raindrop-header-right focus-header-right" },
-        focusThemeGroup
-      );
-      this._header.append(focusLeft, el("div", { className: "raindrop-header-spacer" }), focusRight);
-      return;
+    menu.appendChild(item(this._selectMode ? "Stop selecting" : "Select bookmarks", "check", () => {
+      this._selectMode = !this._selectMode;
+      if (!this._selectMode) this._selectedIds.clear();
+      this._renderHeader();
+      this._renderContent();
+    }));
+    if (canAddFolder) {
+      menu.appendChild(item("Add Folder", "folderPlus", () => this._promptCreateFolder(), "raindrop-add-folder-btn"));
     }
+    menu.appendChild(item(this._layoutStyle === "focus" ? "Standard view" : "Focus mode", "zap", () => this._toggleLayoutStyle()));
 
-    const rightCluster = el("div", { className: "raindrop-header-right" });
-    if (this._activeSelection.type === "collection" || this._activeSelection.type === "folder" || activeGroup) {
-      const addBmBtn = el("button", {
-        type: "button",
-        className: "raindrop-add-bm-btn",
-        title: "Add bookmarks from library or create a new bookmark",
-      }, icon("plus"), el("span", {}, "Add Bookmarks"));
-      addBmBtn.addEventListener("click", () => this._openBookmarkPicker());
-      rightCluster.appendChild(addBmBtn);
+    wrap.append(trigger, menu);
+    return wrap;
+  }
+
+  _renderCollectionSort() {
+    const select = el("select", { className: "raindrop-sort-select", "aria-label": "Sort collections" });
+    for (const [value, label] of [["opened", "Sort: last opened"], ["name", "Sort: name"], ["size", "Sort: size"]]) {
+      select.appendChild(el("option", { value, selected: this._collectionSort === value }, label));
     }
-    rightCluster.append(
-      focusThemeGroup,
-      selectBtn,
-      viewSwitch
-    );
-
-    this._header.append(metaLeft, searchWrap, rightCluster);
+    select.addEventListener("change", () => {
+      this._collectionSort = select.value;
+      this._renderContent();
+    });
+    return select;
   }
 
   _startHeaderInlineRename(titleEl, selection) {
@@ -1601,35 +1771,12 @@ export class BookmarkDeckView {
   }
 
   /* ── 3. Main Content Area ─────────────────────────────────── */
-  _getActivePool() {
-    let pool = [];
-    if (this._activeSelection.type === "all") pool = this._leaves;
-    else if (this._activeSelection.type === "quickie") pool = this._quickieLeaves;
-    else if (this._activeSelection.type === "collection") {
-      const coll = this._collections.find((c) => c.id === this._activeSelection.id);
-      if (coll) {
-        const nativeFolder = coll.folderId ? findFolderById(this._roots, coll.folderId) : null;
-        if (nativeFolder && nativeFolder.children) {
-          const directLeaves = flattenLeaves(nativeFolder.children);
-          const resolved = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
-          const seen = new Set();
-          pool = [];
-          for (const l of [...directLeaves, ...resolved]) {
-            if (l && !seen.has(l.id)) {
-              seen.add(l.id);
-              pool.push(l);
-            }
-          }
-        } else {
-          pool = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
-        }
-      } else {
-        pool = [];
-      }
-    } else if (this._activeSelection.type === "folder") {
-      pool = flattenLeaves(this._activeSelection.folder?.children || []);
-    }
+  _getActivePool({ signal = true } = {}) {
+    let pool = this._activeSelection.type === "folder" ? this._folderPool() : this._selectionLeaves();
 
+    if (signal && this._signalFilter === "cold") {
+      pool = pool.filter((b) => this._bandFor(b) === "cold");
+    }
     if (this._activeTag) {
       pool = pool.filter((b) => (this._tags[b.id] || []).includes(this._activeTag));
     }
@@ -1638,6 +1785,216 @@ export class BookmarkDeckView {
       pool = pool.filter((b) => b.title.toLowerCase().includes(q) || b.url.toLowerCase().includes(q));
     }
     return pool;
+  }
+
+  /** Every link the current view covers, before chip, prune, tag or search filters. */
+  _selectionLeaves() {
+    const { type, id, folder } = this._activeSelection;
+    if (type === "all") return this._leaves;
+    if (type === "quickie") return this._quickieLeaves;
+    if (type === "cold") return this._leaves.filter((b) => this._bandFor(b) === "cold");
+    if (type === "duplicates") return findDuplicates(this._leaves).groups.flatMap((g) => g.leaves);
+    if (type === "collection") return this._collectionLeaves(this._getActiveCollection());
+    if (type === "folder") {
+      if (!folder) return [];
+      return String(id).startsWith("loose:") ? directLeaves(folder) : flattenLeaves([folder]);
+    }
+    return [];
+  }
+
+  /** A collection's links: its native folder's bookmarks plus members resolved by id or URL. */
+  _collectionLeaves(coll) {
+    if (!coll) return [];
+    const resolved = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
+    const nativeFolder = coll.folderId ? findFolderById(this._roots, coll.folderId) : null;
+    if (!nativeFolder?.children) return resolved;
+    const seen = new Set();
+    const leaves = [];
+    for (const leaf of [...flattenLeaves(nativeFolder.children), ...resolved]) {
+      if (leaf && !seen.has(leaf.id)) {
+        seen.add(leaf.id);
+        leaves.push(leaf);
+      }
+    }
+    return leaves;
+  }
+
+  /** A folder shows every link nested inside it. The sub-folder chips
+   *  narrow that to one sub-folder, or to the folder's own loose links. */
+  _folderPool() {
+    const { id, folder } = this._activeSelection;
+    if (!folder) return [];
+    // Synthetic "loose:<root>" folders only ever hold the root's own links.
+    if (String(id).startsWith("loose:") || this._subfolderFilter === "direct") {
+      return directLeaves(folder);
+    }
+    if (this._subfolderFilter) {
+      const sub = (folder.children || []).find(
+        (c) => c.type === "folder" && String(c.id) === String(this._subfolderFilter),
+      );
+      if (sub) return flattenLeaves([sub], [], [folder.title]);
+    }
+    return flattenLeaves([folder]);
+  }
+
+  _lastOpenedFor(bookmark) {
+    return lastOpenedFor(bookmark, {
+      lastOpenedAt: this._lastOpenedAt,
+      usage: this._usage,
+      trackedSince: this._signalSince,
+    });
+  }
+
+  _bandFor(bookmark) {
+    return signalBand({ lastOpenedAt: this._lastOpenedFor(bookmark), dateAdded: bookmark.dateAdded });
+  }
+
+  _currentSubfolders() {
+    const { type, id, folder } = this._activeSelection;
+    if (type !== "folder" || String(id).startsWith("loose:")) return [];
+    return (folder?.children || []).filter((c) => c.type === "folder");
+  }
+
+  /** A colour picked for the folder wins, then its position among its siblings. */
+  _colorForFolder(node) {
+    const id = node?.id != null ? String(node.id) : null;
+    return (id && (this._folderColors?.[id] || this._folderColorIndex?.get(id)))
+      || siblingColor(hashStr(node?.title || ""));
+  }
+
+  /** Card colour: the colour of the folder the link lives in. */
+  _colorForBookmark(bookmark) {
+    const parentId = bookmark?.parentId != null ? String(bookmark.parentId) : null;
+    const picked = parentId && (this._folderColors?.[parentId] || this._folderColors?.[`loose:${parentId}`]);
+    if (picked) return picked;
+    if (parentId && this._folderColorIndex?.has(parentId)) return this._folderColorIndex.get(parentId);
+    return siblingColor(hashStr(bookmark?.path?.[bookmark.path.length - 1] || ""));
+  }
+
+  /** Chip and prune filters belong to one view; moving to another clears them. */
+  _syncFilterScope() {
+    const scope = `${this._activeSelection.type}:${this._activeSelection.id ?? ""}`;
+    if (this._filterScope === scope) return;
+    this._filterScope = scope;
+    this._subfolderFilter = null;
+    this._signalFilter = null;
+    this._chipsExpanded = false;
+  }
+
+  /** Sub-folder chips and the signal strip, on one line above the grid. */
+  _renderFilterRow(subfolders = []) {
+    const row = el("div", { className: "raindrop-filter-row" });
+    if (this._activeSelection.type === "folder" && subfolders.length) {
+      row.appendChild(this._renderChipRow(this._activeSelection.folder, subfolders));
+    }
+    const isReviewList = this._activeSelection.type === "cold" || this._activeSelection.type === "duplicates";
+    const strip = isReviewList ? null : this._renderSignalStrip();
+    if (strip) row.appendChild(strip);
+    return row.childNodes.length ? row : null;
+  }
+
+  /** Only six sub-folder chips stay inline; the rest wait behind "+N more". */
+  _renderChipRow(folder, subfolders) {
+    const VISIBLE = 6;
+    const chips = el("div", { className: "raindrop-chip-row" + (this._chipsExpanded ? " is-expanded" : "") });
+
+    const makeChip = ({ label, count, value, title, color = null }) => {
+      const isActive = this._subfolderFilter === value;
+      const chip = el("button", {
+        type: "button",
+        className: "raindrop-chip" + (isActive ? " is-active" : ""),
+        title: title || label,
+        "aria-pressed": isActive ? "true" : "false",
+      },
+        color ? icon("folder", "raindrop-chip-icon") : null,
+        el("span", { className: "raindrop-chip-label" }, label),
+        el("span", { className: "raindrop-chip-count" }, String(count)),
+      );
+      if (color) chip.style.setProperty("--chip-accent", color);
+      chip.addEventListener("click", () => {
+        this._subfolderFilter = value;
+        this._renderContent();
+      });
+      return chip;
+    };
+
+    chips.appendChild(makeChip({ label: "All", count: flattenLeaves([folder]).length, value: null, title: `Every link in ${folder.title}` }));
+
+    const direct = directLeaves(folder);
+    if (direct.length) {
+      chips.appendChild(makeChip({ label: "Direct", count: direct.length, value: "direct", title: `Links saved directly in ${folder.title}` }));
+    }
+
+    const shown = this._chipsExpanded ? subfolders : subfolders.slice(0, VISIBLE);
+    for (const sub of shown) {
+      const chip = makeChip({
+        label: sub.title,
+        count: flattenLeaves([sub]).length,
+        value: String(sub.id),
+        title: `${sub.title} (double-click to open)`,
+        color: this._colorForFolder(sub),
+      });
+      chip.addEventListener("dblclick", () => {
+        this._activeSelection = { type: "folder", id: sub.id, title: sub.title, folder: sub };
+        this._activeTag = null;
+        this._expandedFolders.add(String(folder.id));
+        this._renderSidebar();
+        this._renderHeader();
+        this._renderContent();
+      });
+      this._bindFolderDropTarget(chip, sub.id);
+      chips.appendChild(chip);
+    }
+
+    if (!this._chipsExpanded && subfolders.length > VISIBLE) {
+      const more = el("button", { type: "button", className: "raindrop-chip is-more", title: "Show every sub-folder" },
+        el("span", { className: "raindrop-chip-label" }, `+${subfolders.length - VISIBLE} more`),
+        icon("chevronDown"),
+      );
+      more.addEventListener("click", () => {
+        this._chipsExpanded = true;
+        this._renderContent();
+      });
+      chips.appendChild(more);
+    }
+
+    return chips;
+  }
+
+  /** live · resting · cold counts for the current view, with a Prune toggle.
+   *  Hidden when nothing has gone cold. */
+  _renderSignalStrip() {
+    const tally = tallySignal(this._getActivePool({ signal: false }), (b) => this._bandFor(b));
+    if (!tally.cold) return null;
+
+    const width = (n) => `${((n / tally.total) * 100).toFixed(1)}%`;
+    const bar = el("span", { className: "raindrop-signal-bar", "aria-hidden": "true" },
+      el("span", { className: "is-live", style: { width: width(tally.live) } }),
+      el("span", { className: "is-rest", style: { width: width(tally.rest) } }),
+      el("span", { className: "is-cold", style: { width: width(tally.cold) } }),
+    );
+    const text = el("span", { className: "raindrop-signal-text" },
+      el("b", {}, String(tally.live)), " live · ",
+      el("b", {}, String(tally.rest)), " resting · ",
+      el("b", { className: "is-cold" }, String(tally.cold)), " cold",
+    );
+
+    const pruning = this._signalFilter === "cold";
+    const prune = el("button", {
+      type: "button",
+      className: "raindrop-signal-prune" + (pruning ? " is-active" : ""),
+      "aria-pressed": pruning ? "true" : "false",
+      title: pruning ? "Show every link again" : "Show only links that have gone cold",
+    }, el("span", {}, pruning ? "Show all" : "Prune"), icon(pruning ? "x" : "arrowRight"));
+    prune.addEventListener("click", () => {
+      this._signalFilter = pruning ? null : "cold";
+      this._renderContent();
+    });
+
+    return el("div", {
+      className: "raindrop-signal",
+      title: "Live: opened this week. Resting: opened, or saved, in the last 90 days. Cold: not opened in 90 days.",
+    }, bar, text, prune);
   }
 
   _renderShortcutCategoryBar() {
@@ -2653,34 +3010,73 @@ export class BookmarkDeckView {
   }
 
   _dueForPreset(preset) {
-    const d = new Date();
-    const toISO = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    if (preset === "today") return toISO(d);
-    if (preset === "tomorrow") { d.setDate(d.getDate() + 1); return toISO(d); }
-    if (preset === "in3days") { d.setDate(d.getDate() + 3); return toISO(d); }
-    if (preset === "thisWeek") {
-      const day = d.getDay();
-      const untilSun = (7 - day) % 7;
-      d.setDate(d.getDate() + untilSun);
-      return toISO(d);
+    try {
+      return dueForPreset(preset, this.clock?.now?.() || new Date());
+    } catch {
+      return "";
     }
-    return "";
   }
 
   _labelForDue(dueDate) {
-    if (!dueDate) return "";
-    const today = this._dueForPreset("today");
-    const tomorrow = this._dueForPreset("tomorrow");
-    const in3 = this._dueForPreset("in3days");
-    const thisWeek = this._dueForPreset("thisWeek");
-    if (dueDate === today) return "Today";
-    if (dueDate === tomorrow) return "Tomorrow";
-    if (dueDate === in3) return "In 3 days";
-    if (dueDate === thisWeek) return "This week";
     try {
-      const dt = new Date(dueDate + "T00:00:00");
-      return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    } catch { return dueDate; }
+      return labelForDue(dueDate, this.clock?.now?.() || new Date());
+    } catch { return dueDate || ""; }
+  }
+
+  _sortTasks(tasks) {
+    // Quick to-do: no overdue boosting, no date sorting. Active in creation
+    // order, completed sinks to the bottom. The due tag is display-only.
+    return [...(tasks || [])].sort((a, b) => {
+      if (!!a.completed !== !!b.completed) return a.completed ? 1 : -1;
+      return (a.order ?? 0) - (b.order ?? 0);
+    });
+  }
+
+  _taskCounts(tasks) {
+    const list = tasks || [];
+    let active = 0;
+    let done = 0;
+    for (const t of list) {
+      if (t.completed) done += 1;
+      else active += 1;
+    }
+    return { total: list.length, active, done };
+  }
+
+  _normalizeTaskTitle(raw) {
+    // Collapse inner whitespace ("prepare for  the" → "prepare for the")
+    // so pasted/typed titles stay tidy; Task entity still trims + caps length.
+    return String(raw ?? "").replace(/\s+/g, " ").trim();
+  }
+
+  _taskIdOf(t) {
+    return t?.id?.value ?? t?.id;
+  }
+
+  async _toggleTaskCompleted(task) {
+    if (!this.useCases?.updateTask) return;
+    const id = this._taskIdOf(task);
+    const next = !task.completed;
+    // Optimistic flip is handled by the caller re-rendering; keep it simple
+    // and authoritative: persist then re-render both surfaces.
+    await this.useCases.updateTask.execute({ id, completed: next });
+    return next;
+  }
+
+  async _renameTask(id, rawTitle) {
+    if (!this.useCases?.updateTask) return;
+    const title = this._normalizeTaskTitle(rawTitle);
+    if (!title) throw new Error("Task title must be a non-empty string");
+    await this.useCases.updateTask.execute({ id, title });
+  }
+
+  async _clearCompletedTasks() {
+    const tasks = this.useCases?.listTasks ? await this.useCases.listTasks.execute() : [];
+    const done = (tasks || []).filter((t) => t.completed);
+    for (const t of done) {
+      await this.useCases.deleteTask.execute(this._taskIdOf(t));
+    }
+    return done.length;
   }
 
   async _renderRightPanelList() {
@@ -2688,53 +3084,172 @@ export class BookmarkDeckView {
     this._rightPanelList.replaceChildren(el("div", { className: "todo-panel-loading" }, "Loading..."));
     try {
       const tasks = this.useCases?.listTasks ? await this.useCases.listTasks.execute() : [];
-      const sorted = [...tasks].sort((a, b) => {
-        if (a.completed !== b.completed) return a.completed ? 1 : -1;
-        if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
-        if (a.dueDate && !b.dueDate) return -1;
-        if (!a.dueDate && b.dueDate) return 1;
-        return (a.order ?? 0) - (b.order ?? 0);
-      });
+      const sorted = this._sortTasks(tasks);
+      const counts = this._taskCounts(sorted);
       this._rightPanelList.replaceChildren();
+      this._updateRightPanelCount(counts);
       if (sorted.length === 0) {
-        this._rightPanelList.append(el("div", { className: "todo-panel-empty" }, "No tasks yet. Add one above."));
-        this._updateRightPanelCount(0);
-        return;
+        this._rightPanelList.append(el("div", { className: "todo-panel-empty" },
+          "No tasks yet. Type above and pick a shortcut."));
+      } else {
+        for (const t of sorted) {
+          this._rightPanelList.append(this._buildTaskRow(t, "todo-panel", () => this._renderRightPanelList()));
+        }
       }
-      this._updateRightPanelCount(sorted.filter(t => !t.completed).length);
-      for (const t of sorted) {
-        const row = el("div", { className: `todo-panel-item${t.completed ? " is-done" : ""}` });
-        const check = el("button", {
-          type: "button",
-          className: `todo-panel-check${t.completed ? " is-done" : ""}`,
-          "aria-label": "Done",
-          title: "Done",
-        }, icon("check"));
-        check.addEventListener("click", async () => {
-          try {
-            row.classList.add("is-done");
-            await this.useCases.deleteTask.execute(t.id?.value || t.id);
-            await this._renderRightPanelList();
-          } catch (e) { this.toast?.show(e.message || "Could not delete", { error: true }); }
-        });
-        const titleEl = el("span", { className: "todo-panel-title" }, t.title);
-        const duePill = t.dueDate ? el("span", { className: "todo-panel-due" }, this._labelForDue(t.dueDate)) : null;
-        const delBtn = el("button", { type: "button", className: "todo-panel-delete", title: "Delete", "aria-label": "Delete" }, icon("trash"));
-        delBtn.addEventListener("click", async () => {
-          try { await this.useCases.deleteTask.execute(t.id?.value || t.id); await this._renderRightPanelList(); } catch (e) { this.toast?.show(e.message || "Could not delete", { error: true }); }
-        });
-        row.append(check, titleEl);
-        if (duePill) row.append(duePill);
-        row.append(delBtn);
-        this._rightPanelList.append(row);
-      }
+      this._renderTaskFooter(this._rightPanelList, "todo-panel", counts, () => this._renderRightPanelList());
     } catch {
       this._rightPanelList.replaceChildren(el("div", { className: "todo-panel-empty" }, "Failed to load tasks"));
     }
   }
 
-  _updateRightPanelCount(n) {
-    if (this._rightPanelCount) this._rightPanelCount.textContent = n ? `${n} left` : "";
+  _renderTaskFooter(host, prefix, counts, rerender) {
+    if (!counts || counts.total === 0) return;
+    const pct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
+    const footer = el("div", { className: `${prefix}-footer` },
+      el("div", { className: `${prefix}-progress`, role: "progressbar", "aria-valuenow": String(pct), "aria-valuemin": "0", "aria-valuemax": "100", title: `${counts.done}/${counts.total} done` },
+        el("div", { className: `${prefix}-progress-bar`, style: { width: `${pct}%` } })
+      ),
+      el("span", { className: `${prefix}-progress-label` }, `${counts.done}/${counts.total} done`)
+    );
+    if (counts.done > 0) {
+      const clearBtn = el("button", { type: "button", className: `${prefix}-clear-done` }, `Clear done (${counts.done})`);
+      clearBtn.addEventListener("click", async () => {
+        try {
+          const n = await this._clearCompletedTasks();
+          this.toast?.show(n ? `Cleared ${n} completed task${n === 1 ? "" : "s"}` : "Nothing to clear");
+          await rerender?.();
+          this._refreshBentoTasks?.();
+          this._renderRightPanelList?.();
+        } catch (e) { this.toast?.show(e.message || "Could not clear", { error: true }); }
+      });
+      footer.append(clearBtn);
+    }
+    host.append(footer);
+  }
+
+  // Quick to-do shortcuts: one row of chips under the input. Clicking a chip
+  // adds the current text with that due preset (or just arms it for Enter
+  // when the input is empty). No date/time pickers — presets are enough.
+  _buildPresetChips(host, prefix, getPreset, setPreset, onPick) {
+    const presets = [
+      { id: "today", label: "Today" },
+      { id: "tomorrow", label: "Tomorrow" },
+      { id: "in3days", label: "In 3 days" },
+      { id: "thisWeek", label: "This week" },
+      { id: "none", label: "No date" },
+    ];
+    host.replaceChildren();
+    for (const p of presets) {
+      const selected = (getPreset() || "today") === p.id;
+      const btn = el("button", {
+        type: "button",
+        className: `${prefix}-chip${selected ? " is-selected" : ""}`,
+        "data-preset": p.id,
+        "aria-pressed": selected ? "true" : "false",
+        title: `Add task ${p.id === "none" ? "with no date" : `due ${p.label.toLowerCase()}`}`,
+      }, p.label);
+      btn.addEventListener("click", async () => {
+        setPreset(p.id);
+        this._buildPresetChips(host, prefix, getPreset, setPreset, onPick);
+        await onPick?.(p.id);
+      });
+      host.append(btn);
+    }
+  }
+
+  _buildTaskRow(t, prefix, rerender) {
+    // Quick to-do row: single line — checkbox + title + due tag + delete.
+    // No date icon, no editor, no time/reminder. The tag is display-only.
+    const id = this._taskIdOf(t);
+    const tag = t.dueDate ? this._labelForDue(t.dueDate) : "No date";
+    const row = el("div", {
+      className: `${prefix}-item${t.completed ? " is-done" : ""}`,
+      dataset: { id: String(id ?? "") },
+    });
+
+    const check = el("button", {
+      type: "button",
+      className: `${prefix}-check${t.completed ? " is-done" : ""}`,
+      "aria-label": t.completed ? "Mark as not done" : "Mark as done",
+      "aria-pressed": t.completed ? "true" : "false",
+      title: t.completed ? "Mark as not done" : "Mark as done",
+    }, icon("check"));
+    check.addEventListener("click", async () => {
+      check.disabled = true;
+      try {
+        await this._toggleTaskCompleted(t);
+        await rerender?.();
+        this._refreshBentoTasks?.();
+        this._renderRightPanelList?.();
+      } catch (e) { this.toast?.show(e.message || "Could not update task", { error: true }); }
+      finally { check.disabled = false; }
+    });
+
+    const titleEl = el("span", {
+      className: `${prefix}-title`,
+      title: t.dueDate ? `${t.title} · ${tag}` : t.title,
+    }, t.title);
+    titleEl.addEventListener("dblclick", () => {
+      const input = el("input", {
+        type: "text",
+        className: `${prefix}-title-input`,
+        value: t.title,
+        maxLength: 200,
+        "aria-label": "Task title",
+      });
+      titleEl.replaceWith(input);
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      let committed = false;
+      const commit = async (save) => {
+        if (committed) return;
+        committed = true;
+        if (save && input.value !== t.title) {
+          try { await this._renameTask(id, input.value); }
+          catch (e) { this.toast?.show(e.message || "Could not rename", { error: true }); }
+        }
+        await rerender?.();
+      };
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") commit(true);
+        if (e.key === "Escape") commit(false);
+        e.stopPropagation();
+      });
+      input.addEventListener("blur", () => commit(true));
+    });
+
+    const tagEl = el("span", {
+      className: `${prefix}-due${t.dueDate ? "" : " is-undated"}`,
+      title: t.dueDate ? `Due ${t.dueDate}` : "No due date",
+    }, tag);
+
+    const delBtn = el("button", { type: "button", className: `${prefix}-delete`, title: "Delete task", "aria-label": `Delete ${t.title}` }, icon("trash"));
+    delBtn.addEventListener("click", async () => {
+      try {
+        await this.useCases.deleteTask.execute(id);
+        this.toast?.show(`Deleted "${t.title.length > 40 ? `${t.title.slice(0, 40)}…` : t.title}"`);
+        await rerender?.();
+        this._refreshBentoTasks?.();
+        this._renderRightPanelList?.();
+      } catch (e) { this.toast?.show(e.message || "Could not delete", { error: true }); }
+    });
+
+    row.append(check, titleEl, tagEl, delBtn);
+    return row;
+  }
+
+  _updateRightPanelCount(counts) {
+    if (!this._rightPanelCount) return;
+    const c = typeof counts === "number" ? { active: counts, done: 0 } : (counts || { active: 0, done: 0 });
+    this._rightPanelCount.textContent = c.active ? `${c.active} left` : "0 left";
+    this._rightPanelCount.title = `${c.active} active · ${c.done} done`;
+  }
+
+  _updateBentoTaskCount(counts) {
+    if (!this._bentoTaskCount) return;
+    const c = counts || { active: 0, done: 0, total: 0 };
+    this._bentoTaskCount.textContent = c.active ? `${c.active} left` : (c.total ? "All done" : "");
+    this._bentoTaskCount.title = `${c.active} active · ${c.done} done`;
   }
 
   _ensureRightPanel() {
@@ -2764,14 +3279,20 @@ export class BookmarkDeckView {
       autocomplete: "off",
     });
 
-    const submitRightPanelTask = async (presetId = "today") => {
-      const title = this._rightPanelInput.value.trim();
+    const submitRightPanelTask = async (presetId) => {
+      const title = this._normalizeTaskTitle(this._rightPanelInput.value);
       if (!title) {
-        this.toast?.show("Type a task first", { error: true });
-        this._rightPanelInput.focus();
+        // Clicking a chip with empty input just arms that preset for Enter.
+        if (presetId) {
+          this._rightPanelPreset = presetId;
+          this.toast?.show(`Due preset: ${presetId === "none" ? "No date" : presetId === "in3days" ? "In 3 days" : presetId === "thisWeek" ? "This week" : presetId[0].toUpperCase() + presetId.slice(1)} — type a task to add`);
+        } else {
+          this.toast?.show("Type a task first", { error: true });
+          this._rightPanelInput.focus();
+        }
         return;
       }
-      const dueDate = this._dueForPreset(presetId);
+      const dueDate = this._dueForPreset(presetId || this._rightPanelPreset || "today");
       try {
         if (this.useCases?.createTask) {
           await this.useCases.createTask.execute({ title, dueDate });
@@ -2787,32 +3308,25 @@ export class BookmarkDeckView {
     const rightPanelEnterBtn = el("button", {
       type: "button",
       className: "todo-panel-enter-btn",
-      title: "Press Enter to add task",
+      title: "Add task",
       "aria-label": "Add task",
     },
       el("span", { className: "todo-panel-kbd" }, "Enter"),
       el("span", { className: "todo-panel-enter-icon" }, "↵")
     );
-    rightPanelEnterBtn.addEventListener("click", () => submitRightPanelTask("today"));
+    rightPanelEnterBtn.addEventListener("click", () => submitRightPanelTask());
 
     inputBox.append(this._rightPanelInput, rightPanelEnterBtn);
 
-    const chips = el("div", { className: "todo-panel-chips" });
-    const presets = [
-      { id: "today", label: "Today" },
-      { id: "tomorrow", label: "Tomorrow" },
-      { id: "in3days", label: "In 3 days" },
-      { id: "thisWeek", label: "This week" },
-    ];
-    for (const p of presets) {
-      const btn = el("button", { type: "button", className: "todo-panel-chip", "data-preset": p.id }, p.label);
-      btn.addEventListener("click", () => submitRightPanelTask(p.id));
-      chips.append(btn);
-    }
-    // Enter defaults to Today
+    const chips = el("div", { className: "todo-panel-chips", role: "group", "aria-label": "Quick due shortcuts" });
+    this._buildPresetChips(chips, "todo-panel",
+      () => this._rightPanelPreset || "today",
+      (id) => { this._rightPanelPreset = id; },
+      (id) => submitRightPanelTask(id));
+    // Enter submits with the selected preset
     this._rightPanelInput.addEventListener("keydown", async (e) => {
       if (e.key === "Enter") {
-        await submitRightPanelTask("today");
+        await submitRightPanelTask();
       }
     });
 
@@ -2848,6 +3362,7 @@ export class BookmarkDeckView {
 
   _renderContent() {
     this._closeContextMenu();
+    this._syncFilterScope();
     this._content.replaceChildren();
 
     // 1. Omni-Search Active Mode (Matches Shortcuts AND Bookmarks with O(1) indexed lookup)
@@ -2865,6 +3380,8 @@ export class BookmarkDeckView {
           scopedBookmarkIds = new Set(coll ? coll.bookmarkIds : []);
         } else if (this._activeSelection.type === "quickie") {
           scopedBookmarkIds = new Set(this._quickieLeaves.map((b) => b.id));
+        } else if (this._activeSelection.type === "cold" || this._activeSelection.type === "duplicates") {
+          scopedBookmarkIds = new Set(this._selectionLeaves().map((b) => b.id));
         }
       }
 
@@ -2949,15 +3466,17 @@ export class BookmarkDeckView {
     }
 
     // 3. Bookmark Pool Views (All, Quickie, Collection, Folder)
-    const pool = this._getActivePool();
+    let pool = this._getActivePool();
+    if (this._signalFilter && pool.length === 0) {
+      // Nothing cold is left to prune: drop the filter rather than show an empty grid.
+      this._signalFilter = null;
+      pool = this._getActivePool();
+    }
     const isCollection = this._activeSelection.type === "collection";
-    const isFolderSelection = this._activeSelection.type === "folder";
     const isHomeSelection = this._activeSelection.type === "all";
 
     // Direct subfolders for the current view
-    const currentSubfolders = isFolderSelection
-      ? (this._activeSelection.folder?.children || []).filter((c) => c.type === "folder")
-      : [];
+    const currentSubfolders = this._currentSubfolders();
 
     // Universal Top Category Selector (Layer 1) and Quick Click Shortcut Grid (Layer 2)
     // Rendered on Home view when not searching or tag filtering.
@@ -3032,8 +3551,9 @@ export class BookmarkDeckView {
       if (shortcutGrid) shortcutsContainer.appendChild(shortcutGrid);
       if (categoryBar || shortcutGrid) this._content.appendChild(shortcutsContainer);
 
-      // Home Bento Grid Dashboard (Collections, Quickies, Tasks) - Hidden in Focus mode
+      // Below the shortcuts: the triage row, then Quickie, Collections and To-Do. Hidden in Focus mode.
       if (this._layoutStyle !== "focus") {
+        this._content.appendChild(this._renderTriageRow());
         const bentoDashboard = this._renderHomeBentoGrid();
         if (bentoDashboard) this._content.appendChild(bentoDashboard);
       }
@@ -3057,6 +3577,12 @@ export class BookmarkDeckView {
       } else if (this._activeSelection.type === "folder") {
         emptyTitle = `Folder "${this._activeSelection.title}" is empty`;
         emptyDesc = "Add subfolders or move bookmarks here.";
+      } else if (this._activeSelection.type === "cold") {
+        emptyTitle = "Nothing has gone cold";
+        emptyDesc = "Every link was opened, or saved, in the last 90 days.";
+      } else if (this._activeSelection.type === "duplicates") {
+        emptyTitle = "No duplicates";
+        emptyDesc = "Every URL in your library is saved once.";
       }
 
       const emptyIconName = this._activeSelection.type === "quickie"
@@ -3114,34 +3640,9 @@ export class BookmarkDeckView {
       return;
     }
 
-    // Subfolder grid when inside a folder that has child folders
-    if (currentSubfolders.length > 0) {
-      const subfolderGrid = el("div", { className: "raindrop-quickbar", "aria-label": "Subfolders" });
-      for (const sub of currentSubfolders) {
-        const color = this._getFolderColor(sub);
-        const count = countLeaves(sub.children || []);
-        const tile = el("button", {
-          type: "button",
-          className: "raindrop-quick-tile",
-          title: `${sub.title} (${count})`,
-        },
-          el("span", { className: "raindrop-quick-tile-icon", style: `background:${color}2E;color:${color};` }, icon("folder")),
-          el("span", { className: "raindrop-quick-tile-label" }, sub.title),
-          el("span", { className: "raindrop-quick-tile-count" }, String(count))
-        );
-        tile.addEventListener("click", () => {
-          this._activeSelection = { type: "folder", id: sub.id, title: sub.title, folder: sub };
-          this._activeTag = null;
-          this._expandedFolders.add(sub.id);
-          this._renderSidebar();
-          this._renderHeader();
-          this._renderContent();
-        });
-        this._bindFolderDropTarget(tile, sub.id);
-        subfolderGrid.appendChild(tile);
-      }
-      this._content.appendChild(subfolderGrid);
-    }
+    // Sub-folder chips and the signal strip share one row above the grid.
+    const filterRow = this._renderFilterRow(currentSubfolders);
+    if (filterRow) this._content.appendChild(filterRow);
 
     if (pool.length > 0) {
       const grid = el("div", { className: `raindrop-layout raindrop-${this._viewMode}` });
@@ -3196,17 +3697,11 @@ export class BookmarkDeckView {
     
     const collectionsHeader = el("div", { className: "bento-card-header" },
       el("div", { className: "bento-card-header-left" },
-        el("span", { className: "bento-card-icon" }, icon("folder")),
+        el("span", { className: "bento-card-icon" }, icon("collection")),
         el("h3", { className: "bento-card-title" }, "Collections"),
         el("span", { className: "bento-card-count" }, `${visibleCollections.length}`)
       ),
       el("div", { className: "bento-card-header-actions" },
-        el("button", {
-          type: "button",
-          className: "bento-btn-icon",
-          title: "New Collection",
-          "aria-label": "New Collection"
-        }, icon("plus")),
         visibleCollections.length > 0 ? el("button", {
           type: "button",
           className: "bento-btn-link",
@@ -3215,10 +3710,6 @@ export class BookmarkDeckView {
       )
     );
 
-    collectionsHeader.querySelector(".bento-btn-icon")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this._promptCreateBookmarkCollection();
-    });
     collectionsHeader.querySelector(".bento-btn-link")?.addEventListener("click", (e) => {
       e.stopPropagation();
       this._activeSelection = { type: "collections" };
@@ -3238,38 +3729,20 @@ export class BookmarkDeckView {
       collectionsBody.appendChild(emptyCol);
     } else {
       const colGrid = el("div", { className: "bento-collections-grid" });
-      const previewCols = visibleCollections.slice(0, 6);
-      for (const coll of previewCols) {
-        const leaves = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
-        const count = leaves.length;
-        const dotStyle = coll.color ? `background: ${coll.color};` : "";
-
+      // Same order and colours as the sidebar's collection list.
+      for (const [index, coll] of visibleCollections.slice(0, 8).entries()) {
+        const count = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls).length;
         const tile = el("div", {
           className: "bento-collection-tile",
           role: "button",
           tabIndex: 0,
           title: `Open ${coll.name} (${count} bookmarks)`,
+          style: { "--row-accent": coll.color || siblingColor(index) },
         },
-          el("div", { className: "bento-collection-top" },
-            el("span", { className: "bento-collection-dot", style: dotStyle }),
-            el("span", { className: "bento-collection-name" }, coll.name),
-            el("span", { className: "bento-collection-count" }, `${count}`)
-          ),
-          el("div", { className: "bento-collection-preview" })
+          el("span", { className: "bento-collection-icon", "aria-hidden": "true" }, icon("collection")),
+          el("span", { className: "bento-collection-name" }, coll.name),
+          el("span", { className: "bento-collection-count" }, `${count}`)
         );
-
-        const previewStrip = tile.querySelector(".bento-collection-preview");
-        if (leaves.length > 0) {
-          for (const leaf of leaves.slice(0, 4)) {
-            const fav = this._favicon(leaf, "bento-collection-fav");
-            previewStrip.appendChild(fav);
-          }
-          if (count > 4) {
-            previewStrip.appendChild(el("span", { className: "bento-collection-more" }, `+${count - 4}`));
-          }
-        } else {
-          previewStrip.appendChild(el("span", { className: "bento-collection-empty-label" }, "Empty collection"));
-        }
 
         this._bindCollectionDropTarget(tile, coll.id);
         tile.addEventListener("click", () => {
@@ -3294,8 +3767,8 @@ export class BookmarkDeckView {
     const quickieLeaves = this._quickieLeaves || [];
     const quickiesHeader = el("div", { className: "bento-card-header" },
       el("div", { className: "bento-card-header-left" },
-        el("span", { className: "bento-card-icon" }, icon("zap")),
-        el("h3", { className: "bento-card-title" }, "Quickies"),
+        el("span", { className: "bento-card-icon" }, icon("inbox")),
+        el("h3", { className: "bento-card-title" }, "Quickie"),
         el("span", { className: "bento-card-count" }, `${quickieLeaves.length}`)
       ),
       el("div", { className: "bento-card-header-actions" },
@@ -3426,8 +3899,8 @@ export class BookmarkDeckView {
     const tasksTile = el("div", { className: "bento-card bento-card-tasks" });
     const tasksHeader = el("div", { className: "bento-card-header" },
       el("div", { className: "bento-card-header-left" },
-        el("span", { className: "bento-card-icon" }, icon("check")),
-        el("h3", { className: "bento-card-title" }, "Tasks"),
+        el("span", { className: "bento-card-icon" }, icon("checkSquare")),
+        el("h3", { className: "bento-card-title" }, "To-Do"),
         this._bentoTaskCount = el("span", { className: "bento-card-count" }, "")
       )
     );
@@ -3446,14 +3919,18 @@ export class BookmarkDeckView {
       autocomplete: "off",
     });
 
-    const submitTask = async (presetId = "today") => {
-      const title = taskInput.value.trim();
+    const submitTask = async (presetId) => {
+      const title = this._normalizeTaskTitle(taskInput.value);
       if (!title) {
-        this.toast?.show("Type a task first", { error: true });
-        taskInput.focus();
+        // Clicking a shortcut with empty input just arms it for Enter.
+        if (presetId) this._bentoTaskPreset = presetId;
+        else {
+          this.toast?.show("Type a task first", { error: true });
+          taskInput.focus();
+        }
         return;
       }
-      const dueDate = this._dueForPreset(presetId);
+      const dueDate = this._dueForPreset(presetId || this._bentoTaskPreset || "today");
       try {
         if (this.useCases?.createTask) {
           await this.useCases.createTask.execute({ title, dueDate });
@@ -3469,31 +3946,25 @@ export class BookmarkDeckView {
     const enterBtn = el("button", {
       type: "button",
       className: "bento-tasks-enter-btn",
-      title: "Press Enter to add task",
+      title: "Add task",
       "aria-label": "Add task",
     },
       el("span", { className: "bento-tasks-kbd" }, "Enter"),
       el("span", { className: "bento-tasks-enter-icon" }, "↵")
     );
-    enterBtn.addEventListener("click", () => submitTask("today"));
+    enterBtn.addEventListener("click", () => submitTask());
 
     inputBox.append(taskInput, enterBtn);
 
-    const chips = el("div", { className: "bento-tasks-chips" });
-    const presets = [
-      { id: "today", label: "Today" },
-      { id: "tomorrow", label: "Tomorrow" },
-      { id: "thisWeek", label: "This week" },
-    ];
-    for (const p of presets) {
-      const btn = el("button", { type: "button", className: "bento-tasks-chip", "data-preset": p.id }, p.label);
-      btn.addEventListener("click", () => submitTask(p.id));
-      chips.append(btn);
-    }
+    const chips = el("div", { className: "bento-tasks-chips", role: "group", "aria-label": "Quick due shortcuts" });
+    this._buildPresetChips(chips, "bento-tasks",
+      () => this._bentoTaskPreset || "today",
+      (id) => { this._bentoTaskPreset = id; },
+      (id) => submitTask(id));
 
     taskInput.addEventListener("keydown", async (e) => {
       if (e.key === "Enter") {
-        await submitTask("today");
+        await submitTask();
       }
     });
 
@@ -3504,7 +3975,12 @@ export class BookmarkDeckView {
     tasksBody.appendChild(this._bentoTasksList);
     tasksTile.appendChild(tasksBody);
 
-    bentoContainer.append(collectionsTile, quickiesTile, tasksTile);
+    bentoContainer.append(quickiesTile, collectionsTile, tasksTile);
+    // Month calendar surface (honors showDate).
+    try {
+      const calTile = this._renderCalendarTile();
+      if (calTile) bentoContainer.append(calTile);
+    } catch { /* non-fatal */ }
 
     // Load initial tasks into the bento panel
     this._refreshBentoTasks();
@@ -3512,62 +3988,98 @@ export class BookmarkDeckView {
     return bentoContainer;
   }
 
+  /** Home's short list of library chores: file Quickie, prune cold links,
+   *  clear duplicates. Each card opens the list it counts. */
+  _renderTriageRow() {
+    const DAY = 86_400_000;
+    const now = this.clock.now().getTime();
+    const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+    const quickie = this._quickieLeaves || [];
+    const oldestSaved = Math.min(...quickie.map((b) => b.dateAdded || Infinity));
+    const oldestDays = Number.isFinite(oldestSaved) ? Math.floor((now - oldestSaved) / DAY) : null;
+    const coldCount = this._leaves.filter((b) => this._bandFor(b) === "cold").length;
+    const duplicates = findDuplicates(this._leaves);
+
+    let quickieNote = "nothing waiting to be filed";
+    if (quickie.length) {
+      quickieNote = oldestDays === null
+        ? "file them into folders"
+        : `oldest sat ${oldestDays === 0 ? "under a day" : plural(oldestDays, "day")} · file them`;
+    }
+
+    const cards = [
+      {
+        kind: "quickie",
+        icon: "inbox",
+        title: quickie.length ? `${quickie.length} in Quickie` : "Quickie is empty",
+        note: quickieNote,
+        open: () => this._openView({ type: "quickie", title: "Quickie" }),
+      },
+      {
+        kind: "cold",
+        icon: "activity",
+        alert: coldCount > 0,
+        title: coldCount ? `${coldCount} gone cold` : "Nothing gone cold",
+        note: coldCount ? "never opened, or not in 90 days" : "every link opened in the last 90 days",
+        open: () => this._openView({ type: "cold", title: "Gone cold" }),
+      },
+      {
+        kind: "duplicates",
+        icon: "copy",
+        title: duplicates.extraCopies ? plural(duplicates.extraCopies, "duplicate") : "No duplicates",
+        note: duplicates.extraCopies ? `same URL across ${plural(duplicates.folderCount, "folder")}` : "every URL saved once",
+        open: () => this._openView({ type: "duplicates", title: "Duplicates" }),
+      },
+    ];
+
+    const row = el("div", { className: "raindrop-triage-row" });
+    for (const card of cards) {
+      const button = el("button", {
+        type: "button",
+        className: "raindrop-triage-card" + (card.alert ? " is-alert" : ""),
+        "data-triage": card.kind,
+      },
+        el("span", { className: "raindrop-triage-icon", "aria-hidden": "true" }, icon(card.icon)),
+        el("span", { className: "raindrop-triage-text" },
+          el("span", { className: "raindrop-triage-title" }, card.title),
+          el("span", { className: "raindrop-triage-note" }, card.note),
+        ),
+        el("span", { className: "raindrop-triage-go", "aria-hidden": "true" }, icon("chevronRight")),
+      );
+      button.addEventListener("click", card.open);
+      row.appendChild(button);
+    }
+    return row;
+  }
+
+  _openView(selection) {
+    this._activeSelection = selection;
+    this._activeTag = null;
+    this._renderSidebar();
+    this._renderHeader();
+    this._renderContent();
+  }
+
   async _refreshBentoTasks() {
     if (!this._bentoTasksList) return;
     try {
       const tasks = this.useCases?.listTasks ? await this.useCases.listTasks.execute() : [];
-      const sorted = [...tasks].sort((a, b) => {
-        if (a.completed !== b.completed) return a.completed ? 1 : -1;
-        if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
-        if (a.dueDate && !b.dueDate) return -1;
-        if (!a.dueDate && b.dueDate) return 1;
-        return (a.order ?? 0) - (b.order ?? 0);
-      });
+      const sorted = this._sortTasks(tasks);
+      const counts = this._taskCounts(sorted);
       this._bentoTasksList.replaceChildren();
-      const pendingCount = sorted.filter(t => !t.completed).length;
-      if (this._bentoTaskCount) this._bentoTaskCount.textContent = pendingCount ? `${pendingCount} left` : "0";
+      this._updateBentoTaskCount(counts);
 
       if (sorted.length === 0) {
         this._bentoTasksList.append(el("div", { className: "bento-empty-state is-compact" },
-          el("p", { className: "bento-empty-text" }, "All caught up! No tasks.")
+          el("p", { className: "bento-empty-text" }, "No tasks yet. Type above and pick a shortcut.")
         ));
-        return;
+      } else {
+        for (const t of sorted) {
+          this._bentoTasksList.append(this._buildTaskRow(t, "bento-task", () => this._refreshBentoTasks()));
+        }
       }
-
-      for (const t of sorted) {
-        const row = el("div", { className: `bento-task-item${t.completed ? " is-done" : ""}` });
-        const check = el("button", {
-          type: "button",
-          className: `bento-task-check${t.completed ? " is-done" : ""}`,
-          "aria-label": "Done",
-          title: "Done",
-        }, icon("check"));
-        check.addEventListener("click", async () => {
-          try {
-            row.classList.add("is-done");
-            await this.useCases.deleteTask.execute(t.id?.value || t.id);
-            await this._refreshBentoTasks();
-          } catch (e) { this.toast?.show(e.message || "Could not delete task", { error: true }); }
-        });
-        const titleEl = el("span", { className: "bento-task-title" }, t.title);
-        const duePill = t.dueDate ? el("span", { className: "bento-task-due" }, this._labelForDue(t.dueDate)) : null;
-        const delBtn = el("button", {
-          type: "button",
-          className: "bento-task-delete",
-          title: "Delete task",
-          "aria-label": "Delete task"
-        }, icon("trash"));
-        delBtn.addEventListener("click", async () => {
-          try {
-            await this.useCases.deleteTask.execute(t.id?.value || t.id);
-            await this._refreshBentoTasks();
-          } catch (e) { this.toast?.show(e.message || "Could not delete task", { error: true }); }
-        });
-        row.append(check, titleEl);
-        if (duePill) row.append(duePill);
-        row.append(delBtn);
-        this._bentoTasksList.append(row);
-      }
+      this._renderTaskFooter(this._bentoTasksList, "bento-task", counts, () => this._refreshBentoTasks());
     } catch {
       this._bentoTasksList.replaceChildren(el("div", { className: "bento-empty-state is-compact" },
         el("p", { className: "bento-empty-text" }, "Failed to load tasks")
@@ -3575,159 +4087,234 @@ export class BookmarkDeckView {
     }
   }
 
+  _tasksByDueMap(tasks) {
+    const m = new Map();
+    for (const t of tasks || []) {
+      if (!t?.dueDate || t.completed) continue;
+      m.set(t.dueDate, (m.get(t.dueDate) || 0) + 1);
+    }
+    return m;
+  }
+
+  _renderCalendarTile() {
+    const showDate = this._settings?.showDate !== false;
+    if (!showDate) return null;
+    const tile = el("div", { className: "bento-card bento-card-calendar" });
+    const now = this.clock?.now?.() || new Date();
+    const cursor = this._calendarCursor || { y: now.getFullYear(), m: now.getMonth() };
+    const titleDate = new Date(cursor.y, cursor.m, 1);
+    let monthLabel = "";
+    try {
+      monthLabel = titleDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    } catch { monthLabel = `${cursor.y}-${cursor.m + 1}`; }
+
+    const header = el("div", { className: "bento-card-header" },
+      el("div", { className: "bento-card-header-left" },
+        el("span", { className: "bento-card-icon" }, icon("calendar")),
+        el("h3", { className: "bento-card-title" }, monthLabel),
+      ),
+      el("div", { className: "bento-card-header-actions" },
+        el("button", { type: "button", className: "bento-cal-nav", "aria-label": "Previous month" }, "‹"),
+        el("button", { type: "button", className: "bento-cal-nav", "aria-label": "Next month" }, "›"),
+      ),
+    );
+    const [prevBtn, nextBtn] = header.querySelectorAll(".bento-cal-nav");
+    prevBtn.addEventListener("click", () => {
+      const d = new Date(cursor.y, cursor.m - 1, 1);
+      this._calendarCursor = { y: d.getFullYear(), m: d.getMonth() };
+      this._renderContent();
+    });
+    nextBtn.addEventListener("click", () => {
+      const d = new Date(cursor.y, cursor.m + 1, 1);
+      this._calendarCursor = { y: d.getFullYear(), m: d.getMonth() };
+      this._renderContent();
+    });
+    tile.append(header);
+
+    const body = el("div", { className: "bento-card-body bento-cal-body" });
+    const weekRow = el("div", { className: "bento-cal-week" });
+    for (const w of ["S", "M", "T", "W", "T", "F", "S"]) weekRow.append(el("span", { className: "bento-cal-dow" }, w));
+    body.append(weekRow);
+
+    const grid = el("div", { className: "bento-cal-grid" }, el("div", { className: "bento-empty-state is-compact" },
+      el("p", { className: "bento-empty-text" }, "Loading calendar…")));
+    body.append(grid);
+    tile.append(body);
+
+    // Fill async so home stays synchronous (no await in _renderHomeBentoGrid).
+    (async () => {
+      let tasks = [];
+      try {
+        tasks = this.useCases?.listTasks ? await this.useCases.listTasks.execute().catch(() => []) : [];
+      } catch { tasks = []; }
+      grid.replaceChildren();
+      for (const cell of getMonthGrid(cursor.y, cursor.m, { today: now, tasksByDue: this._tasksByDueMap(tasks) })) {
+        const b = el("button", {
+          type: "button",
+          className: "bento-cal-day" + (cell.inMonth ? "" : " is-out") + (cell.isToday ? " is-today" : "") + (cell.taskCount ? " has-tasks" : ""),
+          title: cell.taskCount ? `${cell.taskCount} task(s) due ${cell.iso}` : cell.iso,
+          "aria-label": `${cell.iso}${cell.taskCount ? `, ${cell.taskCount} tasks due` : ""}`,
+        }, String(cell.day));
+        if (cell.taskCount) b.append(el("span", { className: "bento-cal-dot", "aria-hidden": "true" }));
+        b.addEventListener("click", async () => {
+          // Quick to-do has no custom-date picker: point at the shortcuts.
+          this.toast?.show(cell.taskCount
+            ? `${cell.taskCount} task${cell.taskCount === 1 ? "" : "s"} due ${cell.iso}`
+            : `${cell.iso} — type a task above, then pick a shortcut`);
+        });
+        grid.append(b);
+      }
+    })();
+    return tile;
+  }
+
   /* ── 4. Collections Index Rendering ──────────────────────── */
   _renderCollectionsIndex() {
     const wrap = el("div", { className: "raindrop-collections-view" });
-    const visibleCollections = this._getVisibleCollections();
+    const collections = this._getVisibleCollections();
     const activeGroup = this.groupButtons?.activeGroup;
-    const headingText = activeGroup ? `${activeGroup.name} Collections` : "Your Collections";
 
-    const topBar = el("div", { className: "raindrop-collections-topbar" },
-      el("div", { className: "raindrop-collections-title-wrap" },
-        el("h3", { className: "raindrop-collections-section-heading" }, headingText),
-        el("span", { className: "raindrop-collections-count-badge" }, `${visibleCollections.length}`)
-      ),
-      el("button", {
-        type: "button",
-        className: "raindrop-new-coll-btn",
-      }, icon("plus"), el("span", {}, "New Collection"))
-    );
-    topBar.querySelector(".raindrop-new-coll-btn").addEventListener("click", () => this._promptCreateBookmarkCollection());
-    wrap.appendChild(topBar);
-
-    if (visibleCollections.length === 0) {
+    if (collections.length === 0) {
       const emptyDesc = activeGroup
         ? `Create collections inside ${activeGroup.name} to bundle related bookmarks across folders.`
         : "Create collections to bundle related bookmarks across folders without moving them.";
-      const emptyState = el("div", { className: "raindrop-empty-state" },
-        el("div", { className: "raindrop-empty-icon" }, icon("layers")),
+      const createBtn = el("button", { type: "button", className: "btn btn-primary" }, "+ New Collection");
+      createBtn.addEventListener("click", () => this._promptCreateBookmarkCollection());
+      wrap.appendChild(el("div", { className: "raindrop-empty-state" },
+        el("div", { className: "raindrop-empty-icon" }, icon("collection")),
         el("h3", { className: "raindrop-empty-title" }, "No collections yet"),
-        el("p", { className: "raindrop-empty-desc" }, emptyDesc)
-      );
-      wrap.appendChild(emptyState);
+        el("p", { className: "raindrop-empty-desc" }, emptyDesc),
+        el("div", { className: "raindrop-empty-actions" }, createBtn),
+      ));
       this._content.appendChild(wrap);
       return;
     }
 
-    const grid = el("div", { className: "raindrop-collections-grid" });
-    for (const coll of visibleCollections) {
-      const leaves = resolveCollectionLeaves(coll.bookmarkIds, this._leafIndex, coll.bookmarkUrls);
-      const count = leaves.length;
-
-      const stage = this._renderCollectionFloatingStage(leaves);
-
-      const addBtn = el("button", {
-        type: "button",
-        className: "raindrop-coll-action-btn",
-        title: "Add Bookmarks",
-        "aria-label": `Add bookmarks to ${coll.name}`,
-      }, icon("plus"));
-      addBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this._openBookmarkPicker(coll);
-      });
-
-      const renameBtn = el("button", {
-        type: "button",
-        className: "raindrop-coll-action-btn",
-        title: "Rename",
-        "aria-label": `Rename collection ${coll.name}`,
-      }, icon("edit"));
-      renameBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this._promptRenameCollection(coll);
-      });
-
-      const deleteBtn = el("button", {
-        type: "button",
-        className: "raindrop-coll-action-btn raindrop-coll-delete",
-        title: "Delete",
-        "aria-label": `Delete collection ${coll.name}`,
-      }, icon("trash"));
-      deleteBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this._promptDeleteCollection(coll);
-      });
-
-      const actions = el("div", { className: "raindrop-coll-actions" }, addBtn, renameBtn, deleteBtn);
-
-      const info = el("div", { className: "raindrop-coll-info" },
-        el("div", { className: "raindrop-coll-text" },
-          el("div", { className: "raindrop-coll-name", title: coll.name }, coll.name),
-          el("div", { className: "raindrop-coll-count" }, `${count} bookmark${count === 1 ? "" : "s"}`)
-        ),
-        actions
-      );
-
-      const card = el("div", {
-        className: "raindrop-collection-card",
-        role: "button",
-        tabIndex: 0,
-        title: `${coll.name} (${count} bookmarks)`,
-      },
-        stage,
-        info
-      );
-
-      card.addEventListener("click", () => {
-        this._collectionsExpanded = true;
-        this._activeSelection = { type: "collection", id: coll.id, title: coll.name };
-        this._activeTag = null;
-        this._renderSidebar();
-        this._renderHeader();
-        this._renderContent();
-      });
-      this._bindCollectionDropTarget(card, coll.id);
-
-      grid.appendChild(card);
+    const library = { byId: new Map(), byUrl: new Map() };
+    for (const leaf of this._leaves) {
+      library.byId.set(String(leaf.id), leaf);
+      if (leaf.url && !library.byUrl.has(leaf.url)) library.byUrl.set(leaf.url, leaf);
     }
 
+    // Colours follow the sidebar order, so take each index before sorting.
+    const entries = collections.map((coll, index) => ({ coll, index, ...this._collectionStats(coll, library) }));
+    this._sortCollectionEntries(entries);
+
+    const grid = el("div", { className: "raindrop-collections-grid" });
+    for (const entry of entries) grid.appendChild(this._renderCollectionCard(entry));
     wrap.appendChild(grid);
     this._content.appendChild(wrap);
   }
 
-  _renderCollectionFloatingStage(leaves) {
-    const stage = el("div", { className: "raindrop-coll-stage" });
-    const bgGrid = el("div", { className: "raindrop-coll-stage-grid" });
-    const aura = el("div", { className: "raindrop-coll-aura" });
-    const stack = el("div", { className: "raindrop-coll-icon-stack" });
-
-    const total = leaves.length;
-    if (total === 0) {
-      const emptyIcon = el("div", { className: "raindrop-coll-floating-icon is-empty" }, icon("layers"));
-      stack.appendChild(emptyIcon);
-    } else if (total <= 4) {
-      for (let i = 0; i < total; i++) {
-        const leaf = leaves[i];
-        const iconWrap = el("div", {
-          className: `raindrop-coll-floating-icon item-${i + 1} total-${total}`,
-          title: leaf.title || leaf.url || "",
-        }, this._favicon(leaf, "raindrop-coll-fav-img"));
-        stack.appendChild(iconWrap);
-      }
-    } else {
-      // 5+ items: multi-icon floating constellation (renders up to 7 distinct icons to fill the space)
-      const maxDisplay = Math.min(total, 7);
-      stack.classList.add("is-constellation", `count-${maxDisplay}`);
-      for (let i = 0; i < maxDisplay; i++) {
-        const leaf = leaves[i];
-        const iconWrap = el("div", {
-          className: `raindrop-coll-floating-icon constellation-item item-${i + 1}`,
-          title: leaf.title || leaf.url || "",
-        }, this._favicon(leaf, "raindrop-coll-fav-img"));
-        stack.appendChild(iconWrap);
-      }
-      if (total > maxDisplay) {
-        const extraPill = el("div", {
-          className: "raindrop-coll-floating-more",
-          title: `${total - maxDisplay} more bookmarks in this collection`,
-        }, `+${total - maxDisplay}`);
-        stack.appendChild(extraPill);
+  /** What a collection holds: its links, the top-level folders they come
+   *  from, and the last time any of them was opened. */
+  _collectionStats(coll, library) {
+    const leaves = this._collectionLeaves(coll);
+    const folders = new Set();
+    let lastOpenedAt = null;
+    for (const leaf of leaves) {
+      // Members can be copies kept in the collection's own folder; the
+      // library copy tells where the link really lives.
+      const source = library.byId.get(String(leaf.id)) || library.byUrl.get(leaf.url);
+      if (source?.path?.length) folders.add(source.path[0]);
+      for (const candidate of [leaf, source]) {
+        const openedAt = candidate ? this._lastOpenedFor(candidate) : null;
+        if (openedAt && (!lastOpenedAt || openedAt > lastOpenedAt)) lastOpenedAt = openedAt;
       }
     }
+    return { leaves, folderCount: folders.size, lastOpenedAt };
+  }
 
-    stage.append(bgGrid, aura, stack);
-    return stage;
+  _sortCollectionEntries(entries) {
+    const compare = {
+      opened: (a, b) => (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0),
+      name: (a, b) => a.coll.name.localeCompare(b.coll.name),
+      size: (a, b) => b.leaves.length - a.leaves.length,
+    }[this._collectionSort];
+    if (compare) entries.sort((a, b) => compare(a, b) || a.index - b.index);
+    return entries;
+  }
+
+  _renderCollectionCard({ coll, index, leaves, folderCount, lastOpenedAt }) {
+    const count = leaves.length;
+
+    const members = el("div", { className: "raindrop-coll-members" });
+    for (const leaf of leaves.slice(0, 4)) members.appendChild(this._favicon(leaf, "raindrop-coll-member"));
+    if (count > 4) members.appendChild(el("span", { className: "raindrop-coll-rest" }, `+${count - 4}`));
+    if (count === 0) members.appendChild(el("span", { className: "raindrop-coll-empty", title: "Empty collection — add bookmarks", "aria-hidden": "true" }, icon("plus")));
+
+    const cover = el("div", { className: "raindrop-coll-cover" },
+      el("span", { className: "raindrop-coll-dots", "aria-hidden": "true" }),
+      folderCount ? el("span", { className: "raindrop-coll-span" }, `${folderCount} folder${folderCount === 1 ? "" : "s"}`) : null,
+      members,
+    );
+
+    const addBtn = el("button", {
+      type: "button",
+      className: "raindrop-coll-action-btn",
+      title: "Add Bookmarks",
+      "aria-label": `Add bookmarks to ${coll.name}`,
+    }, icon("plus"));
+    addBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this._openBookmarkPicker(coll);
+    });
+
+    const renameBtn = el("button", {
+      type: "button",
+      className: "raindrop-coll-action-btn",
+      title: "Rename",
+      "aria-label": `Rename collection ${coll.name}`,
+    }, icon("edit"));
+    renameBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this._promptRenameCollection(coll);
+    });
+
+    const deleteBtn = el("button", {
+      type: "button",
+      className: "raindrop-coll-action-btn raindrop-coll-delete",
+      title: "Delete",
+      "aria-label": `Delete collection ${coll.name}`,
+    }, icon("trash"));
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this._promptDeleteCollection(coll);
+    });
+
+    const age = relativeAge(lastOpenedAt);
+    const info = el("div", { className: "raindrop-coll-info" },
+      el("div", { className: "raindrop-coll-heading" },
+        el("span", { className: "raindrop-coll-name", title: coll.name }, coll.name),
+        el("span", { className: "raindrop-coll-count", title: `${count} bookmark${count === 1 ? "" : "s"}` }, String(count)),
+        el("div", { className: "raindrop-coll-actions" }, addBtn, renameBtn, deleteBtn),
+      ),
+      el("span", { className: "raindrop-coll-last" }, lastOpenedAt ? `opened ${age === "now" ? "just now" : age}` : "never opened"),
+    );
+
+    const card = el("div", {
+      className: "raindrop-collection-card",
+      role: "button",
+      tabIndex: 0,
+      title: `${coll.name} (${count} bookmark${count === 1 ? "" : "s"})`,
+      style: { "--row-accent": coll.color || siblingColor(index) },
+    }, cover, info);
+
+    card.addEventListener("click", () => {
+      this._collectionsExpanded = true;
+      this._activeSelection = { type: "collection", id: coll.id, title: coll.name };
+      this._activeTag = null;
+      this._renderSidebar();
+      this._renderHeader();
+      this._renderContent();
+    });
+    card.addEventListener("keydown", (e) => {
+      if (e.target !== card || (e.key !== "Enter" && e.key !== " ")) return;
+      e.preventDefault();
+      card.click();
+    });
+    this._bindCollectionDropTarget(card, coll.id);
+    return card;
   }
 
   /* ── 5. Bulk Action Bar ──────────────────────────────────── */
@@ -3881,18 +4468,25 @@ export class BookmarkDeckView {
     // Top Section: Big Icon + Website Info (Name & URL)
     const topRow = el("div", { className: "raindrop-card-top" }, favEl, infoCol);
 
-    // 3. Bottom Section: Subfolder Address Location + Tags
-    const pathEl = breadcrumb
-      ? el("div", { className: "raindrop-card-path", title: breadcrumb }, icon("folder", "raindrop-card-path-icon"), breadcrumb)
-      : el("div", { className: "raindrop-card-path is-empty" });
+    // 3. Meta line: ● folder · last opened · open count. The folder colour
+    //    tints the favicon tile through --card-accent, and the count is only
+    //    revealed in grid view (see redesign.css).
+    const opens = this._usage[bookmark.id] || 0;
+    const lastOpenedAt = this._lastOpenedFor(bookmark);
+    card.classList.add(`is-${signalBand({ lastOpenedAt, dateAdded: bookmark.dateAdded })}`);
+    card.style.setProperty("--card-accent", this._colorForBookmark(bookmark));
 
-    const bottomRow = el("div", { className: "raindrop-card-bottom" }, pathEl);
+    const metaEl = this._renderCardMeta(bookmark, { opens, lastOpenedAt, breadcrumb });
+    const bottomRow = el("div", { className: "raindrop-card-bottom" }, metaEl);
 
     if (tags.length) {
       const tagRow = el("div", { className: "raindrop-card-tags" });
       for (const tag of tags) tagRow.appendChild(el("span", { className: "raindrop-card-tag" }, `#${tag}`));
       bottomRow.appendChild(tagRow);
     }
+
+    // Compact hides the bottom row, so the meta line also sits under the title.
+    infoCol.appendChild(metaEl.cloneNode(true));
 
     body.append(topRow, bottomRow);
     card.append(body);
@@ -3959,17 +4553,36 @@ export class BookmarkDeckView {
     return card;
   }
 
+  _renderCardMeta(bookmark, { opens, lastOpenedAt, breadcrumb }) {
+    const folderName = bookmark.path?.length ? bookmark.path[bookmark.path.length - 1] : "";
+    // Never opened: show how long it has been saved instead.
+    const age = relativeAge(lastOpenedAt || bookmark.dateAdded);
+    const ago = age === "now" ? "just now" : `${age} ago`;
+    const ageTitle = lastOpenedAt ? `Last opened ${ago}` : `Saved ${ago}, never opened`;
+
+    return el("div", { className: "raindrop-card-meta" },
+      el("span", { className: "raindrop-card-meta-dot", "aria-hidden": "true" }),
+      folderName ? el("span", { className: "raindrop-card-meta-folder", title: breadcrumb }, folderName) : null,
+      folderName && age ? el("span", { className: "raindrop-card-meta-sep", "aria-hidden": "true" }, "·") : null,
+      age ? el("span", { className: "raindrop-card-meta-age", title: ageTitle }, age) : null,
+      el("span", {
+        className: "raindrop-card-meta-count",
+        title: opens ? `Opened ${opens} time${opens === 1 ? "" : "s"}` : "Never opened",
+      }, openCountLabel(opens)),
+    );
+  }
+
   async _handleDropOnCard(target) {
     const drag = this._drag;
     if (!drag || drag.id === target.id) return;
     try {
-      const canReorder =
-        this._activeSelection.type === "folder" &&
-        !this._query && !this._activeTag &&
-        drag.parentId === target.parentId;
-      if (canReorder) {
-        const pool = this._getActivePool();
-        const index = pool.findIndex((b) => b.id === target.id);
+      // Same Chrome folder: take the target's slot. The grid can mix links
+      // from several sub-folders, so its order is not the folder's order.
+      const siblings = drag.parentId && drag.parentId === target.parentId
+        ? findFolderById(this._roots, target.parentId)?.children || []
+        : [];
+      const index = siblings.findIndex((c) => String(c.id) === String(target.id));
+      if (index >= 0) {
         await chrome.bookmarks.move(drag.id, { index });
       } else {
         await chrome.bookmarks.move(drag.id, { parentId: target.parentId });
@@ -4036,7 +4649,7 @@ export class BookmarkDeckView {
   _promptCreateFolder() {
     let parentId = "1";
     let scopeRootId = null;
-    const activeGroup = this.groupButtons.activeGroup;
+    const activeGroup = this.groupButtons?.activeGroup;
     if (activeGroup && activeGroup.folderIds?.[0]) {
       scopeRootId = activeGroup.folderIds[0];
       parentId = scopeRootId;
@@ -4049,7 +4662,15 @@ export class BookmarkDeckView {
         : this._activeSelection.id;
     }
 
-    this.newFolderDialog.open(parentId, scopeRootId);
+    if (scopeRootId && parentId !== scopeRootId) {
+      const rootFolder = findFolderById(this._roots, scopeRootId);
+      const isDescendant = rootFolder && Boolean(findFolderById(rootFolder.children || [], parentId));
+      if (!isDescendant) {
+        scopeRootId = null;
+      }
+    }
+
+    this.newFolderDialog?.open(parentId, scopeRootId);
   }
 
   _bindKeys() {
@@ -4106,7 +4727,7 @@ export class BookmarkDeckView {
         this._activeColorPopover.remove();
         this._activeColorPopover = null;
       }
-      const openDropdowns = document.querySelectorAll(".raindrop-bulk-dropdown.is-open");
+      const openDropdowns = document.querySelectorAll(".raindrop-bulk-dropdown.is-open, .raindrop-more-wrap.is-open");
       openDropdowns.forEach((dd) => {
         if (!dd.contains(e.target)) dd.classList.remove("is-open");
       });

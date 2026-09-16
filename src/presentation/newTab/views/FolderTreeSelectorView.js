@@ -93,6 +93,10 @@ export class FolderTreeSelectorView {
         const folderNode = this.renderFolderNode(rootFolder, 0);
         if (folderNode) this.treeContainer.append(folderNode);
       });
+
+      if (this.selectedFolderIds.size > 0) {
+        this.setSelectedFolderIds([...this.selectedFolderIds]);
+      }
     } catch (error) {
       console.error("[FolderTreeSelectorView] Failed to load folders:", error);
       this.treeContainer.replaceChildren();
@@ -116,7 +120,7 @@ export class FolderTreeSelectorView {
     if (depth > 0) {
       const indent = el("div", { 
         className: "folder-tree-indent",
-        style: `width: ${depth * 14}px`
+        style: { width: `${depth * 14}px` },
       });
       row.append(indent);
     }
@@ -214,7 +218,7 @@ export class FolderTreeSelectorView {
     if (hasChildren) {
       const childrenContainer = el("div", { 
         className: "folder-tree-children",
-        style: "display: none"
+        style: { display: "none" },
       });
       
       childFolders.forEach(child => {

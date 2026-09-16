@@ -56,11 +56,13 @@ import { DeleteSubfolderUseCase } from "../../application/useCases/subfolders/De
 
 import { GetSettingsUseCase } from "../../application/useCases/settings/GetSettingsUseCase.js";
 import { SaveUserSettingsUseCase } from "../../application/useCases/settings/SaveUserSettingsUseCase.js";
+import { UpdateDailyFocusUseCase } from "../../application/useCases/settings/UpdateDailyFocusUseCase.js";
 
 import { ListTasksUseCase } from "../../application/useCases/tasks/ListTasksUseCase.js";
 import { CreateTaskUseCase } from "../../application/useCases/tasks/CreateTaskUseCase.js";
 import { UpdateTaskUseCase } from "../../application/useCases/tasks/UpdateTaskUseCase.js";
 import { DeleteTaskUseCase } from "../../application/useCases/tasks/DeleteTaskUseCase.js";
+import { ReorderTasksUseCase } from "../../application/useCases/tasks/ReorderTasksUseCase.js";
 
 import { GetLayoutUseCase } from "../../application/useCases/layout/GetLayoutUseCase.js";
 import { ToggleWidgetVisibilityUseCase } from "../../application/useCases/layout/ToggleWidgetVisibilityUseCase.js";
@@ -300,11 +302,18 @@ export function buildContainer() {
       events,
       sanitizer,
     }),
+    updateDailyFocus: new UpdateDailyFocusUseCase({
+      settingsRepo,
+      sanitizer,
+      events,
+      clock,
+    }),
 
     listTasks: new ListTasksUseCase(taskRepo),
     createTask: new CreateTaskUseCase({ repo: taskRepo, taskRepo, ids, sanitizer, events }),
     updateTask: new UpdateTaskUseCase({ repo: taskRepo, taskRepo, sanitizer, events }),
     deleteTask: new DeleteTaskUseCase({ repo: taskRepo, taskRepo, events }),
+    reorderTasks: new ReorderTasksUseCase({ repo: taskRepo, taskRepo, events }),
 
     getLayout: new GetLayoutUseCase(layoutRepo),
     toggleWidgetVisibility: new ToggleWidgetVisibilityUseCase({

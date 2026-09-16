@@ -33,9 +33,10 @@ export function isSafeUrl(url) {
  * as blocked, non-navigable links).
  *
  * Node shape:
- *   { id, title, type: "folder"|"bookmark", url, children, count }
+ *   { id, title, type: "folder"|"bookmark", url, children, count, parentId }
  * where `count` is the number of bookmark descendants (folders) or 1
- * (bookmarks).
+ * (bookmarks). Bookmarks also keep Chrome's `dateAdded` and
+ * `dateLastUsed` when present.
  * @param {unknown} roots
  * @returns {Array<object>}
  */
@@ -52,9 +53,11 @@ export function buildBookmarkTree(roots, { pruneEmpty = true } = {}) {
     top = raw[0].children;
   }
 
-  const node = (n) => {
+  const node = (n, parentId = null) => {
     if (!n || typeof n !== "object") return null;
     const isBookmark = typeof n.url === "string" && n.url.length > 0;
+    const parent = n.parentId ?? parentId;
+    const lineage = parent != null ? { parentId: String(parent) } : {};
     if (isBookmark) {
       const title =
         typeof n.title === "string" && n.title.length > 0 ? n.title : n.url;
@@ -65,26 +68,32 @@ export function buildBookmarkTree(roots, { pruneEmpty = true } = {}) {
         url: isSafeUrl(n.url),
         children: [],
         count: 1,
+        ...lineage,
+        ...(typeof n.dateAdded === "number" ? { dateAdded: n.dateAdded } : {}),
+        ...(typeof n.dateLastUsed === "number" ? { dateLastUsed: n.dateLastUsed } : {}),
       };
     }
     const title =
       typeof n.title === "string" && n.title.length > 0 ? n.title : "Folder";
+    const id = String(n.id ?? title);
     const children = Array.isArray(n.children)
-      ? n.children.map(node).filter(Boolean)
+      ? n.children.map((child) => node(child, id)).filter(Boolean)
       : [];
     const count = children.reduce((s, c) => s + c.count, 0);
     if (pruneEmpty && count === 0) return null; // prune empty folders when requested
     return {
-      id: String(n.id ?? title),
+      id,
       title,
       type: "folder",
       url: null,
       children,
       count,
+      ...lineage,
     };
   };
 
-  return top.map(node).filter(Boolean);
+  const rootId = top === raw ? null : raw[0].id;
+  return top.map((n) => node(n, rootId)).filter(Boolean);
 }
 
 /**

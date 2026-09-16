@@ -17,7 +17,7 @@ const THUMB_GRADIENTS = [
 // Swatch colors for the collections tree / tag pills.
 const FOLDER_COLORS = ["#D2683F", "#6C6FD4", "#7E9B76", "#E0A33E", "#8A919C", "#C25A9E"];
 
-function hashStr(str = "") {
+export function hashStr(str = "") {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = (hash << 5) - hash + str.charCodeAt(i);

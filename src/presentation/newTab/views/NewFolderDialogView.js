@@ -113,9 +113,9 @@ export class NewFolderDialogView {
     }
 
     try {
-      await chrome.bookmarks.create({ title, parentId });
+      const created = await chrome.bookmarks.create({ title, parentId });
       this.toast?.show(`Folder "${title}" created`);
-      if (this.onCreate) this.onCreate();
+      if (this.onCreate) this.onCreate(created);
       this.hide();
     } catch (err) {
       this.toast?.show(err.message || "Could not create folder", { error: true });

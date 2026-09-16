@@ -416,6 +416,21 @@ export class UserSettings {
     this.#focusDate = date;
   }
 
+  setFocusText(value) {
+    if (typeof value !== "string") throw new Error("focusText must be a string");
+    this.#focusText = value;
+  }
+
+  setFocusCompleted(value) {
+    if (typeof value !== "boolean") throw new Error("focusCompleted must be a boolean");
+    this.#focusCompleted = value;
+  }
+
+  setFocusDate(value) {
+    if (typeof value !== "string") throw new Error("focusDate must be a string");
+    this.#focusDate = value;
+  }
+
   setTodoEnabled(value) {
     if (typeof value !== "boolean") throw new Error("todoEnabled must be a boolean");
     this.#todoEnabled = value;

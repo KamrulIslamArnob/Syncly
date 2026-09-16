@@ -22,13 +22,14 @@ export class SaveUserSettingsUseCase {
     const settings = await this.#settingsRepo.load();
 
     // Fields whose values are free-text strings sanitized via the sanitizer port.
-    const TEXT_FIELDS = new Set(["name", "messageText", "weatherLocation"]);
+    const TEXT_FIELDS = new Set(["name", "messageText", "weatherLocation", "focusText"]);
 
     const simpleFields = [
       "name", "backgroundBlur", "backgroundOverlay", "backgroundTintColor", "buttonRoundness",
       "bgGrayscale", "bgHueRotate", "bgPixelation", "bgVignette", "bgFilmGrain",
       "clocks", "searchEnabled", "searchEngine", "searchOpenNewTab",
       "weatherEnabled", "weatherLocation", "weatherUnit",
+      "focusText", "focusCompleted", "focusDate",
       "todoEnabled", "shortcutsEnabled", "quickNoteEnabled",
       "customCss", "greetingEnabled", "messageText", "clockEnabled", "showSeconds", "showDate",
       "cssVarBg", "cssVarText", "cssVarBorder", "cssVarAccent", "showWebsitePreviews", "avatarUrl",

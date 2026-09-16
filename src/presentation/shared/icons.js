@@ -260,6 +260,12 @@ export const ICONS = Object.freeze({
     ["path", { d: "M9 13h6" }],
     ["path", { d: "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" }],
   ],
+  // Stacked books: a curated bundle of links.
+  collection: [
+    ["path", { d: "M4 4.5h4.5v15H4Z" }],
+    ["path", { d: "M9.8 4.5h4.4v15H9.8Z" }],
+    ["path", { d: "m15.6 5.4 3.9 1 2.1 13.6-4.1-1Z" }],
+  ],
   layers: [
     ["path", { d: "m12 2 10 5-10 5L2 7l10-5Z" }],
     ["path", { d: "m2 17 10 5 10-5" }],

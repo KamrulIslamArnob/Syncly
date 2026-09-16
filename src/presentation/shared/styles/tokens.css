@@ -47,6 +47,19 @@
   --warn:    #f5d76e;
   --danger:  #E64A19;
 
+  /* ---- Folder palette: assigned by position among sibling folders
+          (shared/signal.js). Grey is left out on purpose. ---- */
+  --folder-pal-0: #D2683F;
+  --folder-pal-1: #6C6FD4;
+  --folder-pal-2: #7E9B76;
+  --folder-pal-3: #E0A33E;
+  --folder-pal-4: #C25A9E;
+
+  /* ---- Link freshness: signal strip, cold cards, open-count pill ---- */
+  --signal-live: #7E9B76;
+  --signal-rest: #4B5563;
+  --signal-cold: #D2683F;
+
   /* ---- Elevation ---- */
   --shadow-hairline: 0 0 0 1px rgba(232, 234, 238, 0.06);
   --shadow-dialog:   0 22px 46px rgba(0, 0, 0, 0.55);
@@ -125,10 +138,21 @@ html[data-color-mode="light"] {
   --fg:              #16181D;
   --fg-secondary:    #2A2E35;
   --muted:           #555B66;
-  --muted-2:         #4B5563;
+  --muted-2:         #6B7280;  /* lighter than --muted, so the most muted meta reads quietest */
 
   --border:          #E6E8EC;
   --border-strong:   #CFD4DC;
+
+  /* Darker folder hues: the dark-mode set fails contrast on white. */
+  --folder-pal-0: #B8542E;
+  --folder-pal-1: #4F52B8;
+  --folder-pal-2: #5E7D55;
+  --folder-pal-3: #9A6B14;
+  --folder-pal-4: #A34382;
+
+  --signal-live: #5E7D55;
+  --signal-rest: #B6BCC6;
+  --signal-cold: #C1440E;
 
   --accent-soft:     rgba(85, 91, 102, 0.12);
 

@@ -1,0 +1,1714 @@
+/* ============================================================
+   Syncly — redesign layer (Syncly Redesign.dc.html)
+   ------------------------------------------------------------
+   Loaded after newTab.css and restyles the bookmark deck:
+   - cards: the folder colour tints the favicon tile and a meta
+     dot; three densities (compact 52px, list 44px, grid 112px);
+     the open count only in grid; cold links get a dashed edge
+   - sub-folder chips and the live/resting/cold signal strip
+   - a neutral sidebar selection with tinted folder icons
+   - a header with a density switch, Add, theme and more menu
+   - Home's triage row and bento; Collections covers
+   - light mode that lifts white surfaces with a hairline and a
+     soft shadow instead of tinting them
+
+   Palette and freshness colours come from tokens.css
+   (--folder-pal-0…4, --signal-live/rest/cold). newTab.css's
+   font-size scaling block uses !important, so the sizes that
+   differ from it here need !important too.
+   ============================================================ */
+
+/* ── 0. Component tokens ───────────────────────────────────── */
+.raindrop-dashboard {
+  --rd-sel: rgba(232, 234, 238, 0.09);
+  --rd-strong-fg: var(--fg-secondary);
+  --rd-card: var(--surface-2);
+  --rd-card-shadow: none;
+  --rd-control: var(--surface);
+  --rd-control-shadow: none;
+  --rd-tint: 15%;
+  --rd-ring: 35%;
+  --rd-primary-bg: var(--surface-active);
+  --rd-primary-border: var(--border-strong);
+  --rd-primary-fg: var(--fg-secondary);
+  --rd-seg-active-bg: var(--surface-active);
+  --rd-seg-active-border: var(--border-strong);
+  --rd-cold-card: var(--surface);
+  --rd-cold-border: var(--border-strong);
+  --rd-cold-tile: rgba(232, 234, 238, 0.03);
+  --rd-panel-band: #20232B;
+  --rd-panel-pill: #282B35;
+  --rd-panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --rd-strip: #161719;
+  --rd-well: var(--surface-2);
+  --rd-well-border: var(--border);
+  --rd-well-dots: rgba(255, 255, 255, 0.05);
+  --rd-member: var(--surface);
+  --rd-member-border: var(--border-strong);
+  --rd-member-shadow: 0 8px 18px rgba(0, 0, 0, 0.24), inset 0 1px 1px rgba(255, 255, 255, 0.14);
+}
+
+html[data-color-mode="light"] .raindrop-dashboard {
+  --rd-sel: rgba(22, 24, 29, 0.06);
+  --rd-strong-fg: var(--fg);
+  --rd-card: #FFFFFF;
+  --rd-card-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --rd-control: #FFFFFF;
+  --rd-control-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --rd-tint: 12%;
+  --rd-ring: 30%;
+  --rd-primary-bg: #2A2E35;
+  --rd-primary-border: #2A2E35;
+  --rd-primary-fg: #FFFFFF;
+  --rd-seg-active-bg: #EDEFF3;
+  --rd-seg-active-border: #CFD4DC;
+  --rd-cold-card: #FBFBFC;
+  --rd-cold-border: #CFD4DC;
+  --rd-cold-tile: #F4F5F7;
+  --rd-panel-band: #F7F8FA;
+  --rd-panel-pill: #EDEFF3;
+  --rd-panel-shadow: 0 4px 16px rgba(16, 24, 40, 0.06);
+  --rd-strip: #FFFFFF;
+  --rd-well: #F7F8FA;
+  --rd-well-border: #EEF0F3;
+  --rd-well-dots: rgba(22, 24, 29, 0.07);
+  --rd-member: #FFFFFF;
+  --rd-member-border: var(--border);
+  --rd-member-shadow: 0 6px 14px rgba(16, 24, 40, 0.1);
+}
+
+/* ── 1. Sidebar ─────────────────────────────────────────────── */
+.raindrop-dashboard .raindrop-quick-access {
+  gap: 1px;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.raindrop-dashboard .raindrop-nav-label {
+  font-size: calc(13.5px * var(--ui-font-scale, 1)) !important;
+}
+
+/* Selection is a neutral lift, not the accent colour. */
+.raindrop-dashboard .raindrop-nav-row.is-active,
+.raindrop-dashboard .raindrop-nav-row.is-parent-active {
+  background: var(--rd-sel) !important;
+  color: var(--rd-strong-fg) !important;
+  font-weight: 600;
+}
+
+.raindrop-dashboard .raindrop-nav-row.is-active .raindrop-nav-count,
+.raindrop-dashboard .raindrop-nav-row.is-parent-active .raindrop-nav-count {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.raindrop-dashboard .raindrop-nav-row.is-parent-active .raindrop-nav-icon {
+  color: inherit;
+}
+
+/* Folder rows: the folder icon is the colour anchor (and the colour picker). */
+.raindrop-tree-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--row-accent, var(--muted-2));
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease);
+}
+
+.raindrop-tree-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.9;
+}
+
+.raindrop-tree-icon:hover {
+  transform: scale(1.15);
+}
+
+.raindrop-tree-icon:focus-visible {
+  outline: 2px solid var(--row-accent, var(--accent));
+  outline-offset: 1px;
+}
+
+.raindrop-nav-icon.is-collection {
+  color: var(--row-accent, var(--muted-2));
+}
+
+.raindrop-dashboard .raindrop-nav-icon svg {
+  stroke-width: 1.9;
+}
+
+/* Collections keep their own indented sub-list. */
+.raindrop-dashboard .raindrop-coll-sub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 6px 20px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+.raindrop-dashboard .raindrop-coll-sub-row {
+  height: 28px;
+  min-height: 28px;
+  gap: 7px;
+  padding: 0 8px;
+}
+
+.raindrop-dashboard .raindrop-coll-sub-row .raindrop-nav-label {
+  font-size: calc(12px * var(--ui-font-scale, 1)) !important;
+}
+
+.raindrop-dashboard .raindrop-coll-sub-row .raindrop-nav-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.raindrop-dashboard .raindrop-coll-sub-row .raindrop-nav-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.raindrop-dashboard .sidebar-tag-hash {
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+.raindrop-dashboard .sidebar-tag-chip.is-active {
+  background: var(--rd-sel);
+  border-color: var(--border-strong);
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.raindrop-dashboard .sidebar-tag-chip.is-active .sidebar-tag-hash {
+  color: inherit;
+}
+
+/* ── 2. Header ──────────────────────────────────────────────── */
+/* The right cluster never shrinks below its controls; the title side gives way first. */
+.raindrop-dashboard .raindrop-header {
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-header {
+  border-bottom: 1px solid #EFEDE6;
+}
+
+.raindrop-dashboard .raindrop-header-left {
+  gap: 10px;
+  min-width: 0;
+}
+
+.raindrop-dashboard .raindrop-header-left .raindrop-sidebar-toggle-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-header-left .raindrop-sidebar-toggle-btn {
+  background: #FFFFFF;
+}
+
+.raindrop-dashboard .raindrop-header-left .raindrop-sidebar-toggle-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.raindrop-dashboard .raindrop-header-left .raindrop-sidebar-toggle-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+
+.raindrop-dashboard .raindrop-header-icon {
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.raindrop-dashboard .raindrop-header-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.9;
+}
+
+.raindrop-dashboard .raindrop-header-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.raindrop-header-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--signal-cold);
+}
+
+.raindrop-header-meta {
+  flex-shrink: 0;
+  padding-top: 2px;
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+.raindrop-dashboard .raindrop-search-bar {
+  width: clamp(200px, 30vw, 480px);
+  background: var(--rd-control);
+  box-shadow: var(--rd-control-shadow);
+}
+
+.raindrop-dashboard .raindrop-search-input {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-search-input::placeholder {
+  color: var(--muted-2);
+}
+
+.raindrop-dashboard .raindrop-search-kbd {
+  height: auto;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-search-kbd {
+  background: #F2F4F7;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+/* Density switch: one segmented control, the active segment labelled. */
+.raindrop-dashboard .raindrop-view-switch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--rd-control);
+}
+
+.raindrop-view-seg {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.raindrop-view-seg svg {
+  width: 13px;
+  height: 13px;
+}
+
+.raindrop-view-seg:hover {
+  color: var(--fg);
+}
+
+.raindrop-view-seg.is-active {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding: 0 9px;
+  border-color: var(--rd-seg-active-border);
+  background: var(--rd-seg-active-bg);
+  color: var(--rd-strong-fg);
+  font-family: var(--font-body);
+  font-size: calc(11.5px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+.raindrop-view-seg.is-active svg {
+  width: 12px;
+  height: 12px;
+}
+
+.raindrop-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--rd-primary-border);
+  border-radius: 6px;
+  background: var(--rd-primary-bg);
+  color: var(--rd-primary-fg);
+  font-family: var(--font-body);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter var(--dur) var(--ease);
+}
+
+.raindrop-add-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.raindrop-add-btn:hover {
+  filter: brightness(1.15);
+}
+
+.raindrop-header-right > .raindrop-theme-toggle-btn,
+.raindrop-header-right > .raindrop-panel-trigger-btn,
+.raindrop-more-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--rd-control);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.raindrop-header-right > .raindrop-theme-toggle-btn svg,
+.raindrop-header-right > .raindrop-panel-trigger-btn svg,
+.raindrop-more-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.raindrop-header-right > .raindrop-theme-toggle-btn:hover,
+.raindrop-header-right > .raindrop-panel-trigger-btn:hover,
+.raindrop-more-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+
+.raindrop-more-btn.is-active {
+  border-color: var(--rd-seg-active-border);
+  background: var(--rd-seg-active-bg);
+  color: var(--rd-strong-fg);
+}
+
+.raindrop-more-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.raindrop-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 250;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 184px;
+  padding: 4px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-dialog);
+}
+
+html[data-color-mode="light"] .raindrop-more-menu {
+  border-color: var(--border);
+  background: #FFFFFF;
+}
+
+.raindrop-more-wrap.is-open .raindrop-more-menu {
+  display: flex;
+}
+
+/* Menu items reset the old header "Add Folder" button styles they inherit by class. */
+.raindrop-more-menu .raindrop-more-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: calc(12.5px * var(--ui-font-scale, 1));
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.raindrop-more-menu .raindrop-more-item svg {
+  width: 13px;
+  height: 13px;
+  color: var(--muted);
+}
+
+.raindrop-more-menu .raindrop-more-item:hover {
+  background: var(--fill-hover);
+  color: var(--fg);
+}
+
+.raindrop-sort-select {
+  height: 30px;
+  padding: 0 28px 0 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--rd-control);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A919C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  appearance: none;
+  cursor: pointer;
+}
+
+.raindrop-sort-select:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+
+/* ── 3. Content: chips and the signal strip ───────────────────── */
+.raindrop-dashboard .raindrop-content {
+  padding-top: 14px;
+}
+
+.raindrop-filter-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+/* At most six sub-folder chips plus "+N more" are rendered; on a narrow
+   pane they wrap rather than clip, so every chip stays reachable. */
+.raindrop-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+}
+
+.raindrop-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  max-width: 180px;
+  flex-shrink: 0;
+  padding: 0 11px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--rd-control);
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.raindrop-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+
+.raindrop-chip.is-active {
+  border-color: var(--rd-seg-active-border);
+  background: var(--rd-seg-active-bg);
+  color: var(--rd-strong-fg);
+  font-weight: 600;
+}
+
+.raindrop-chip.is-drop-target {
+  outline: 2px dashed var(--chip-accent, var(--accent));
+  outline-offset: 1px;
+}
+
+.raindrop-chip-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--chip-accent, var(--muted-2));
+}
+
+.raindrop-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.raindrop-chip-count {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--ui-font-scale, 1));
+  font-weight: 500;
+  color: var(--muted-2);
+}
+
+.raindrop-chip.is-active .raindrop-chip-count {
+  color: inherit;
+  opacity: 0.65;
+}
+
+.raindrop-chip.is-more {
+  gap: 5px;
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+}
+
+.raindrop-chip.is-more svg {
+  width: 11px;
+  height: 11px;
+  opacity: 0.7;
+}
+
+.raindrop-signal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  height: 28px;
+  margin-left: auto;
+  padding: 0 4px 0 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--rd-strip);
+}
+
+.raindrop-signal-bar {
+  display: flex;
+  width: 72px;
+  height: 4px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+
+.raindrop-signal-bar span {
+  display: block;
+  height: 100%;
+}
+
+.raindrop-signal-bar .is-live { background: var(--signal-live); }
+.raindrop-signal-bar .is-rest { background: var(--signal-rest); }
+.raindrop-signal-bar .is-cold { background: var(--signal-cold); }
+
+.raindrop-signal-text {
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+.raindrop-signal-text b {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.raindrop-signal-text b.is-cold {
+  color: var(--signal-cold);
+}
+
+.raindrop-signal-prune {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--signal-cold) 12%, transparent);
+  color: var(--signal-cold);
+  font-family: var(--font-body);
+  font-size: calc(11.5px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.raindrop-signal-prune svg {
+  width: 11px;
+  height: 11px;
+}
+
+.raindrop-signal-prune:hover {
+  background: color-mix(in srgb, var(--signal-cold) 20%, transparent);
+}
+
+.raindrop-signal-prune.is-active {
+  background: var(--signal-cold);
+  color: #FFFFFF;
+}
+
+/* ── 4. Cards ───────────────────────────────────────────────── */
+/* No translucent board behind the grid: cards sit on the ground. */
+html[data-color-mode] .raindrop-content .raindrop-layout {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.raindrop-dashboard .raindrop-layout .raindrop-card {
+  --card-accent: var(--muted-2);
+  border: 1px solid var(--border);
+  background: var(--rd-card);
+  box-shadow: none;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+html[data-color-mode] .raindrop-dashboard .raindrop-layout .raindrop-card:hover {
+  transform: none;
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+.raindrop-dashboard .raindrop-layout .raindrop-card:focus-visible {
+  outline: 2px solid var(--card-accent);
+  outline-offset: 2px;
+}
+
+/* The favicon tile carries the folder colour at every density. */
+.raindrop-dashboard .raindrop-layout .raindrop-card .raindrop-card-fav,
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-layout .raindrop-card .raindrop-card-fav {
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--card-accent) var(--rd-ring), transparent);
+  background: color-mix(in srgb, var(--card-accent) var(--rd-tint), transparent);
+  box-shadow: none;
+  color: var(--rd-strong-fg);
+  font-weight: 700;
+}
+
+.raindrop-dashboard .raindrop-layout .raindrop-card-title {
+  display: block;
+  overflow: hidden;
+  font-weight: 600;
+  line-height: 1.2 !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  word-break: normal;
+  -webkit-line-clamp: unset;
+}
+
+.raindrop-dashboard .raindrop-layout .raindrop-card-url {
+  font-weight: 400;
+}
+
+/* Meta line: ● folder · last opened · open count */
+.raindrop-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--ui-font-scale, 1));
+  line-height: 1;
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+.raindrop-card-meta-dot {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--card-accent);
+}
+
+.raindrop-card-meta-folder {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+.raindrop-card-meta-sep {
+  flex-shrink: 0;
+  opacity: 0.45;
+}
+
+.raindrop-card-meta-age {
+  flex-shrink: 0;
+}
+
+.raindrop-card-meta-count {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-hover);
+  color: var(--muted);
+}
+
+.raindrop-card.is-live .raindrop-card-meta-count {
+  background: color-mix(in srgb, var(--signal-live) 14%, transparent);
+  color: var(--signal-live);
+}
+
+.raindrop-card.is-cold .raindrop-card-meta-count {
+  background: color-mix(in srgb, var(--signal-cold) 12%, transparent);
+  color: var(--signal-cold);
+}
+
+/* The copy under the title is for compact only. */
+.raindrop-card-info > .raindrop-card-meta {
+  display: none;
+}
+
+.raindrop-dashboard .raindrop-layout .raindrop-card-tags {
+  display: none;
+}
+
+/* Compact · 52px, the default density */
+.raindrop-dashboard .raindrop-layout.raindrop-compact {
+  grid-template-columns: repeat(auto-fill, minmax(222px, 1fr));
+  gap: 8px;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card {
+  flex-direction: row;
+  align-items: center;
+  height: 52px;
+  min-height: 52px;
+  padding: 0 11px;
+  overflow: hidden;
+  border-radius: 10px;
+  contain-intrinsic-size: auto 52px;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card-body {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card-top {
+  gap: 10px;
+  min-width: 0;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card .raindrop-card-fav {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: calc(14px * var(--ui-font-scale, 1));
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card-fav img {
+  width: 18px;
+  height: 18px;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card-info {
+  gap: 4px;
+  min-width: 0;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card-title {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card-url,
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card-bottom {
+  display: none;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card-info > .raindrop-card-meta {
+  display: flex;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-compact .raindrop-card-meta-folder {
+  max-width: 110px;
+}
+
+/* Grid · 112px, the only density with the open count */
+.raindrop-dashboard .raindrop-layout.raindrop-grid {
+  grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+  gap: 10px;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card {
+  height: 112px;
+  min-height: 112px;
+  padding: 12px;
+  border-radius: 12px;
+  contain-intrinsic-size: auto 112px;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-body {
+  justify-content: space-between;
+  gap: 0;
+  height: 100%;
+  min-width: 0;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-top {
+  gap: 11px;
+  min-width: 0;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card .raindrop-card-fav {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: calc(16px * var(--ui-font-scale, 1));
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-fav img {
+  width: 22px;
+  height: 22px;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-info {
+  gap: 3px;
+  min-width: 0;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-title {
+  font-size: calc(13px * var(--ui-font-scale, 1)) !important;
+  line-height: 1.25 !important;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-url {
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-bottom {
+  justify-content: flex-start;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-meta {
+  flex: 1;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-meta-sep {
+  display: none;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-meta-age {
+  margin-left: auto;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-grid .raindrop-card-meta-count {
+  display: inline-flex;
+  margin-left: 3px;
+}
+
+/* List · 44px rows in aligned tracks: favicon, title, domain, folder + age */
+.raindrop-dashboard .raindrop-layout.raindrop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media (min-width: 1280px) {
+  .raindrop-dashboard .raindrop-layout.raindrop-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 20px;
+  }
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card {
+  height: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border-color: var(--border);
+  background: var(--rd-card);
+  contain-intrinsic-size: auto 44px;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-body {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 176px);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-top,
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-info {
+  display: contents;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card .raindrop-card-fav {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-fav img {
+  width: 16px;
+  height: 16px;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-title {
+  min-width: 0;
+  font-size: calc(12.5px * var(--ui-font-scale, 1)) !important;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-url {
+  display: block;
+  flex: none;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+  text-align: left;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-bottom {
+  display: flex;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-meta {
+  flex: 1;
+  gap: 6px;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-meta-sep {
+  display: none;
+}
+
+.raindrop-dashboard .raindrop-layout.raindrop-list .raindrop-card-meta-age {
+  margin-left: auto;
+}
+
+/* Cold · any density: a dashed edge and a drained tile, no loud colour.
+   Kept after the densities so it wins their background and border. */
+.raindrop-dashboard .raindrop-layout .raindrop-card.is-cold {
+  border-style: dashed;
+  border-color: var(--rd-cold-border);
+  background: var(--rd-cold-card);
+  box-shadow: none;
+}
+
+.raindrop-dashboard .raindrop-layout .raindrop-card.is-cold .raindrop-card-fav,
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-layout .raindrop-card.is-cold .raindrop-card-fav {
+  border-color: var(--rd-cold-border);
+  background: var(--rd-cold-tile);
+  color: var(--muted-2);
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-layout .raindrop-card.is-cold .raindrop-card-fav {
+  border-color: var(--border);
+}
+
+.raindrop-dashboard .raindrop-layout .raindrop-card.is-cold .raindrop-card-fav img {
+  opacity: 0.6;
+  filter: grayscale(1);
+}
+
+.raindrop-dashboard .raindrop-card.is-cold .raindrop-card-title {
+  color: var(--muted);
+}
+
+.raindrop-dashboard .raindrop-card.is-cold .raindrop-card-meta-dot {
+  background: color-mix(in srgb, var(--signal-cold) 60%, transparent);
+}
+
+.raindrop-dashboard .raindrop-card.is-cold .raindrop-card-meta-age {
+  color: var(--signal-cold);
+}
+
+/* ── 5. Home ─────────────────────────────────────────────────── */
+.raindrop-dashboard .home-shortcuts-container {
+  margin: 4px auto 18px;
+  padding: 0 20px;
+}
+
+.raindrop-dashboard .shortcut-category-bar {
+  margin-bottom: 16px;
+  padding-bottom: 0;
+}
+
+.raindrop-dashboard .shortcut-category-btn {
+  height: 32px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--rd-control);
+  box-shadow: none;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.raindrop-dashboard .shortcut-category-btn:hover {
+  border-color: var(--border-strong);
+  background: var(--rd-control);
+  color: var(--fg);
+}
+
+.raindrop-dashboard .shortcut-category-btn.is-active {
+  border-color: var(--rd-primary-border);
+  background: var(--rd-primary-bg);
+  box-shadow: none;
+  color: var(--rd-primary-fg);
+  font-weight: 600;
+}
+
+.raindrop-dashboard .shortcut-category-add-btn,
+html[data-color-mode="light"] .raindrop-dashboard .shortcut-category-add-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--rd-control);
+  box-shadow: none;
+  color: var(--muted);
+}
+
+.raindrop-dashboard .shortcut-circular-grid {
+  margin-bottom: 0;
+  padding: 0;
+}
+
+/* Light: shortcut discs stay neutral white so the favicon is the only colour. */
+html[data-color-mode="light"] .raindrop-dashboard .shortcut-circular-disc {
+  border: 1px solid var(--border);
+  background: #FFFFFF;
+  box-shadow: none;
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .shortcut-circular-item:hover .shortcut-circular-disc {
+  border: 1px solid var(--border-strong);
+  background: #FFFFFF;
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .shortcut-circular-label {
+  color: var(--fg-secondary);
+}
+
+.raindrop-dashboard .shortcut-circular-add-disc {
+  box-shadow: none;
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .shortcut-circular-add-disc {
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted-2);
+}
+
+/* Triage row: Quickie to file, links gone cold, duplicates */
+.raindrop-triage-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin: 0 0 18px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1023px) {
+  .raindrop-triage-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.raindrop-triage-card {
+  --triage-accent: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--rd-control);
+  box-shadow: none;
+  color: var(--fg);
+  font-family: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.raindrop-triage-card:hover {
+  border-color: var(--border-strong);
+}
+
+.raindrop-triage-card[data-triage="quickie"] { --triage-accent: var(--signal-live); }
+.raindrop-triage-card[data-triage="cold"] { --triage-accent: var(--signal-cold); }
+.raindrop-triage-card[data-triage="duplicates"] { --triage-accent: var(--folder-pal-3); }
+
+.raindrop-triage-card.is-alert {
+  border-color: color-mix(in srgb, var(--signal-cold) 35%, transparent);
+}
+
+.raindrop-triage-card.is-alert:hover {
+  border-color: color-mix(in srgb, var(--signal-cold) 60%, transparent);
+}
+
+.raindrop-triage-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--triage-accent) 15%, transparent);
+  color: var(--triage-accent);
+}
+
+.raindrop-triage-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.raindrop-triage-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.raindrop-triage-title,
+.raindrop-triage-note {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.raindrop-triage-title {
+  font-size: calc(14px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.raindrop-triage-note {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--ui-font-scale, 1));
+  color: var(--muted-2);
+}
+
+.raindrop-triage-go {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+}
+
+.raindrop-triage-go svg {
+  width: 12px;
+  height: 12px;
+}
+
+.raindrop-triage-card.is-alert .raindrop-triage-go {
+  border-color: color-mix(in srgb, var(--signal-cold) 35%, transparent);
+  color: var(--signal-cold);
+}
+
+/* Bento: Quickie and Collections stacked on the left, To-Do alongside */
+.raindrop-dashboard .home-bento-dashboard {
+  grid-template-rows: auto 1fr;
+  gap: 14px;
+  max-width: none;
+  margin: 0;
+  flex: 1 0 auto;
+}
+
+@media (min-width: 1024px) {
+  .raindrop-dashboard .bento-card-quickies {
+    grid-column: 1 / 6;
+    grid-row: 1;
+  }
+
+  .raindrop-dashboard .bento-card-calendar {
+    grid-column: 6 / 9;
+    grid-row: 1;
+  }
+
+  .raindrop-dashboard .bento-card-collections {
+    grid-column: 1 / 9;
+    grid-row: 2;
+  }
+
+  .raindrop-dashboard .bento-card-tasks {
+    grid-column: 9 / 13;
+    grid-row: 1 / 3;
+  }
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .bento-card {
+  border: 1px solid var(--border);
+  background: #FFFFFF;
+  box-shadow: none;
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .bento-card-header {
+  background: var(--rd-panel-band);
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .bento-card-count {
+  background: var(--rd-panel-pill);
+  color: var(--muted);
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .bento-quickie-item,
+html[data-color-mode="light"] .raindrop-dashboard .bento-task-item,
+html[data-color-mode="light"] .raindrop-dashboard .bento-collection-tile {
+  background: var(--rd-panel-band);
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .bento-quickie-item:hover,
+html[data-color-mode="light"] .raindrop-dashboard .bento-task-item:hover,
+html[data-color-mode="light"] .raindrop-dashboard .bento-collection-tile:hover {
+  background: #F0F2F5;
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .bento-quickie-fav,
+html[data-color-mode="light"] .raindrop-dashboard .bento-quickie-action-btn {
+  border: 1px solid var(--border);
+  background: #FFFFFF;
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .bento-tasks-input-box {
+  border-color: var(--border);
+  background: var(--rd-panel-band);
+}
+
+.raindrop-dashboard .bento-quickie-title {
+  font-weight: 600;
+}
+
+.raindrop-dashboard .bento-tasks-chip,
+html[data-color-mode="light"] .raindrop-dashboard .bento-tasks-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--rd-panel-band);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--ui-font-scale, 1));
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .bento-tasks-chip {
+  background: #FFFFFF;
+}
+
+.raindrop-dashboard .bento-tasks-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+
+.raindrop-dashboard .bento-tasks-chip.is-selected,
+html[data-color-mode="light"] .raindrop-dashboard .bento-tasks-chip.is-selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.raindrop-dashboard .bento-task-check.is-done,
+html[data-color-mode="light"] .raindrop-dashboard .bento-task-check.is-done {
+  border-color: var(--signal-live);
+  background: var(--signal-live);
+  color: var(--bg);
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .bento-task-check.is-done {
+  color: #FFFFFF;
+}
+
+/* Collections in the bento: tinted collection icon, name, count */
+.raindrop-dashboard .bento-collections-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 1600px) {
+  .raindrop-dashboard .bento-collections-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.raindrop-dashboard .bento-collection-tile {
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 9px;
+}
+
+.raindrop-dashboard .bento-collection-tile:hover {
+  transform: none;
+}
+
+.bento-collection-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--row-accent, var(--muted)) var(--rd-tint, 15%), transparent);
+  color: var(--row-accent, var(--muted));
+}
+
+.bento-collection-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.9;
+}
+
+.raindrop-dashboard .bento-collection-name {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+}
+
+.raindrop-dashboard .bento-collection-count,
+html[data-color-mode="light"] .raindrop-dashboard .bento-collection-count {
+  padding: 0;
+  background: transparent;
+  color: var(--muted-2);
+  font-size: calc(10.5px * var(--ui-font-scale, 1));
+}
+
+/* ── 6. Collections page ────────────────────────────────────── */
+.raindrop-dashboard .raindrop-collections-grid {
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 14px;
+}
+
+.raindrop-dashboard .raindrop-collection-card {
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-collection-card {
+  background: #FFFFFF;
+  box-shadow: none;
+}
+
+.raindrop-dashboard .raindrop-collection-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-collection-card:hover {
+  box-shadow: none;
+}
+
+.raindrop-dashboard .raindrop-collection-card:focus-visible {
+  outline: 2px solid var(--row-accent, var(--accent));
+  outline-offset: 2px;
+}
+
+.raindrop-coll-cover {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 128px;
+  overflow: hidden;
+  border: 1px solid var(--rd-well-border);
+  border-radius: 12px;
+  background: var(--rd-well);
+  transition: border-color 220ms ease;
+}
+
+/* Card hover animation: cover border takes the collection accent, favicons
+   lift with a slight stagger, folder pill highlights. Flat — no shadows. */
+.raindrop-collection-card:hover .raindrop-coll-cover,
+.raindrop-collection-card:focus-within .raindrop-coll-cover {
+  border-color: color-mix(in srgb, var(--row-accent, var(--accent)) 55%, transparent);
+}
+.raindrop-collection-card:hover .raindrop-coll-span {
+  border-color: color-mix(in srgb, var(--row-accent, var(--accent)) 50%, var(--border));
+  color: var(--fg);
+}
+
+.raindrop-coll-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--rd-well-dots) 1px, transparent 1px);
+  background-size: 14px 14px;
+  pointer-events: none;
+}
+
+.raindrop-coll-span {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 3;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--ui-font-scale, 1));
+}
+
+html[data-color-mode="light"] .raindrop-coll-span {
+  background: #FFFFFF;
+}
+
+.raindrop-coll-members {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 190px;
+}
+
+/* Favicon tiles lift with a stagger on card hover. */
+.raindrop-coll-member {
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), border-color 220ms ease;
+}
+.raindrop-collection-card:hover .raindrop-coll-member {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--row-accent, var(--accent)) 40%, var(--rd-member-border));
+}
+.raindrop-collection-card:hover .raindrop-coll-member:nth-child(2) { transition-delay: 30ms; }
+.raindrop-collection-card:hover .raindrop-coll-member:nth-child(3) { transition-delay: 60ms; }
+.raindrop-collection-card:hover .raindrop-coll-member:nth-child(4) { transition-delay: 90ms; }
+@media (prefers-reduced-motion: reduce) {
+  .raindrop-collection-card:hover .raindrop-coll-member { transform: none; }
+}
+
+.raindrop-coll-member {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--rd-member-border);
+  border-radius: 11px;
+  background: var(--rd-member);
+  box-shadow: none;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.raindrop-coll-member img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.raindrop-coll-rest {
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--muted-2);
+}
+
+.raindrop-coll-empty {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  box-sizing: border-box;
+  border: 1px dashed var(--border-strong);
+  border-radius: 11px;
+  color: var(--muted-2);
+}
+
+.raindrop-coll-empty svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.raindrop-collection-card:hover .raindrop-coll-empty {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.raindrop-dashboard .raindrop-coll-info {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  min-height: 0;
+  padding: 2px 6px 6px;
+}
+
+.raindrop-coll-heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 26px;
+}
+
+/* Hover actions overlay the count instead of reserving space beside it. */
+.raindrop-dashboard .raindrop-coll-actions,
+.raindrop-dashboard .raindrop-collection-card:hover .raindrop-coll-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  padding-left: 8px;
+  background: var(--surface);
+  transform: none;
+}
+
+/* Action icons: staggered rise-in on hover, accent hover states. */
+.raindrop-dashboard .raindrop-coll-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  opacity: 0;
+  translate: 0 4px;
+  transition: opacity 180ms ease, translate 180ms ease, color 150ms ease,
+    border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+.raindrop-dashboard .raindrop-collection-card:hover .raindrop-coll-action-btn,
+.raindrop-dashboard .raindrop-collection-card:focus-within .raindrop-coll-action-btn {
+  opacity: 1;
+  translate: 0 0;
+}
+.raindrop-dashboard .raindrop-collection-card:hover .raindrop-coll-action-btn:nth-child(2) { transition-delay: 35ms; }
+.raindrop-dashboard .raindrop-collection-card:hover .raindrop-coll-action-btn:nth-child(3) { transition-delay: 70ms; }
+.raindrop-dashboard .raindrop-coll-action-btn svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+.raindrop-dashboard .raindrop-coll-action-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+.raindrop-dashboard .raindrop-coll-action-btn.raindrop-coll-delete:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+.raindrop-dashboard .raindrop-coll-action-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  opacity: 1;
+  translate: 0 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .raindrop-dashboard .raindrop-coll-action-btn { translate: none; }
+}
+
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-coll-actions,
+html[data-color-mode="light"] .raindrop-dashboard .raindrop-collection-card:hover .raindrop-coll-actions {
+  background: #FFFFFF;
+}
+
+.raindrop-dashboard .raindrop-coll-name {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(14px * var(--ui-font-scale, 1)) !important;
+}
+
+.raindrop-dashboard .raindrop-coll-count {
+  flex-shrink: 0;
+  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
+  color: var(--muted);
+}
+
+.raindrop-collection-card:hover .raindrop-coll-count,
+.raindrop-collection-card:focus-within .raindrop-coll-count {
+  display: none;
+}
+
+.raindrop-coll-last {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--ui-font-scale, 1));
+  color: var(--muted-2);
+}
+
+/* ── Flat design: no elevation shadows anywhere ──
+   Kills every drop shadow, glow and inset highlight on blocks, cards,
+   inputs, buttons, dialogs and menus. Deliberately preserved because
+   they are not shadows: the toggle cloud art, drag edge indicators,
+   and focus rings (keyboard visibility). */
+*:not(.toggle-switch-figureAlt):not(.drop-target-left):not(.drop-target-right):not(.drop-target-top):not(.drop-target-bottom):not(:focus):not(:focus-visible) {
+  box-shadow: none !important;
+}

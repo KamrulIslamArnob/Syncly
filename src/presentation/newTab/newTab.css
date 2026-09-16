@@ -2887,28 +2887,6 @@ html[data-color-mode="dark"] .settings-theme-pill.is-active {
   margin-top: 8px;
 }
 
-.raindrop-add-bm-btn {
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-family: var(--font-body);
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  transition: all var(--dur) var(--ease);
-}
-.raindrop-add-bm-btn:hover {
-  background: var(--accent);
-  color: #fff;
-}
-.raindrop-add-bm-btn svg { width: 12px; height: 12px; }
-
 .raindrop-coll-sub-list {
   display: flex;
   flex-direction: column;
@@ -3077,7 +3055,6 @@ details summary:hover {
 .settings-sidebar details summary:hover {
   color: var(--fg);
 }
-
 
 /* ════════════════════════════════════════════════════════════════════
    BOOKMARK DRAG-AND-DROP FEEDBACK
@@ -4259,7 +4236,6 @@ body.mode-tree .nav-toggle-btn.is-active{background:var(--accent);color:var(--on
   }
 }
 
-
 /* ════════════════════════════════════════════════════════════════════
    BOOKMARK MANAGER — two-pane workspace (BookmarkDeckView)
    Dark/light both come from tokens.css's --bg/--surface/--surface-2/
@@ -5007,28 +4983,6 @@ button.workspace-menu-row.is-active { color: var(--accent); font-weight: 600; }
 .raindrop-tree-container { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; width: 100%; }
 .raindrop-tree-branch { display: flex; flex-direction: column; width: 100%; }
 .raindrop-tree-children { display: flex; flex-direction: column; gap: 1px; }
-.raindrop-tree-slash {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font-family: var(--font-mono);
-  font-size: 13.5px;
-  font-weight: 700;
-  line-height: 1;
-  flex-shrink: 0;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: transform var(--dur) var(--ease), filter var(--dur) var(--ease);
-}
-.raindrop-tree-slash:hover {
-  transform: scale(1.3);
-  filter: brightness(1.3);
-}
 
 /* Color picker popover */
 .raindrop-color-popover {
@@ -5142,12 +5096,6 @@ button.workspace-menu-row.is-active { color: var(--accent); font-weight: 600; }
   background: var(--fill-hover);
   color: var(--fg);
 }
-.raindrop-header-title.is-home {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--fg);
-}
 .raindrop-header-title-input {
   font-family: var(--font-body);
   font-size: 19px;
@@ -5259,30 +5207,6 @@ button.workspace-menu-row.is-active { color: var(--accent); font-weight: 600; }
 /* Right cluster: select button, view switch, theme switch, settings */
 .raindrop-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-width: 0; justify-self: end; }
 
-/* 1. Select Button: Icon-only checkmark */
-.raindrop-select-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: var(--radius-md, 6px);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--muted);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--dur) var(--ease);
-  box-sizing: border-box;
-}
-.raindrop-select-btn svg { width: 14px; height: 14px; }
-.raindrop-select-btn:hover { color: var(--fg); border-color: var(--border-strong); background: var(--fill-hover); }
-.raindrop-select-btn.is-active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
 /* 2. Unified Focus & Theme Pill Control */
 .raindrop-focus-theme-group {
   display: inline-flex;
@@ -5374,94 +5298,6 @@ button.workspace-menu-row.is-active { color: var(--accent); font-weight: 600; }
   height: 12px;
 }
 
-/* 3. View Switcher Dropdown */
-.raindrop-view-dropdown-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-.raindrop-view-current-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: var(--radius-md, 6px);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all var(--dur) var(--ease);
-  box-sizing: border-box;
-}
-.raindrop-view-current-btn svg {
-  width: 14px;
-  height: 14px;
-}
-.raindrop-view-current-btn:hover,
-.raindrop-view-dropdown-wrap:hover .raindrop-view-current-btn,
-.raindrop-view-dropdown-wrap.is-open .raindrop-view-current-btn {
-  color: var(--fg);
-  border-color: var(--border-strong);
-  background: var(--fill-hover);
-}
-.raindrop-view-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  min-width: 116px;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md, 8px);
-  padding: 4px;
-  display: none;
-  flex-direction: column;
-  gap: 2px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  z-index: 250;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-.raindrop-view-dropdown-wrap:hover .raindrop-view-dropdown-menu,
-.raindrop-view-dropdown-wrap:focus-within .raindrop-view-dropdown-menu,
-.raindrop-view-dropdown-wrap.is-open .raindrop-view-dropdown-menu {
-  display: flex;
-}
-.raindrop-view-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 28px;
-  padding: 0 8px;
-  border: none;
-  background: transparent;
-  border-radius: 5px;
-  color: var(--muted);
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
-  text-align: left;
-  box-sizing: border-box;
-}
-.raindrop-view-option:hover {
-  background: var(--fill-hover);
-  color: var(--fg);
-}
-.raindrop-view-option.is-active {
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
-}
-.raindrop-view-option-icon {
-  width: 13px;
-  height: 13px;
-  flex-shrink: 0;
-}
-
 /* Home Focus Hero Mode (Greeting + Dot Clock + Center Pill Search) */
 .raindrop-dashboard {
   position: relative;
@@ -5486,7 +5322,6 @@ button.workspace-menu-row.is-active { color: var(--accent); font-weight: 600; }
 /* ═══════════════════════════════════════════════════════════════
    Universal Background Presets (Dark & Light Variants)
    ═══════════════════════════════════════════════════════════════ */
-
 
 /* Defense-in-depth base rule (BUG-FIX: sidebar-of-noise).
    Every preset block below re-declares position/display/inset for
@@ -6928,25 +6763,30 @@ html[data-color-mode="light"] .shortcut-circular-add-item:hover .shortcut-circul
 }
 
 @media (min-width: 1024px) {
-  .bento-card-collections {
-    grid-column: 1 / 8;
+  .bento-card-quickies {
+    grid-column: 1 / 6;
     grid-row: 1;
   }
-  .bento-card-quickies {
-    grid-column: 1 / 8;
-    grid-row: 2;
+  .bento-card-calendar {
+    grid-column: 6 / 9;
+    grid-row: 1;
   }
   .bento-card-tasks {
-    grid-column: 8 / 13;
+    grid-column: 9 / 13;
     grid-row: 1 / 3;
     height: 100%;
+  }
+  .bento-card-collections {
+    grid-column: 1 / 9;
+    grid-row: 2;
   }
 }
 
 @media (max-width: 1023px) {
   .bento-card-collections,
   .bento-card-quickies,
-  .bento-card-tasks {
+  .bento-card-tasks,
+  .bento-card-calendar {
     grid-column: 1 / 13;
     grid-row: auto;
   }
@@ -6959,14 +6799,14 @@ html[data-color-mode="light"] .shortcut-circular-add-item:hover .shortcut-circul
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
   transition: background 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html[data-color-mode="light"] .bento-card {
   background: #eef1f5;
   border: none;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 .bento-card-header {
@@ -7036,41 +6876,6 @@ html[data-color-mode="light"] .bento-card-count {
   gap: 6px;
 }
 
-.bento-btn-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: none;
-  background: #282b35;
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), transform 140ms ease;
-}
-
-html[data-color-mode="light"] .bento-btn-icon {
-  background: #e2e8f0;
-  color: var(--muted);
-}
-
-.bento-btn-icon:hover {
-  background: #323642;
-  color: var(--fg);
-  transform: scale(1.05);
-}
-
-html[data-color-mode="light"] .bento-btn-icon:hover {
-  background: #cbd5e1;
-  color: var(--fg);
-}
-
-.bento-btn-icon svg {
-  width: 12px;
-  height: 12px;
-}
-
 .bento-btn-link {
   display: inline-flex;
   align-items: center;
@@ -7136,25 +6941,6 @@ html[data-color-mode="light"] .bento-collection-tile:hover {
   background: #f8fafc;
 }
 
-.bento-collection-top {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-}
-
-.bento-collection-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.35);
-}
-
-html[data-color-mode="light"] .bento-collection-dot {
-  background: rgba(0, 0, 0, 0.3);
-}
-
 .bento-collection-name {
   font-family: var(--font-body);
   font-size: calc(13px * var(--ui-font-scale, 1));
@@ -7180,53 +6966,6 @@ html[data-color-mode="light"] .bento-collection-dot {
 html[data-color-mode="light"] .bento-collection-count {
   background: #e2e8f0;
   color: var(--muted);
-}
-
-.bento-collection-preview {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 22px;
-}
-
-.bento-collection-fav {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  background: #282b35;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border: none;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--fg);
-}
-
-html[data-color-mode="light"] .bento-collection-fav {
-  background: #e2e8f0;
-}
-
-.bento-collection-fav img {
-  width: 14px;
-  height: 14px;
-  border-radius: 2px;
-  object-fit: contain;
-}
-
-.bento-collection-more {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--muted);
-  padding: 0 4px;
-}
-
-.bento-collection-empty-label {
-  font-family: var(--font-body);
-  font-size: calc(11.5px * var(--ui-font-scale, 1));
-  color: var(--muted-2);
 }
 
 /* Quickies List */
@@ -7471,6 +7210,7 @@ html[data-color-mode="light"] .bento-tasks-enter-btn {
 .bento-tasks-chips {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -7669,7 +7409,7 @@ html[data-color-mode="dark"] .raindrop-layout {
   border: none;
   border-radius: 16px;
   padding: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 html[data-color-mode="dark"] .raindrop-layout.raindrop-list {
   padding: 8px;
@@ -7685,7 +7425,7 @@ html[data-color-mode="light"] .raindrop-layout {
   border: none;
   border-radius: 16px;
   padding: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
 }
 
 /* Legacy shortcut grid: board a bit darker no border, tiles unchanged */
@@ -7697,7 +7437,7 @@ html[data-color-mode="dark"] .bookmark-list {
   border: none;
   border-radius: 16px;
   padding: 12px 12px 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 
 /* Omni-Search Section Headers */
@@ -7770,34 +7510,12 @@ html[data-color-mode="dark"] .bookmark-list {
   padding: 4px 0;
 }
 
-/* Subfolders quickbar (for folder navigation) */
-.raindrop-quickbar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; margin-bottom: 12px; }
-.raindrop-quick-tile {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: var(--radius-md);
-  background: var(--surface); border: 1px solid var(--border);
-  cursor: pointer; text-align: left; transition: all var(--dur) var(--ease);
-}
-.raindrop-quick-tile:hover { border-color: var(--border-strong); background: var(--fill-hover); }
-.raindrop-quick-tile-icon {
-  width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px;
-  display: grid; place-items: center;
-}
-.raindrop-quick-tile-icon svg { width: 15px; height: 15px; }
-.raindrop-quick-tile-label {
-  flex: 1; min-width: 0; font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--fg);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.raindrop-quick-tile-count { font-family: var(--font-mono); font-size: 11px; color: var(--muted-2); flex-shrink: 0; }
-@media (max-width: 700px) { .raindrop-quickbar { grid-template-columns: repeat(2, 1fr); } }
-
 /* Card drag-and-drop: reorder within a collection, or drop onto a
    folder row/quickbar tile/another card to move between collections. */
 .raindrop-card { cursor: grab; position: relative; }
 .raindrop-card.is-dragging { opacity: 0.4; }
 .raindrop-card.is-drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
 .raindrop-nav-row.is-drop-target,
-.raindrop-quick-tile.is-drop-target,
 .bento-card-quickies.is-drop-target,
 .bento-collection-tile.is-drop-target {
   outline: 2px dashed var(--accent); outline-offset: -2px;
@@ -7868,11 +7586,11 @@ html[data-color-mode="dark"] .bookmark-list {
 .raindrop-layout.raindrop-grid .raindrop-card:hover {
   transform: translateY(-2px);
   border-color: var(--border-strong);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), 0 0 12px var(--accent-soft, transparent);
+  box-shadow: none;
 }
 
 html[data-color-mode="light"] .raindrop-layout.raindrop-grid .raindrop-card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 0 10px var(--accent-soft, transparent);
+  box-shadow: none;
 }
 
 .raindrop-card-body {
@@ -7969,44 +7687,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
   width: 100%;
   padding-top: 8px;
   border-top: 1px solid var(--border);
-}
-
-.raindrop-card-path {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 7px;
-  border-radius: 5px;
-  background: var(--fill-hover);
-  border: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  font-weight: 500;
-  color: var(--muted);
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
-  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
-}
-
-.raindrop-card-path-icon {
-  width: 11px;
-  height: 11px;
-  flex-shrink: 0;
-  color: var(--muted-2);
-}
-
-.raindrop-card:hover .raindrop-card-path {
-  border-color: var(--border-strong);
-  color: var(--fg);
-}
-
-.raindrop-card.is-selected .raindrop-card-path {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
 }
 
 .raindrop-card-actions {
@@ -8132,31 +7812,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
   text-overflow: ellipsis;
   -webkit-line-clamp: 1;
 }
-.raindrop-layout.raindrop-list .raindrop-card-path {
-  flex: 3.5;
-  min-width: 180px;
-  max-width: 560px;
-  margin-bottom: 0;
-  padding: 3px 9px;
-  font-family: var(--font-mono);
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  color: var(--muted);
-  background: var(--fill-hover);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.raindrop-layout.raindrop-list .raindrop-card-path.is-empty {
-  visibility: hidden;
-  border: none;
-  background: transparent;
-  padding: 0;
-}
 .raindrop-layout.raindrop-list .raindrop-card-url {
   flex: 1.2;
   min-width: 90px;
@@ -8197,11 +7852,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
 }
 .raindrop-layout.raindrop-list .raindrop-card-action-btn {
   box-shadow: none;
-}
-
-.raindrop-layout.raindrop-grid .raindrop-card-path.is-empty,
-.raindrop-layout.raindrop-compact .raindrop-card-path.is-empty {
-  display: none;
 }
 
 .raindrop-layout.raindrop-compact { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
@@ -8332,51 +7982,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
   gap: 16px;
   width: 100%;
 }
-.raindrop-collections-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-}
-.raindrop-collections-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.raindrop-collections-section-heading {
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--fg);
-}
-.raindrop-collections-count-badge {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--muted-2);
-  background: var(--surface);
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-}
-.raindrop-new-coll-btn {
-  height: 30px;
-  padding: 0 12px;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--fg);
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all var(--dur) var(--ease);
-}
-.raindrop-new-coll-btn svg { width: 12px; height: 12px; }
-.raindrop-new-coll-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 .raindrop-collections-grid {
   display: grid;
@@ -8385,7 +7990,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
   width: 100%;
 }
 
-/* ── Redesigned Premium Collection Card ────────────────────── */
 .raindrop-collection-card {
   display: flex;
   flex-direction: column;
@@ -8396,331 +8000,18 @@ html[data-color-mode="light"] .raindrop-card-fav {
   cursor: pointer;
   position: relative;
   gap: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 280ms ease, border-color 200ms ease, background 200ms ease;
+  box-shadow: none;
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease, background 200ms ease;
   user-select: none;
 }
 .raindrop-collection-card:hover {
-  border-color: var(--border-strong);
+  border-color: color-mix(in srgb, var(--row-accent, var(--border-strong)) 55%, var(--border-strong));
   background: var(--surface);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--accent-subtle);
+  box-shadow: none;
   transform: translateY(-3px);
 }
 .raindrop-collection-card:active {
   transform: translateY(-1px) scale(0.99);
-}
-
-/* Floating Stage Canvas */
-.raindrop-coll-stage {
-  position: relative;
-  height: 128px;
-  width: 100%;
-  border-radius: calc(var(--radius-lg, 16px) - 4px);
-  background: var(--surface-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.raindrop-collection-card:hover .raindrop-coll-stage {
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-/* Stage Micro-Grid Background */
-.raindrop-coll-stage-grid {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 14px 14px;
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.raindrop-coll-aura {
-  position: absolute;
-  inset: -15px;
-  background: radial-gradient(circle at 50% 50%, var(--accent-subtle, rgba(59, 130, 246, 0.18)) 0%, transparent 68%);
-  opacity: 0.5;
-  pointer-events: none;
-  transition: opacity 300ms ease, transform 300ms ease;
-}
-.raindrop-collection-card:hover .raindrop-coll-aura {
-  opacity: 1;
-  transform: scale(1.15);
-}
-
-/* Floating Icon Stack Canvas */
-.raindrop-coll-icon-stack {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 94px;
-  width: 100%;
-  z-index: 2;
-}
-
-/* Individual Floating Icon Tile */
-.raindrop-coll-floating-icon {
-  position: absolute;
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  background: var(--surface);
-  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.16));
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24), inset 0 1px 1px rgba(255, 255, 255, 0.14);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 320ms ease, border-color 200ms ease;
-}
-.raindrop-coll-floating-icon:hover {
-  border-color: var(--accent);
-  z-index: 30 !important;
-}
-
-.raindrop-coll-fav-img {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--fg);
-}
-.raindrop-coll-fav-img img {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
-}
-
-/* 1 Item: Large Hero Centerpiece */
-.raindrop-coll-floating-icon.total-1 {
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
-  transform: scale(1);
-}
-.raindrop-coll-floating-icon.total-1 .raindrop-coll-fav-img img {
-  width: 28px;
-  height: 28px;
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-1 {
-  transform: translateY(-4px) scale(1.1);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
-}
-
-/* 2 Items: Overlapping 3D Dynamic Duo */
-.raindrop-coll-floating-icon.total-2.item-1 {
-  width: 44px;
-  height: 44px;
-  transform: translateX(-26px) rotate(-8deg) scale(0.98);
-  z-index: 1;
-}
-.raindrop-coll-floating-icon.total-2.item-2 {
-  width: 44px;
-  height: 44px;
-  transform: translateX(26px) rotate(8deg) scale(1.02);
-  z-index: 2;
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-2.item-1 {
-  transform: translateX(-38px) rotate(-14deg) translateY(-3px) scale(1.02);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-2.item-2 {
-  transform: translateX(38px) rotate(14deg) translateY(-3px) scale(1.06);
-}
-
-/* 3 Items: 3-Way Fanned Spread */
-.raindrop-coll-floating-icon.total-3.item-1 {
-  width: 42px;
-  height: 42px;
-  transform: translateX(-48px) rotate(-12deg) scale(0.94);
-  z-index: 1;
-}
-.raindrop-coll-floating-icon.total-3.item-2 {
-  width: 44px;
-  height: 44px;
-  transform: translateX(0) translateY(-6px) scale(1.04);
-  z-index: 3;
-}
-.raindrop-coll-floating-icon.total-3.item-3 {
-  width: 42px;
-  height: 42px;
-  transform: translateX(48px) rotate(12deg) scale(0.94);
-  z-index: 2;
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-3.item-1 {
-  transform: translateX(-62px) rotate(-18deg) translateY(-3px) scale(0.98);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-3.item-2 {
-  transform: translateX(0) translateY(-12px) scale(1.1);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-3.item-3 {
-  transform: translateX(62px) rotate(18deg) translateY(-3px) scale(0.98);
-}
-
-/* 4 Items: Wide 4-Card Cascade */
-.raindrop-coll-floating-icon.total-4.item-1 {
-  width: 38px;
-  height: 38px;
-  transform: translateX(-64px) translateY(2px) rotate(-14deg) scale(0.9);
-  z-index: 1;
-}
-.raindrop-coll-floating-icon.total-4.item-2 {
-  width: 40px;
-  height: 40px;
-  transform: translateX(-22px) translateY(-6px) rotate(-4deg) scale(1.02);
-  z-index: 3;
-}
-.raindrop-coll-floating-icon.total-4.item-3 {
-  width: 40px;
-  height: 40px;
-  transform: translateX(22px) translateY(-3px) rotate(6deg) scale(1);
-  z-index: 2;
-}
-.raindrop-coll-floating-icon.total-4.item-4 {
-  width: 38px;
-  height: 38px;
-  transform: translateX(64px) translateY(4px) rotate(14deg) scale(0.92);
-  z-index: 1;
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-4.item-1 {
-  transform: translateX(-78px) rotate(-20deg) translateY(-2px) scale(0.94);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-4.item-2 {
-  transform: translateX(-26px) translateY(-12px) rotate(-6deg) scale(1.06);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-4.item-3 {
-  transform: translateX(26px) translateY(-10px) rotate(8deg) scale(1.06);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.total-4.item-4 {
-  transform: translateX(78px) translateY(0px) rotate(20deg) scale(0.96);
-}
-
-/* ── 5+ Items: Multi-Icon Spatial Constellation ─────────────── */
-.raindrop-coll-icon-stack.is-constellation {
-  width: 100%;
-}
-.raindrop-coll-floating-icon.constellation-item {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-}
-.raindrop-coll-floating-icon.constellation-item .raindrop-coll-fav-img img {
-  width: 18px;
-  height: 18px;
-}
-
-/* Top Tier */
-.raindrop-coll-floating-icon.constellation-item.item-1 {
-  left: calc(50% - 84px);
-  top: 10px;
-  transform: rotate(-10deg) scale(0.9);
-  z-index: 2;
-}
-.raindrop-coll-floating-icon.constellation-item.item-2 {
-  left: calc(50% - 30px);
-  top: 4px;
-  transform: rotate(-2deg) scale(1.02);
-  z-index: 4;
-}
-.raindrop-coll-floating-icon.constellation-item.item-3 {
-  left: calc(50% + 24px);
-  top: 8px;
-  transform: rotate(8deg) scale(0.96);
-  z-index: 3;
-}
-
-/* Bottom Tier */
-.raindrop-coll-floating-icon.constellation-item.item-4 {
-  left: calc(50% - 96px);
-  bottom: 8px;
-  transform: rotate(-14deg) scale(0.86);
-  z-index: 1;
-}
-.raindrop-coll-floating-icon.constellation-item.item-5 {
-  left: calc(50% - 44px);
-  bottom: 4px;
-  transform: rotate(-4deg) scale(0.96);
-  z-index: 3;
-}
-.raindrop-coll-floating-icon.constellation-item.item-6 {
-  left: calc(50% + 10px);
-  bottom: 6px;
-  transform: rotate(6deg) scale(0.98);
-  z-index: 5;
-}
-.raindrop-coll-floating-icon.constellation-item.item-7 {
-  left: calc(50% + 64px);
-  bottom: 10px;
-  transform: rotate(14deg) scale(0.9);
-  z-index: 2;
-}
-
-/* Constellation Kinetic Hover Wave */
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-1 {
-  transform: translate(-6px, -4px) rotate(-16deg) scale(0.96);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-2 {
-  transform: translate(0px, -8px) rotate(-4deg) scale(1.08);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-3 {
-  transform: translate(6px, -6px) rotate(14deg) scale(1.02);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-4 {
-  transform: translate(-8px, 3px) rotate(-20deg) scale(0.92);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-5 {
-  transform: translate(-4px, 4px) rotate(-6deg) scale(1.02);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-6 {
-  transform: translate(4px, 4px) rotate(8deg) scale(1.04);
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-icon.constellation-item.item-7 {
-  transform: translate(8px, 5px) rotate(20deg) scale(0.96);
-}
-
-/* More Badge Pill */
-.raindrop-coll-floating-more {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  color: var(--fg);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: var(--radius-pill);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
-  z-index: 10;
-  backdrop-filter: blur(8px);
-  transition: transform 260ms ease, border-color 200ms ease, color 200ms ease;
-}
-.raindrop-collection-card:hover .raindrop-coll-floating-more {
-  transform: scale(1.08);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* Empty icon state */
-.raindrop-coll-floating-icon.is-empty {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  color: var(--muted);
-  background: var(--surface);
-  border: 1px dashed var(--border-strong);
-}
-.raindrop-coll-floating-icon.is-empty svg {
-  width: 24px;
-  height: 24px;
 }
 
 /* Card Info Body (Lower Section) */
@@ -8732,13 +8023,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
   gap: 8px;
   min-height: 38px;
   position: relative;
-}
-.raindrop-coll-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
 }
 .raindrop-coll-name {
   font-family: var(--font-body);
@@ -8786,7 +8070,7 @@ html[data-color-mode="light"] .raindrop-card-fav {
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
   transition: all 160ms ease;
 }
 .raindrop-coll-action-btn svg { width: 12px; height: 12px; }
@@ -9096,9 +8380,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
 .raindrop-header-title {
   font-size: calc(19px * var(--ui-font-scale, 1)) !important;
 }
-.raindrop-header-title.is-home {
-  font-size: calc(14px * var(--ui-font-scale, 1)) !important;
-}
 .raindrop-header-stats {
   font-size: calc(11px * var(--ui-font-scale, 1)) !important;
 }
@@ -9110,9 +8391,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
 }
 .raindrop-tag-chip {
   font-size: calc(11.5px * var(--ui-font-scale, 1)) !important;
-}
-.raindrop-view-option {
-  font-size: calc(12px * var(--ui-font-scale, 1)) !important;
 }
 
 /* 3. Focus Hero Mode */
@@ -9186,11 +8464,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
   font-size: calc(11.5px * var(--ui-font-scale, 1)) !important;
 }
 
-.raindrop-card-path,
-.raindrop-layout.raindrop-list .raindrop-card-path {
-  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
-}
-
 .raindrop-card-tag,
 .raindrop-layout.raindrop-list .raindrop-card-tag,
 .bookmark-card-tag,
@@ -9208,20 +8481,6 @@ html[data-color-mode="light"] .raindrop-card-fav {
 }
 .raindrop-coll-count {
   font-size: calc(11.5px * var(--ui-font-scale, 1)) !important;
-}
-.raindrop-collections-section-heading {
-  font-size: calc(16px * var(--ui-font-scale, 1)) !important;
-}
-.raindrop-collections-count-badge {
-  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
-}
-
-/* Subfolder Quickbar */
-.raindrop-quick-tile-label {
-  font-size: calc(13.5px * var(--ui-font-scale, 1)) !important;
-}
-.raindrop-quick-tile-count {
-  font-size: calc(11px * var(--ui-font-scale, 1)) !important;
 }
 
 /* 6. Settings Sidebar & Dialogs */
@@ -9254,4 +8513,312 @@ html[data-color-mode="light"] .raindrop-card-fav {
 }
 .settings-bg-card-hint {
   font-size: calc(10.5px * var(--ui-font-scale, 1)) !important;
+}
+
+/* ── Date functionality: filters, overdue, pickers, calendar, focus, world clocks ── */
+.todo-filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.todo-filter-chip {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em;
+  padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.todo-filter-chip:hover { border-color: var(--accent); color: var(--fg); }
+.todo-filter-chip.is-active { background: var(--accent-soft); border-color: var(--accent); color: var(--fg); }
+.todo-panel-daterow, .bento-tasks-daterow { display: flex; gap: 8px; margin-top: 8px; }
+.todo-panel-date, .todo-panel-time, .bento-tasks-date, .bento-tasks-time {
+  flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 11px;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 8px; color-scheme: light dark;
+}
+.todo-panel-item.is-overdue, .bento-task-item.is-overdue { border-color: var(--danger, #ef4444); }
+.todo-panel-due.is-overdue, .bento-task-due.is-overdue {
+  background: rgba(239,68,68,.14); color: #f87171; border: 1px solid rgba(239,68,68,.4);
+}
+html[data-color-mode="light"] .todo-panel-due.is-overdue,
+html[data-color-mode="light"] .bento-task-due.is-overdue { color: #b91c1c; background: rgba(239,68,68,.1); }
+.todo-panel-pills, .bento-task-pills { display: inline-flex; gap: 6px; align-items: center; }
+.todo-panel-time, .bento-task-time {
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+  background: rgba(255,255,255,.06); padding: 1.5px 6.5px; border-radius: 4px;
+}
+.todo-panel-edit, .bento-task-edit { position: relative; }
+.todo-panel-edit-toggle, .bento-task-edit-toggle {
+  list-style: none; cursor: pointer; border: 1px solid var(--border); border-radius: 6px;
+  width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--muted); background: transparent;
+}
+.todo-panel-edit-toggle::-webkit-details-marker, .bento-task-edit-toggle::-webkit-details-marker { display: none; }
+.todo-panel-edit-toggle:hover, .bento-task-edit-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.todo-panel-edit[open], .bento-task-edit[open] {
+  display: inline-flex; gap: 6px; align-items: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px;
+}
+.todo-panel-date-input, .todo-panel-time-input, .bento-task-date-input, .bento-task-time-input {
+  font-family: var(--font-mono); font-size: 11px; background: var(--surface-2, #1a1b1e);
+  color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px;
+  color-scheme: light dark;
+}
+.todo-panel-duration-input, .bento-task-duration-input {
+  width: 64px; font-family: var(--font-mono); font-size: 11px;
+  background: var(--surface-2, #1a1b1e); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px;
+}
+.todo-panel-reminder, .bento-task-reminder {
+  font-family: var(--font-mono); font-size: 10px; color: var(--accent);
+  background: var(--accent-soft); border: 1px solid var(--accent);
+  padding: 1.5px 6.5px; border-radius: 4px; white-space: nowrap;
+}
+.todo-panel-reminder.is-passed, .bento-task-reminder.is-passed { color: var(--muted); background: transparent; border-color: var(--border); }
+.todo-panel-clear, .bento-task-clear {
+  font-size: 10px; font-family: var(--font-mono); border: 1px solid var(--border);
+  background: transparent; color: var(--muted); border-radius: 6px; padding: 4px 8px; cursor: pointer;
+}
+.todo-panel-clear:hover, .bento-task-clear:hover { border-color: var(--danger, #ef4444); color: var(--danger, #ef4444); }
+.raindrop-header-date {
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; white-space: nowrap;
+}
+.clock-date-line { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: .02em; }
+.world-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.world-list-row {
+  display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 11px;
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; color: var(--muted);
+}
+.world-list-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
+.world-list-time { color: var(--accent); font-weight: 600; }
+.world-list-offset { opacity: .75; }
+.bento-card-calendar .bento-cal-body { padding: 10px 12px 12px; min-width: 0; }
+.bento-card-calendar .bento-card-header-left { min-width: 0; flex: 1; }
+.bento-card-calendar .bento-card-title {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.bento-card-calendar .bento-card-header-actions { flex-shrink: 0; }
+.bento-cal-week, .bento-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.bento-cal-week { margin-bottom: 6px; }
+.bento-cal-dow { font-family: var(--font-mono); font-size: 9px; text-align: center; color: var(--muted-2); }
+.bento-cal-day {
+  position: relative; aspect-ratio: 1; border-radius: 7px; border: 1px solid transparent;
+  background: transparent; color: var(--fg); font-size: 11px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.bento-cal-day:hover { border-color: var(--accent); }
+.bento-cal-day.is-out { opacity: .32; }
+.bento-cal-day.is-today { border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+.bento-cal-day.has-tasks { border-color: var(--border); }
+.bento-cal-dot { position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+.bento-cal-nav {
+  width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1;
+}
+.bento-cal-nav:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── To-Do: quick single-line rows ──
+   Row: checkbox + title + due tag at the end + delete. No editor, no
+   date/time pickers, no filter row — presets under the input are enough. */
+.bento-task-item,
+.todo-panel-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+.bento-task-top,
+.todo-panel-top {
+  display: contents;
+}
+.bento-task-item .bento-task-title,
+.todo-panel-item .todo-panel-title {
+  cursor: text;
+}
+.bento-task-item .bento-task-due,
+.todo-panel-item .todo-panel-due {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.bento-task-title-input,
+.todo-panel-title-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  background: var(--surface, #272b35);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 3px 8px;
+  outline: none;
+}
+.bento-task-pills,
+.todo-panel-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding-left: 26px;
+}
+.todo-panel-pills { padding-left: 32px; }
+.bento-task-due.is-undated,
+.todo-panel-due.is-undated {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--muted-2);
+  font-weight: 400;
+}
+.todo-panel-due.is-undated {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+}
+/* Preset chips: selectable state (separate from filter chips) */
+.bento-tasks-chip.is-selected,
+.todo-panel-chip.is-selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--fg);
+}
+.bento-tasks-chip.is-selected {
+  outline: 1px solid var(--accent, #6366f1);
+}
+.todo-panel-chip.is-selected {
+  border-color: var(--accent);
+}
+/* Structured editor dropdown */
+.todo-panel-edit,
+.bento-task-edit {
+  position: relative;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.todo-panel-edit[open],
+.bento-task-edit[open] {
+  display: inline-flex;
+  position: relative;
+}
+.todo-panel-edit-form,
+.bento-task-edit-form {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+  max-width: 280px;
+  background: var(--surface, #23262e);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+html[data-color-mode="light"] .todo-panel-edit-form,
+html[data-color-mode="light"] .bento-task-edit-form {
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+.todo-panel-edit-field,
+.bento-task-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  min-width: 0;
+}
+.todo-panel-edit-caption,
+.bento-task-edit-caption {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.todo-panel-title-edit-input,
+.bento-task-title-edit-input {
+  font-family: var(--font-body);
+  font-size: 12px;
+  background: var(--surface-2, #1a1b1e);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.todo-panel-title-edit-input:focus,
+.bento-task-title-edit-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.todo-panel-edit-actions,
+.bento-task-edit-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+.todo-panel-done-edit,
+.bento-task-done-edit {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.todo-panel-done-edit:hover,
+.bento-task-done-edit:hover {
+  filter: brightness(1.1);
+}
+/* Footer: progress + clear done */
+.todo-panel-footer,
+.bento-task-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 2px 0;
+  margin-top: 2px;
+  border-top: 1px dashed var(--border);
+}
+.todo-panel-progress,
+.bento-task-progress {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(127, 140, 160, 0.22);
+  overflow: hidden;
+  min-width: 40px;
+}
+.todo-panel-progress-bar,
+.bento-task-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent, #6366f1);
+  transition: width 0.25s ease;
+}
+.todo-panel-progress-label,
+.bento-task-progress-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.todo-panel-clear-done,
+.bento-task-clear-done {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.todo-panel-clear-done:hover,
+.bento-task-clear-done:hover {
+  border-color: var(--danger, #ef4444);
+  color: var(--danger, #ef4444);
 }

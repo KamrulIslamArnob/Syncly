@@ -149,8 +149,12 @@ export class Task {
       throw new Error("Task dueDate must be YYYY-MM-DD");
     }
     if (dueDate) {
-      const d = new Date(dueDate + "T00:00:00");
-      if (Number.isNaN(d.getTime())) throw new Error("Task dueDate is not a valid date");
+      const [y, m, d] = dueDate.split("-").map(Number);
+      if (m < 1 || m > 12 || d < 1 || d > 31) throw new Error("Task dueDate is not a valid date");
+      const dt = new Date(y, m - 1, d);
+      if (Number.isNaN(dt.getTime()) || dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) {
+        throw new Error("Task dueDate is not a valid date");
+      }
     }
   }
 }

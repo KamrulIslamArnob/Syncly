@@ -144,9 +144,13 @@ export class CombinedClockView {
         this._worldOffset
       )
     );
+    this._worldList = el("div", { className: "world-list", "aria-label": "All world clocks" });
+
+    // Local date line (honors showDate setting)
+    this._dateLine = el("div", { className: "clock-date-line" }, "");
 
     this.root = el("section", { className: "clock-block", "aria-label": "Clock" },
-      this._pomoLabel, this._clockMain, this._pomoControls, worldRow);
+      this._pomoLabel, this._clockMain, this._dateLine, this._pomoControls, worldRow, this._worldList);
 
     this._updateWorldMeta();
     this._updateText();
@@ -203,10 +207,53 @@ export class CombinedClockView {
     return c ? { label: c.label || c.city, timeZone: c.timeZone || c.iana } : { label: "London", timeZone: "Europe/London" };
   }
 
+  _allWorldClocks() {
+    const list = Array.isArray(this.settings?.clocks) ? this.settings.clocks : [];
+    if (list.length === 0) return [{ label: "London", timeZone: "Europe/London" }];
+    return list.map((c) => ({
+      label: c?.label || c?.city || "Local",
+      timeZone: c?.timeZone ?? c?.iana ?? "",
+    }));
+  }
+
   _updateWorldMeta() {
     const c = this._worldClock();
     if (this._worldLabel) this._worldLabel.textContent = c.label;
     if (this._worldOffset) this._worldOffset.textContent = getUtcOffset(c.timeZone);
+    // Full list (all configured zones, not just [0])
+    if (this._worldList) {
+      this._worldList.replaceChildren();
+      const all = this._allWorldClocks();
+      if (all.length > 1) {
+        for (const w of all) {
+          const row = el("div", { className: "world-list-row" },
+            el("span", { className: "world-list-label" }, w.label || "Local"),
+            el("span", { className: "world-list-time", dataset: { tz: w.timeZone || "" } }, ""),
+            el("span", { className: "world-list-offset" }, getUtcOffset(w.timeZone)),
+          );
+          this._worldList.append(row);
+        }
+        this._worldList.style.display = "";
+      } else {
+        this._worldList.style.display = "none";
+      }
+    }
+    if (this._dateLine) {
+      const showDate = this.settings?.showDate !== false;
+      if (!showDate) {
+        this._dateLine.style.display = "none";
+      } else {
+        this._dateLine.style.display = "";
+        try {
+          const now = this.clock?.now?.() || new Date();
+          this._dateLine.textContent = now.toLocaleDateString("en-US", {
+            weekday: "long", month: "long", day: "numeric", year: "numeric",
+          });
+        } catch {
+          this._dateLine.textContent = "";
+        }
+      }
+    }
   }
 
   _toggleMode() {
@@ -237,6 +284,16 @@ export class CombinedClockView {
     const c = this._worldClock();
     const world = formatParts(now, { is24h, withSeconds: false, timeZone: c.timeZone });
     this._worldTimeEl.textContent = world.period ? `${world.time} ${world.period}` : world.time;
+    // Refresh every row in the full world-clock list
+    if (this._worldList?.childNodes?.length) {
+      for (const row of this._worldList.childNodes) {
+        const timeEl = row.querySelector?.(".world-list-time");
+        if (!timeEl) continue;
+        const tz = timeEl.dataset?.tz || "";
+        const w = formatParts(now, { is24h, withSeconds: false, timeZone: tz || undefined });
+        timeEl.textContent = w.period ? `${w.time} ${w.period}` : w.time;
+      }
+    }
   }
 
   destroy() {
