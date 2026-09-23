@@ -104,6 +104,7 @@ export class AdoptNativeWorkspaceFolders {
           name: validatedName,
           icon: "folder",
           folderIds: [node.id],
+          rootFolderId: node.id,
         });
         await this.groupRepository.save(entity);
         tracked.push(entity);

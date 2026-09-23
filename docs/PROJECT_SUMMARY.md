@@ -1,6 +1,8 @@
-# NothingTab — Full Project Summary
+# NothingTab — Full Project Summary *(HISTORICAL / STALE)*
 
-> One file to rule them all. Any AI agent reads this first, then knows everything about this codebase.
+> **⚠ Do not use as current context.** Title, widget dashboard description, file map, fonts, and use-case counts predate the Syncly bookmark-manager redesign.
+>
+> **Read [`docs/CONTEXT.md`](CONTEXT.md) instead** — the canonical full-app context memory (features, storage, events, permissions, architecture). Companion rules: [`agents/CLAUDE.md`](agents/CLAUDE.md).
 
 ---
 

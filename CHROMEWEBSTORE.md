@@ -50,6 +50,9 @@ Organize your web efficiently with Syncly.
 | `activeTab` | Used only when the user clicks the extension toolbar icon to read the current tab's title and URL so they can quickly add it to a collection or workspace. |
 | `tabs` | Required to open bookmarks in new or background tabs and query current window tab state. |
 | `favicon` | Required to fetch and display native cached site icons via Chrome's secure favicon provider (`chrome://favicon/`). |
+| `alarms` | Required for a 15-minute background safety-net that reconciles cross-device sync when no extension page is open. |
+| `sidePanel` | Required to open the quick-add popup as Chrome's side panel (user-initiated). |
+| `contextMenus` | Required for the "Open from sidebar" item on the extension toolbar icon's context menu. |
 
 ---
 

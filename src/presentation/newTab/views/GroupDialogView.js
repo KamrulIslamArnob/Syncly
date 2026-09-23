@@ -208,7 +208,7 @@ export class GroupDialogView {
                   (n) => isWorkspaceFolder(n) && fromFolderTitle(n.title).toLowerCase() === wanted
                 ) || siblings.find((n) => (n.title || "").trim().toLowerCase() === wanted && !n.url);
                 if (byTitle) {
-                  try { await this.useCases.updateBookmarkGroup.execute({ id: match.id, folderIds: [byTitle.id] }); } catch {}
+                  try { await this.useCases.updateBookmarkGroup.execute({ id: match.id, folderIds: [byTitle.id], rootFolderId: byTitle.id }); } catch {}
                 }
               }
             } catch {}
@@ -239,7 +239,7 @@ export class GroupDialogView {
 
         // Optionally rename the root folder in Chrome if it exists —
         // the "w-" prefixed title propagates to all devices via native sync
-        const rootFolderId = this.editGroup.folderIds?.[0];
+        const rootFolderId = this.editGroup.rootFolderId || this.editGroup.folderIds?.[0];
         if (rootFolderId && typeof chrome !== "undefined" && chrome.bookmarks?.update) {
           try {
             await chrome.bookmarks.update(rootFolderId, { title: toFolderTitle(name) });
@@ -287,6 +287,7 @@ export class GroupDialogView {
             name,
             icon: iconName,
             folderIds,
+            rootFolderId: folderId || null,
           });
         } catch (err) {
           // Rollback orphan folder
@@ -359,7 +360,7 @@ export class GroupDialogView {
     // deletion syncs everywhere; referenced external folders are never touched.
     let dedicatedRootId = null;
     try {
-      const rootFolderId = targetGroup.folderIds?.[0];
+        const rootFolderId = targetGroup.rootFolderId || targetGroup.folderIds?.[0];
       if (rootFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
         const tree = await this.getTree().catch(() => []);
         const node = this._findNodeById(tree, rootFolderId);
@@ -371,7 +372,7 @@ export class GroupDialogView {
 
     this.confirmDialog.open({
       title: "Delete Workspace",
-      message: `Delete workspace "${targetGroup.name}"? Its workspace folder and the bookmarks inside it will be removed on ALL synced devices. Folders you linked into this workspace from elsewhere are not affected.`,
+      message: `Delete workspace "${targetGroup.name}"? Its dedicated workspace folder (${targetGroup.name}'s native root) and every bookmark, Collection, and Shortcut inside it will be removed on ALL synced devices. The global Shortcuts and Quickie folders are never deleted. Folders you linked into this workspace from elsewhere are not affected.`,
       confirmLabel: "Delete Workspace",
       isDanger: true,
       onConfirm: async () => {

@@ -106,6 +106,12 @@ export class NewFolderDialogView {
       this.toast?.show("Please enter a folder name", { error: true });
       return;
     }
+    // System folder titles are reserved at a workspace root (case-insensitive)
+    const lower = title.toLowerCase();
+    if (lower === "collections" || lower === "shortcuts" || lower === "quickie") {
+      this.toast?.show(`"${title}" is a reserved system folder name`, { error: true });
+      return;
+    }
     const parentId = this.folderSelector.getSelectedFolderId();
     if (!parentId) {
       this.toast?.show("Please select a location for the folder", { error: true });

@@ -4,6 +4,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Read first
+
+**[`docs/CONTEXT.md`](../CONTEXT.md)** is the canonical full-app context memory: every feature, surface, storage key, EventBus event, permission, design token, Chrome API, and known doc discrepancy. Prefer it over `PRODUCT_SPEC.md` and `docs/PROJECT_SUMMARY.md` (both historical/stale). This file adds working rules; when CONTEXT.md and source disagree, trust source and update CONTEXT.md.
+
 ## Project
 
 Syncly — a Chrome MV3 new-tab replacement extension (vanilla JS, ES modules, no framework). The new tab is a two-pane **bookmark manager** over the user's real Chrome bookmarks: sidebar (workspace switcher + smart filters + collections tree) and a searchable card grid. Dark (`#121316` slate) and light (`#F8F9FA`) themes, terracotta `#D2683F`/`#E64A19` accent, Plus Jakarta Sans + JetBrains Mono. This replaced an earlier Nothing-Phone-inspired monochrome OLED widget dashboard (clock/Pomodoro/tasks/weather/curated-shortcuts) — see "What changed" below for what's still in the tree but no longer mounted.
@@ -88,7 +92,8 @@ Use case mutates state → repo persists → use case emits on the `EventBus` (`
 
 ## Reference docs
 
-- [`PRODUCT_SPEC.md`](../../PRODUCT_SPEC.md) — exhaustive product + engineering spec; section 5 (New Tab) and the widget sections predate the bookmark-manager redesign and describe the old dashboard — treat as historical/stale until updated, prefer reading source for current new-tab behavior.
+- [`docs/CONTEXT.md`](../CONTEXT.md) — **canonical full-app context memory** (features, storage, events, permissions, discrepancies). Prefer over PRODUCT_SPEC.
+- [`PRODUCT_SPEC.md`](../../PRODUCT_SPEC.md) — historical product + engineering spec; widget sections and NothingTab branding predate the redesign — treat as archived.
 - [`Design.md`](../design/Design.md) — design system notes; predates the redesign's terracotta/Plus-Jakarta-Sans visual system.
 - [`AI-Quota-Tracker-Extension-Build-Task.md`](../AI-Quota-Tracker-Extension-Build-Task.md) — spec for the not-yet-wired AI-quota feature above.
 - `OPTIMIZATION_PLAN.md` (if present at repo root) — architecture audit / known-issues list from a past pass; useful context, may be stale on specifics.

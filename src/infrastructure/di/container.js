@@ -27,6 +27,7 @@ import { EventBus } from "../../application/ports/EventBus.js";
 
 import { EnsureQuickieFolderUseCase } from "../../application/useCases/bookmarks/EnsureQuickieFolderUseCase.js";
 import { EnsureShortcutsFolderUseCase } from "../../application/useCases/bookmarks/EnsureShortcutsFolderUseCase.js";
+import { ResolveShortcutsFolderUseCase } from "../../application/useCases/bookmarks/ResolveShortcutsFolderUseCase.js";
 import { EnsureCollectionsFolderUseCase } from "../../application/useCases/bookmarks/EnsureCollectionsFolderUseCase.js";
 import { MigrateBookmarkBarToQuickAccessUseCase } from "../../application/useCases/bookmarks/MigrateBookmarkBarToQuickAccessUseCase.js";
 import { ListBookmarkCollectionsUseCase } from "../../application/useCases/collections/ListBookmarkCollectionsUseCase.js";
@@ -36,6 +37,9 @@ import { DeleteBookmarkCollectionUseCase } from "../../application/useCases/coll
 import { RenameBookmarkCollectionUseCase } from "../../application/useCases/collections/RenameBookmarkCollectionUseCase.js";
 import { SyncFromGoogleCloudUseCase } from "../../application/useCases/sync/SyncFromGoogleCloudUseCase.js";
 import { AdoptNativeWorkspaceFolders } from "../../application/useCases/workspaces/AdoptNativeWorkspaceFolders.js";
+import { ResolveWorkspaceStructureUseCase } from "../../application/useCases/workspaces/ResolveWorkspaceStructureUseCase.js";
+import { EnsureWorkspaceStructureUseCase } from "../../application/useCases/workspaces/EnsureWorkspaceStructureUseCase.js";
+import { MigrateWorkspaceStructureV2UseCase } from "../../application/useCases/workspaces/MigrateWorkspaceStructureV2UseCase.js";
 
 import { ListBookmarksUseCase } from "../../application/useCases/bookmarks/ListBookmarksUseCase.js";
 import { CreateBookmarkUseCase } from "../../application/useCases/bookmarks/CreateBookmarkUseCase.js";
@@ -197,7 +201,9 @@ export function buildContainer() {
   // other devices via Chrome's native bookmark sync (quota-proof channel).
   .then(() => adoptNativeWorkspaceFolders.execute()).catch(() => {})
   // Native-sync fallback for collections: adopt native subfolders inside "Collections" folder
-  .then(() => ensureCollectionsFolderUseCase.execute()).catch(() => {});
+  .then(() => ensureCollectionsFolderUseCase.execute()).catch(() => {})
+  // Workspace structure v2: ensure Collections/Shortcuts under each w-* root
+  .then(() => migrateWorkspaceStructureV2.execute().catch(() => {}));
 
   // PERF-T04: page-side reconcile polling (30s interval + post-write trigger)
   // was removed — the MV3 service worker now owns catch-up convergence via its
@@ -208,11 +214,46 @@ export function buildContainer() {
   const ensureShortcutsFolderUseCase = new EnsureShortcutsFolderUseCase();
   const ensureCollectionsFolderUseCase = new EnsureCollectionsFolderUseCase({ events });
 
+  // Workspace ownership: resolve + bootstrap Collections/Shortcuts under w-* roots
+  const resolveWorkspaceStructure = new ResolveWorkspaceStructureUseCase({
+    groupRepository: bookmarkGroupRepo,
+    storage,
+  });
+  const ensureWorkspaceStructure = new EnsureWorkspaceStructureUseCase({
+    resolve: resolveWorkspaceStructure,
+    groupRepository: bookmarkGroupRepo,
+    storage,
+    events,
+  });
+  // Wire workspace-aware shortcuts (both instances exist after construction).
+  ensureShortcutsFolderUseCase.setWorkspaceDeps(resolveWorkspaceStructure, ensureWorkspaceStructure);
+
+  // Central destination resolver: SHORTCUTS → workspace path or global path.
+  // Views must call this instead of branching on workspaceId themselves.
+  const resolveShortcutsFolder = new ResolveShortcutsFolderUseCase({
+    ensureShortcutsFolder: ensureShortcutsFolderUseCase,
+    ensureWorkspaceStructure,
+    resolveWorkspaceStructure,
+  });
+
+  const migrateWorkspaceStructureV2 = new MigrateWorkspaceStructureV2UseCase({
+    groupRepository: bookmarkGroupRepo,
+    collectionRepository: bookmarkCollectionRepo,
+    ensureWorkspaceStructure,
+    resolve: resolveWorkspaceStructure,
+    storage,
+    events,
+  });
+
   // ---- use cases ----
   const useCases = Object.freeze({
     ensureQuickieFolder: new EnsureQuickieFolderUseCase(),
     ensureShortcutsFolder: ensureShortcutsFolderUseCase,
     ensureCollectionsFolder: ensureCollectionsFolderUseCase,
+    resolveShortcutsFolder,
+    resolveWorkspaceStructure,
+    ensureWorkspaceStructure,
+    migrateWorkspaceStructureV2,
     migrateBookmarkBarToQuickAccess: new MigrateBookmarkBarToQuickAccessUseCase({
       ensureShortcutsFolder: ensureShortcutsFolderUseCase,
     }),
@@ -225,6 +266,8 @@ export function buildContainer() {
       sanitizer,
       events,
       ensureCollectionsFolder: ensureCollectionsFolderUseCase,
+      ensureWorkspaceStructure,
+      resolveWorkspaceStructure,
     }),
     updateCollectionMembers: new UpdateCollectionMembersUseCase({
       repository: bookmarkCollectionRepo,
@@ -321,9 +364,9 @@ export function buildContainer() {
       events,
     }),
 
-    createBookmarkGroup: new CreateBookmarkGroup(bookmarkGroupRepo),
+    createBookmarkGroup: new CreateBookmarkGroup(bookmarkGroupRepo, { ensureWorkspaceStructure }),
     updateBookmarkGroup: new UpdateBookmarkGroup(bookmarkGroupRepo),
-    deleteBookmarkGroup: new DeleteBookmarkGroup(bookmarkGroupRepo),
+    deleteBookmarkGroup: new DeleteBookmarkGroup(bookmarkGroupRepo, { storage }),
     listBookmarkGroups: new ListBookmarkGroups(bookmarkGroupRepo),
     adoptNativeWorkspaceFolders,
     setActiveGroup: new SetActiveGroup(storage),
@@ -359,6 +402,12 @@ export function buildContainer() {
     }),
 
   });
+
+  // Wire workspace-aware shortcuts after EnsureShortcutsFolderUseCase exists.
+  // (Constructor cannot receive these without circular construction order.)
+  if (typeof ensureShortcutsFolderUseCase.setWorkspaceDeps === "function") {
+    ensureShortcutsFolderUseCase.setWorkspaceDeps(resolveWorkspaceStructure, ensureWorkspaceStructure);
+  }
 
   return Object.freeze({
     events,

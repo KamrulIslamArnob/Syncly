@@ -65,11 +65,9 @@ cannot copy this without abandoning their server business model.
 
 ## Evidence on Hand
 
-- Real product spec: `PRODUCT_SPEC.md`; store copy: `CHROMEWEBSTORE.md`; architecture:
-  `docs/architecture.md`, `docs/agents/CLAUDE.md`.
-- Live perf numbers from the T12 harness (`perf-report.json`): first render ≈ 12 ms,
-  deck `_load()` ≈ 28 ms at 500 synthetic bookmarks, JS heap ≈ 4.5 MB/tab.
-- Open performance backlog: `docs/PR-TICKETS.md` (7 of 14 tickets closed).
+- Real product context: [`docs/CONTEXT.md`](docs/CONTEXT.md) (canonical); historical spec: `PRODUCT_SPEC.md`; store copy: `CHROMEWEBSTORE.md`; architecture: `docs/architecture.md`, `docs/agents/CLAUDE.md`.
+- Live perf numbers come from `npm run perf` (`scripts/perf-baseline.mjs`). A committed `perf-report.json` is **not** in the tree — re-run the harness and attach output when citing figures.
+- Open performance backlog: `docs/PR-TICKETS.md` (ticket count drifts — open the file for current status).
 - No testimonials, press, or user research exist — future work must not fabricate any.
 
 ## Product Principles

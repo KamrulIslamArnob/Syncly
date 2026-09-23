@@ -11,7 +11,7 @@ export class UpdateBookmarkGroup {
     this.repository = repository;
   }
 
-  async execute({ id, name, icon, folderIds }) {
+  async execute({ id, name, icon, folderIds, rootFolderId }) {
     const existing = await this.repository.findById(id);
     if (!existing) {
       throw new Error("Bookmark group not found");
@@ -25,6 +25,9 @@ export class UpdateBookmarkGroup {
     }
     if (folderIds !== undefined) {
       existing.updateFolderIds(folderIds);
+    }
+    if (rootFolderId !== undefined && rootFolderId !== null) {
+      existing.updateRootFolderId(rootFolderId);
     }
 
     return await this.repository.save(existing);

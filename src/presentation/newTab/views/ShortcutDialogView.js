@@ -308,8 +308,14 @@ export class ShortcutDialogView {
     this.submitBtn.disabled = true;
 
     try {
-      // Native folder mode
-      if (this.shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
+      // Native folder mode — resolve workspace/global Shortcuts if not pre-set
+      let shortcutsFolderId = this.shortcutsFolderId;
+      if (!shortcutsFolderId && this.useCases?.resolveShortcutsFolder && typeof chrome !== "undefined" && chrome.bookmarks) {
+        const resolved = await this.useCases.resolveShortcutsFolder.execute({ ensure: true }).catch(() => null);
+        shortcutsFolderId = resolved?.shortcutsFolderId || null;
+        if (shortcutsFolderId) this.setShortcutsFolderId(shortcutsFolderId);
+      }
+      if (shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
         if (this.isEdit) {
           if (!this.targetShortcut) return;
           const bid = this.targetShortcut.id?.value || this.targetShortcut.id;
@@ -321,7 +327,7 @@ export class ShortcutDialogView {
           }
           this.toast?.show(`Updated shortcut "${title}"`);
         } else {
-          const parentId = categoryId || this.shortcutsFolderId;
+          const parentId = categoryId || shortcutsFolderId;
           await chrome.bookmarks.create({ parentId, title, url: urlStr });
           this.toast?.show(`Added shortcut "${title}"`);
         }

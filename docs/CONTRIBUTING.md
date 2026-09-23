@@ -1,11 +1,11 @@
-# Contributing to NothingTab
+# Contributing to Syncly
 
-Thank you for your interest in NothingTab! This document outlines how to contribute.
+Thank you for your interest in Syncly! This document outlines how to contribute.
 
 ## How to Contribute
 
 ### Report Issues
-- Use the [GitHub Issues](https://github.com/KamrulIslamArnob/NothingTab/issues) tracker.
+- Use the [GitHub Issues](https://github.com/KamrulIslamArnob/Syncly/issues) tracker.
 - Search existing issues before opening a new one.
 - Include reproduction steps, expected vs. actual behavior, and your environment (OS, Chrome version).
 
@@ -19,7 +19,7 @@ Thank you for your interest in NothingTab! This document outlines how to contrib
 
 ### Contribution Guidelines
 
-- **Read [PRODUCT_SPEC.md](../PRODUCT_SPEC.md)** before implementing — it covers data models, use cases, and UI behavior.
+- **Read [docs/CONTEXT.md](CONTEXT.md)** first — canonical full-app context (features, data model, use cases, events). `PRODUCT_SPEC.md` is historical.
 - **Read [Design.md](design/Design.md)** for design system rules (typography, spacing, color, anti-patterns) — canonical at `docs/design/Design.md` (stub at repo root `Design.md`).
 - **Follow Clean Architecture** — Presentation → Application → Domain ← Infrastructure. Never reverse dependencies.
 - **No `innerHTML` with user data** — use the `el()` helper from `src/presentation/shared/dom.js`.
@@ -33,8 +33,8 @@ Thank you for your interest in NothingTab! This document outlines how to contrib
 ## Development Setup
 
 ```bash
-git clone https://github.com/KamrulIslamArnob/NothingTab.git
-cd NothingTab
+git clone https://github.com/KamrulIslamArnob/Syncly.git
+cd Syncly
 # No build step — load as unpacked extension at chrome://extensions
 ```
 

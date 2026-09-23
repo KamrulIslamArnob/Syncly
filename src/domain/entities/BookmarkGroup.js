@@ -10,14 +10,19 @@ export class BookmarkGroup {
   #name;
   #icon;
   #folderIds;
+  #rootFolderId;
   #createdAt;
   #updatedAt;
 
-  constructor({ id, name, icon, folderIds, createdAt, updatedAt }) {
+  constructor({ id, name, icon, folderIds, rootFolderId, createdAt, updatedAt }) {
     this.#id = id;
     this.#name = name;
     this.#icon = icon;
     this.#folderIds = Array.isArray(folderIds) ? [...folderIds] : [];
+    this.#rootFolderId =
+      typeof rootFolderId === "string" && rootFolderId.trim()
+        ? rootFolderId.trim()
+        : (this.#folderIds[0] ? String(this.#folderIds[0]) : null);
     this.#createdAt = createdAt || Date.now();
     this.#updatedAt = updatedAt || Date.now();
   }
@@ -27,11 +32,16 @@ export class BookmarkGroup {
   get name() { return this.#name; }
   get icon() { return this.#icon; }
   get folderIds() { return [...this.#folderIds]; }
+  /** Native w-* root folder id (preferred ownership boundary). */
+  get rootFolderId() { return this.#rootFolderId; }
   get createdAt() { return this.#createdAt; }
   get updatedAt() { return this.#updatedAt; }
 
   // Reserved folder names that are central/system (cannot be used as workspace name)
   static RESERVED_NAMES = ["Quickie", "Shortcuts", "Collections", "Bookmarks bar", "Other Bookmarks", "Mobile Bookmarks", "All Bookmarks"];
+
+  /** System folder titles reserved at the workspace root (case-insensitive). */
+  static RESERVED_ROOT_CHILDREN = ["Collections", "Shortcuts"];
 
   // Validation
   static validateName(name) {
@@ -88,7 +98,26 @@ export class BookmarkGroup {
 
   updateFolderIds(folderIds) {
     this.#folderIds = BookmarkGroup.validateFolderIds(folderIds);
+    if (!this.#rootFolderId && this.#folderIds[0]) {
+      this.#rootFolderId = String(this.#folderIds[0]);
+    }
     this.#updatedAt = Date.now();
+  }
+
+  updateRootFolderId(rootFolderId) {
+    if (typeof rootFolderId === "string" && rootFolderId.trim()) {
+      this.#rootFolderId = rootFolderId.trim();
+      if (!this.#folderIds.includes(this.#rootFolderId)) {
+        this.#folderIds = [this.#rootFolderId, ...this.#folderIds].slice(0, 50);
+      }
+    }
+    this.#updatedAt = Date.now();
+  }
+
+  /** True when the given title is reserved as a workspace-root system folder. */
+  static isReservedRootChild(title) {
+    const t = String(title || "").trim().toLowerCase();
+    return BookmarkGroup.RESERVED_ROOT_CHILDREN.some((r) => r.toLowerCase() === t);
   }
 
   // Serialization
@@ -98,6 +127,7 @@ export class BookmarkGroup {
       name: this.#name,
       icon: this.#icon,
       folderIds: this.#folderIds,
+      rootFolderId: this.#rootFolderId,
       createdAt: this.#createdAt,
       updatedAt: this.#updatedAt,
     };
@@ -113,11 +143,13 @@ export class BookmarkGroup {
     } catch {
       icon = "folder";
     }
+    const folderIds = BookmarkGroup.validateFolderIds(data.folderIds || []);
     return new BookmarkGroup({
       id: data.id,
       name: BookmarkGroup.validateName(data.name),
       icon,
-      folderIds: BookmarkGroup.validateFolderIds(data.folderIds || []),
+      folderIds,
+      rootFolderId: data.rootFolderId || folderIds[0] || null,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });

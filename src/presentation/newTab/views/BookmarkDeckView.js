@@ -29,6 +29,7 @@ import {
 } from "../../shared/signal.js";
 import { OmniSearchIndex } from "../../../domain/services/OmniSearchIndex.js";
 import { Greeting } from "../../../domain/valueObjects/Greeting.js";
+import { BookmarkGroup } from "../../../domain/entities/BookmarkGroup.js";
 import {
   toISODateLocal,
   dueForPreset,
@@ -412,7 +413,12 @@ export class BookmarkDeckView {
         this.events.on("bookmarks:changed", () => this._scheduleLoad()),
         this.events.on("bookmarkCollections:changed", () => this._scheduleLoad()),
         this.events.on("bookmarkTags:changed", () => this._scheduleLoad()),
-        this.events.on("bookmarkGroup:changed", () => this._updateThemeToggleButtons()),
+        this.events.on("bookmarkGroup:changed", () => {
+          this._updateThemeToggleButtons();
+          // Workspace switch: refresh structure-scoped collections/shortcuts/sidebar
+          this._scheduleLoad();
+        }),
+        this.events.on("bookmarkGroups:changed", () => this._scheduleLoad()),
         this.events.on("settings:changed", (newSettings) => {
           const oldSettings = this._settings;
           if (newSettings) {
@@ -525,26 +531,67 @@ export class BookmarkDeckView {
     // with both ensure use cases (same-tick contract) instead of each one
     // issuing its own chrome.bookmarks.getTree() IPC round-trip.
     const raw = await this.getTree().catch(() => []);
-    const [quickieId, shortcutsFolderId, collectionsFolderId, , , openLog, tags, settings, folderColors] = await Promise.all([
+
+    // Workspace switcher state first so structure resolution uses the active id
+    await this.groupButtons.loadState().catch(() => null);
+    let activeGroup = this.groupButtons.activeGroup;
+    const activeWorkspaceId = activeGroup?.id || null;
+
+    // Bootstrap/repair workspace-owned Collections + Shortcuts under w-* root
+    let workspaceStructure = null;
+    if (activeWorkspaceId && this.useCases?.ensureWorkspaceStructure) {
+      workspaceStructure = await this.useCases.ensureWorkspaceStructure
+        .execute(activeWorkspaceId, { tree: raw })
+        .catch(() => null);
+    } else if (activeWorkspaceId && this.useCases?.resolveWorkspaceStructure) {
+      workspaceStructure = await this.useCases.resolveWorkspaceStructure
+        .execute({ workspaceId: activeWorkspaceId, tree: raw })
+        .catch(() => null);
+    }
+
+    // Central SHORTCUTS destination: workspace path or global path — never re-branch
+    const shortcutsResolved = this.useCases?.resolveShortcutsFolder
+      ? await this.useCases.resolveShortcutsFolder
+          .execute({ workspaceId: activeWorkspaceId, tree: raw, ensure: true })
+          .catch(() => null)
+      : null;
+    const shortcutsFolderId =
+      shortcutsResolved?.shortcutsFolderId ||
+      workspaceStructure?.shortcutsFolderId ||
+      null;
+    const collectionsFolderId =
+      (activeWorkspaceId
+        ? workspaceStructure?.collectionsFolderId
+        : null) ||
+      (!activeWorkspaceId && this.useCases?.ensureCollectionsFolder
+        ? await this.useCases.ensureCollectionsFolder.execute({ tree: raw }).catch(() => null)
+        : null) ||
+      null;
+
+    const [quickieId, , , , , openLog, tags, settings, folderColors] = await Promise.all([
       this.useCases?.ensureQuickieFolder ? this.useCases.ensureQuickieFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
-      this.useCases?.ensureShortcutsFolder ? this.useCases.ensureShortcutsFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
-      this.useCases?.ensureCollectionsFolder ? this.useCases.ensureCollectionsFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
+      Promise.resolve(shortcutsFolderId),
+      Promise.resolve(collectionsFolderId),
       Promise.resolve(null),
-      this.groupButtons.loadState().catch(() => null),
+      Promise.resolve(null),
       this.storage ? this.storage.get([USAGE_KEY, LAST_OPENED_MAP_KEY, SIGNAL_SINCE_KEY]).then((d) => d || {}).catch(() => ({})) : Promise.resolve({}),
       this.useCases?.listBookmarkTags ? this.useCases.listBookmarkTags.execute().catch(() => ({})) : Promise.resolve({}),
       this.useCases?.getSettings ? this.useCases.getSettings.execute().catch(() => null) : Promise.resolve(null),
       this.storage ? this.storage.get(FOLDER_COLORS_KEY).then((d) => d?.[FOLDER_COLORS_KEY] || {}).catch(() => ({})) : Promise.resolve({}),
     ]);
 
+    // Workspace-scoped collections (no cross-workspace leakage)
     const collections = this.useCases?.listBookmarkCollections
-      ? await this.useCases.listBookmarkCollections.execute().catch(() => [])
+      ? await this.useCases.listBookmarkCollections
+          .execute(activeWorkspaceId ? { workspaceId: activeWorkspaceId } : {})
+          .catch(() => [])
       : [];
 
-    this._shortcutsFolderId = shortcutsFolderId || this._shortcutsFolderId;
-    this._collectionsFolderId = collectionsFolderId || this._collectionsFolderId;
+    this._workspaceStructure = workspaceStructure;
+    this._shortcutsFolderId = shortcutsFolderId || workspaceStructure?.shortcutsFolderId || this._shortcutsFolderId;
+    this._collectionsFolderId = collectionsFolderId || workspaceStructure?.collectionsFolderId || this._collectionsFolderId;
 
-    // Sync CategoryDialog/ShortcutDialog to native folder
+    // Sync CategoryDialog/ShortcutDialog to workspace-owned native folder
     if (this.categoryDialog) this.categoryDialog.setShortcutsFolderId?.(this._shortcutsFolderId);
     if (this.shortcutDialog) this.shortcutDialog.setShortcutsFolderId?.(this._shortcutsFolderId);
 
@@ -631,7 +678,16 @@ export class BookmarkDeckView {
           needReload = true;
         } else {
           const remaining = g.folderIds.filter((id) => findFolderById(this._roots, id));
-          try { await this.useCases.updateBookmarkGroup.execute({ id: g.id, folderIds: remaining }); } catch {}
+          const remainingRoot = g.rootFolderId && findFolderById(this._roots, g.rootFolderId)
+            ? g.rootFolderId
+            : (remaining[0] || null);
+          try {
+            await this.useCases.updateBookmarkGroup.execute({
+              id: g.id,
+              folderIds: remaining,
+              ...(remainingRoot ? { rootFolderId: remainingRoot } : {}),
+            });
+          } catch {}
           needReload = true;
         }
       }
@@ -650,42 +706,59 @@ export class BookmarkDeckView {
       const switcherEl = await this.groupButtons.render();
       this._workspaceSlot.replaceChildren(switcherEl);
     }
-    const activeGroup = this.groupButtons.activeGroup;
+    // Re-read active group after render (loadState already ran above)
+    activeGroup = this.groupButtons.activeGroup;
 
     const isSystemFolder = (f) =>
       f.title === "Quickie" || f.id === this._quickieFolderId ||
       f.title === "Shortcuts" || f.id === this._shortcutsFolderId ||
-      f.title === "Collections" || f.id === this._collectionsFolderId;
+      f.title === "Collections" || f.id === this._collectionsFolderId ||
+      BookmarkGroup.isReservedRootChild?.(f.title);
 
-    if (activeGroup && Array.isArray(activeGroup.folderIds) && activeGroup.folderIds.length > 0) {
-      // Find each assigned folder or root workspace folder — skip system folders (never workspace-scoped)
+    // Workspace root (preferred): rootFolderId, then folderIds[0]
+    const workspaceRootId =
+      activeGroup?.rootFolderId ||
+      (Array.isArray(activeGroup?.folderIds) && activeGroup.folderIds[0]) ||
+      this._workspaceStructure?.rootFolderId ||
+      null;
+
+    if (activeGroup && workspaceRootId) {
+      // Render only the workspace root subtree as the sidebar folder tree.
+      // Exclude system folders (Collections / Shortcuts / Quickie) — they have
+      // dedicated product sections and must not appear as normal folders.
       const groupFolders = [];
-      for (const id of activeGroup.folderIds) {
-        if (id === this._quickieFolderId || id === this._shortcutsFolderId || id === this._collectionsFolderId) continue;
-        const found = findFolderById(this._roots, id);
-        if (found) {
-          if (isSystemFolder(found)) continue;
-          // If this is a dedicated workspace root folder, show its subfolders and loose bookmarks
-          if (Array.isArray(found.children) && found.children.length > 0) {
-            const loose = [];
-            for (const child of found.children) {
-              if (child.type === "folder") {
-                if (isSystemFolder(child)) continue;
-                groupFolders.push(child);
-              } else loose.push(child);
-            }
-            if (loose.length) {
-              groupFolders.unshift({
-                id: `loose:${found.id}`,
-                title: found.title || activeGroup.name,
-                type: "folder",
-                children: loose,
-                count: loose.length,
-              });
-            }
-          } else {
-            groupFolders.push(found);
+      const found = findFolderById(this._roots, workspaceRootId);
+      if (found) {
+        if (Array.isArray(found.children) && found.children.length > 0) {
+          const loose = [];
+          for (const child of found.children) {
+            if (child.type === "folder" || child.type === undefined) {
+              if (isSystemFolder(child)) continue;
+              if (child.url) {
+                loose.push(child);
+                continue;
+              }
+              groupFolders.push(child);
+            } else loose.push(child);
           }
+          if (loose.length) {
+            groupFolders.unshift({
+              id: `loose:${found.id}`,
+              title: found.title || activeGroup.name,
+              type: "folder",
+              children: loose,
+              count: loose.length,
+            });
+          }
+        } else {
+          groupFolders.push(found);
+        }
+      } else {
+        // Fallback: legacy multi-folderIds membership (external linked folders)
+        for (const id of activeGroup.folderIds || []) {
+          if (id === this._quickieFolderId || id === this._shortcutsFolderId || id === this._collectionsFolderId) continue;
+          const node = findFolderById(this._roots, id);
+          if (node && !isSystemFolder(node)) groupFolders.push(node);
         }
       }
       this._folders = groupFolders.filter((f) => !isSystemFolder(f));
@@ -729,8 +802,14 @@ export class BookmarkDeckView {
 
   _getVisibleCollections() {
     const activeGroup = this.groupButtons?.activeGroup;
-    if (!activeGroup) return this._collections || [];
-    return (this._collections || []).filter((c) => !c.workspaceId || c.workspaceId === activeGroup.id);
+    // Workspace-owned model: only this workspace's collections (already
+    // filtered at list time when workspaceId was passed). Keep a defensive
+    // client-side filter so unscoped/legacy rows never leak across workspaces.
+    if (!activeGroup) {
+      // Global / All Bookmarks: show only unscoped legacy collections
+      return (this._collections || []).filter((c) => !c.workspaceId);
+    }
+    return (this._collections || []).filter((c) => c.workspaceId === activeGroup.id);
   }
 
   async _saveFolderColor(folderId, color) {
@@ -1029,9 +1108,10 @@ export class BookmarkDeckView {
         finalTarget = { id: this._quickieFolderId, title: "Quickie", isFolder: true };
       } else {
         const activeGroup = this.groupButtons.activeGroup;
-        if (activeGroup && activeGroup.folderIds?.[0]) {
+        const rootFolderId = activeGroup?.rootFolderId || activeGroup?.folderIds?.[0];
+        if (activeGroup && rootFolderId) {
           finalTarget = {
-            id: activeGroup.folderIds[0],
+            id: rootFolderId,
             title: activeGroup.name,
             isFolder: true,
           };
@@ -2838,8 +2918,15 @@ export class BookmarkDeckView {
             if (isShortcut && typeof chrome !== "undefined" && chrome.bookmarks && typeof chrome.bookmarks.move === "function") {
               try {
                 let targetParentId = this._collectionsFolderId;
-                if (!targetParentId && this.useCases?.ensureCollectionsFolder) {
-                  targetParentId = await this.useCases.ensureCollectionsFolder.execute().catch(() => null);
+                if (!targetParentId) {
+                  const activeGroup = this.groupButtons.activeGroup;
+                  if (activeGroup?.id && this.useCases?.ensureWorkspaceStructure) {
+                    const structure = await this.useCases.ensureWorkspaceStructure.execute(activeGroup.id).catch(() => null);
+                    targetParentId = structure?.collectionsFolderId || null;
+                  }
+                  if (!targetParentId && this.useCases?.ensureCollectionsFolder) {
+                    targetParentId = await this.useCases.ensureCollectionsFolder.execute().catch(() => null);
+                  }
                 }
                 if (!targetParentId) {
                   const otherRoot = this._roots.find((r) => r.id === "2" || /other bookmarks/i.test(r.title)) || this._roots.find((r) => r.id !== "1");
@@ -3383,6 +3470,9 @@ export class BookmarkDeckView {
         } else if (this._activeSelection.type === "cold" || this._activeSelection.type === "duplicates") {
           scopedBookmarkIds = new Set(this._selectionLeaves().map((b) => b.id));
         }
+      } else if (this.groupButtons?.activeGroup) {
+        // Workspace Home: search stays inside the active workspace subtree
+        scopedBookmarkIds = new Set(this._leaves.map((b) => b.id));
       }
 
       const { shortcuts: matchingShortcuts, bookmarks: matchingBookmarks } = this._searchIndex.search(this._query, {
@@ -4650,8 +4740,12 @@ export class BookmarkDeckView {
     let parentId = "1";
     let scopeRootId = null;
     const activeGroup = this.groupButtons?.activeGroup;
-    if (activeGroup && activeGroup.folderIds?.[0]) {
-      scopeRootId = activeGroup.folderIds[0];
+    const workspaceRoot =
+      activeGroup?.rootFolderId ||
+      this._workspaceStructure?.rootFolderId ||
+      (Array.isArray(activeGroup?.folderIds) && activeGroup.folderIds[0] ? activeGroup.folderIds[0] : null);
+    if (workspaceRoot) {
+      scopeRootId = workspaceRoot;
       parentId = scopeRootId;
     }
 

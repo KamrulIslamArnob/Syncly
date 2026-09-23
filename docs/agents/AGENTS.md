@@ -4,7 +4,9 @@
 
 ## Primary source
 
-[`CLAUDE.md`](CLAUDE.md) (canonical at [`docs/agents/CLAUDE.md`](CLAUDE.md)) is the companion instruction file. Read it first — this file adds OpenCode-specific guidance and things an agent would likely miss.
+**[`docs/CONTEXT.md`](../CONTEXT.md)** — canonical full-app context memory (features, storage keys, events, permissions, architecture). Read it first.
+
+[`CLAUDE.md`](CLAUDE.md) (canonical at [`docs/agents/CLAUDE.md`](CLAUDE.md)) is the companion instruction file with working rules — read it second. This file adds OpenCode-specific guidance. Prefer CONTEXT.md + source over `PRODUCT_SPEC.md` (historical).
 
 ## Quick reference
 
@@ -35,11 +37,12 @@
 - All DOM built via `el()` helper (`src/presentation/shared/dom.js`) — never `innerHTML` for data.
 - All user input sanitized through `BasicSanitizer` at use-case layer.
 - Design tokens in **two places** that must stay in sync: CSS (`src/presentation/shared/styles/tokens.css`) and JS (`src/presentation/shared/penta-bridge/theme.js`).
-- Always read [`PRODUCT_SPEC.md`](../../PRODUCT_SPEC.md) before reverse-engineering behavior from source.
+- Always read [`docs/CONTEXT.md`](../CONTEXT.md) before reverse-engineering behavior from source. Do not treat `PRODUCT_SPEC.md` as current.
 
 ## Referenced docs
 
-- [`PRODUCT_SPEC.md`](../../PRODUCT_SPEC.md) — exhaustive product + engineering spec (data model, all use cases, UI behavior). Read before implementing features.
+- [`docs/CONTEXT.md`](../CONTEXT.md) — canonical full-app context memory. Read before implementing features.
+- [`PRODUCT_SPEC.md`](../../PRODUCT_SPEC.md) — **historical** pre-redesign spec; not current behavior.
 - [`Design.md`](../design/Design.md) — Nothing design system rules (typography, spacing, anti-patterns, color).
 - [`CLAUDE.md`](CLAUDE.md) — full architecture, composition root, data flow, reference docs.
 

@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-success.svg)](https://developer.chrome.com/docs/extensions/mv3/intro/)
-[![Tests: 372 Passing](https://img.shields.io/badge/Tests-372%20Passing-brightgreen.svg)](#development--testing)
+[![Tests](https://img.shields.io/badge/Tests-452%20total-yellow.svg)](#development--testing)
 [![Zero Build](https://img.shields.io/badge/Build-Zero%20Dependencies-orange.svg)](#architecture--design-principles)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -28,6 +28,8 @@ Browser bookmarks are essential tools for navigating the web, yet modern bookmar
 **Syncly** is built on a simple philosophy: **Sync everywhere, stay local.**
 
 Syncly transforms your Chrome new tab page into a high-performance, two-pane workstation operating directly over your **native Chrome bookmarks**. It introduces contextual workspace profiles, cross-folder collections, instant fuzzy search, omnibox quick-actions, and multi-tier backups—all with **zero telemetry, zero external accounts, and zero build-step overhead**.
+
+> **Full product context:** see [`docs/CONTEXT.md`](docs/CONTEXT.md) — complete feature inventory, storage keys, events, and architecture for contributors and agents.
 
 ---
 
@@ -117,7 +119,7 @@ Syncly/
 │       ├── repositories/         # Concrete Bookmark, Collection, Tag & Group repos
 │       ├── services/             # GoogleSync, GitHubBackup, AutoBackup, patCrypto
 │       └── di/                   # Composition root (container.js)
-├── test/                         # Comprehensive unit test suite (372 tests)
+├── test/                         # Comprehensive unit test suite (452 tests)
 ├── public/                       # Extension icons, fonts (Plus Jakarta Sans, JetBrains Mono), screenshots
 ├── packages/                     # Theme authoring template and validation tooling
 ├── scripts/                      # Performance benchmarking & smoke test harnesses
@@ -202,8 +204,9 @@ Syncly is intentionally built with **zero runtime dependencies** and **no compil
 | Command | Purpose |
 | :--- | :--- |
 | `npm install` | Installs test devDependencies (`puppeteer-core`). |
-| `npm test` | Runs the full automated unit test suite (372 tests via `node:test`). |
+| `npm test` | Runs the full automated unit test suite (452 tests via `node:test`). |
 | `npm run perf` | Runs the automated performance baseline harness. |
+| `npm run smoke` | Puppeteer smoke harness (pre-redesign selectors — not a reliable signal). |
 
 ### Development Workflow
 - **Editing Views & Styles:** Edit files in `src/presentation/`. Refresh your new tab page to see changes immediately.
@@ -223,6 +226,9 @@ Syncly requests only the permissions strictly required to function as a bookmark
 | `activeTab` | **Quick-add popup**: Captures the current page title and URL when explicitly clicking the extension icon. |
 | `tabs` | **Navigation**: Allows opening bookmarks in active or background tabs and querying current window state. |
 | `favicon` | **Visual identification**: Fetches native cached website favicons via Chrome's secure favicon provider. |
+| `alarms` | **Sync safety net**: 15-minute background reconcile for cross-device `chrome.storage.sync` merge. |
+| `sidePanel` | **Side panel**: Opens the quick-add popup as a full-height Chrome side panel. |
+| `contextMenus` | **Toolbar menu**: Adds "Open from sidebar" to the extension icon's right-click menu. |
 
 ---
 

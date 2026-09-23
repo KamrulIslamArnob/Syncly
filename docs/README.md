@@ -6,11 +6,12 @@
 
 | Document | Canonical | Mirror | Description |
 |----------|-----------|--------|-------------|
-| Agent instructions (Claude) | [`agents/CLAUDE.md`](agents/CLAUDE.md) | — | Architecture, commands, data flow — READ FIRST for Claude Code |
-| Agent instructions (OpenCode) | [`agents/AGENTS.md`](agents/AGENTS.md) | — | Architecture, storage, conventions — READ FIRST for OpenCode |
-| Design system | [`design/Design.md`](design/Design.md) | — | Nothing-inspired UI/UX rules, craft, anti-patterns |
+| **App context memory** | [`CONTEXT.md`](CONTEXT.md) | — | **READ FIRST** — every feature, storage key, event, permission, architecture, known discrepancies |
+| Agent instructions (Claude) | [`agents/CLAUDE.md`](agents/CLAUDE.md) | — | Working rules for Claude Code — read second |
+| Agent instructions (OpenCode) | [`agents/AGENTS.md`](agents/AGENTS.md) | — | Working rules for OpenCode — read second |
+| Design system | [`design/Design.md`](design/Design.md) | — | Design rules (predates terracotta/Plus-Jakarta redesign) |
 | Security policy | [`security/SECURITY.md`](security/SECURITY.md) | [`SECURITY.md`](SECURITY.md) (duplicate for GitHub) | Reporting, supported versions, safeguards |
-| Product spec | [`../PRODUCT_SPEC.md`](../PRODUCT_SPEC.md) | — | Exhaustive spec (stale note for new-tab, see `agents/CLAUDE.md`) |
+| Product spec *(historical)* | [`../PRODUCT_SPEC.md`](../PRODUCT_SPEC.md) | — | Pre-redesign NothingTab widget dashboard — superseded by `CONTEXT.md` |
 | Architecture | [`architecture.md`](architecture.md) | — | Clean Architecture layers, data flow |
 | Development | [`development.md`](development.md) | — | Setup, loading, testing, debugging |
 | Permissions | [`permissions.md`](permissions.md) | — | `manifest.json` permissions + CSP |
@@ -19,17 +20,18 @@
 | Testing standard | [`TESTING_STANDARD.md`](TESTING_STANDARD.md) | — | `node:test` contract |
 | Test cases | [`TEST_CASES.md`](TEST_CASES.md) | — | Detailed matrix |
 | AI Quota tracker | [`AI-Quota-Tracker-Extension-Build-Task.md`](AI-Quota-Tracker-Extension-Build-Task.md) | — | Supabase quota spec (not yet wired) |
-| Project summary | [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md) | — | One-file codebase overview |
+| Project summary *(historical)* | [`PROJECT_SUMMARY.md`](PROJECT_SUMMARY.md) | — | Pre-redesign overview — superseded by `CONTEXT.md` |
 
 ## Folder structure
 
 ```
 docs/
-├── agents/           # Canonical agent memory (CLAUDE.md, AGENTS.md)
+├── CONTEXT.md               # Canonical full-app context memory (READ FIRST)
+├── agents/           # Agent working rules (CLAUDE.md, AGENTS.md)
 │   ├── CLAUDE.md
 │   ├── AGENTS.md
 │   └── README.md
-├── design/           # Nothing design system
+├── design/           # Design system notes
 │   ├── Design.md
 │   └── README.md
 ├── security/         # Canonical security policy
@@ -44,15 +46,16 @@ docs/
 ├── TESTING_STANDARD.md
 ├── TEST_CASES.md
 ├── AI-Quota-Tracker-Extension-Build-Task.md
-├── PROJECT_SUMMARY.md
+├── PROJECT_SUMMARY.md  # HISTORICAL
 ├── superpowers/      # Historical design specs & plans (pre-reorg, refs to CLAUDE.md at root are historical)
 └── competitor-profiles/
 ```
 
 ## Editing rules
 
+- **Context memory:** Prefer editing `docs/CONTEXT.md` when features, storage keys, events, or permissions change — same PR as the code change.
 - **Agent memory / design / security:** Edit the canonical under `docs/agents/`, `docs/design/`, `docs/security/` — for security, `docs/SECURITY.md` is auto-mirrored from `docs/security/SECURITY.md` for GitHub.
-- **Other docs:** Edit in place; cross-link using relative paths (e.g., from `docs/architecture.md` to `../PRODUCT_SPEC.md` or `agents/CLAUDE.md`).
+- **Other docs:** Edit in place; cross-link using relative paths (e.g., from `docs/architecture.md` to `CONTEXT.md` or `agents/CLAUDE.md`).
 
 ## Historical notes
 

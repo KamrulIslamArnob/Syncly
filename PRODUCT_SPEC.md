@@ -1,8 +1,12 @@
-# NothingTab — Complete Product & Engineering Specification
+# NothingTab — Complete Product & Engineering Specification *(HISTORICAL)*
 
-> **Purpose of this document:** A self-contained, copy-pasteable spec. If you hand this to an engineer (or paste it into a fresh repo), it recreates the *same product*: same features, same workflows, same architecture, same design system. It is derived by reading 100% of the source.
-
-> **⚠ Stale as of the bookmark-manager redesign.** The new tab was rebuilt as a two-pane native-Chrome-bookmarks manager (`BookmarkDeckView.js`) with dark/light theming, a workspace switcher, and real tags — replacing the widget dashboard (clock/Pomodoro/tasks/weather/curated-shortcuts grid) that sections 0, 2.2–2.4, 3.1–3.7, 5, and 6 below describe. Those sections are accurate for the *old* dashboard and its still-present-but-unmounted code, not for what actually renders today. See [`docs/agents/CLAUDE.md`](docs/agents/CLAUDE.md)'s "What changed" section for the current architecture; this doc hasn't been re-derived against it yet.
+> **⚠ ARCHIVED / STALE — do not use as current context.**
+>
+> Product is **Syncly**, not NothingTab. The new tab was rebuilt as a two-pane native-Chrome-bookmarks manager (`BookmarkDeckView.js`). Sections 0, 2.2–2.4, 3.1–3.7, 5, and 6 below describe the **old** widget dashboard (clock/Pomodoro/tasks/weather/curated-shortcuts) and are not what renders today.
+>
+> **Canonical current documentation:** [`docs/CONTEXT.md`](docs/CONTEXT.md) — full feature inventory, storage keys, events, permissions, architecture, and known doc discrepancies. Working rules: [`docs/agents/CLAUDE.md`](docs/agents/CLAUDE.md).
+>
+> Kept only as historical reference for the pre-redesign product.
 
 ---
 

@@ -21,7 +21,7 @@ These guidelines help ensure a smooth, transparent, and productive contribution 
 
 ## Before Contributing
 
-1. **Read the Documentation**: Familiarize yourself with the [README](README.md), [Architecture](README.md#architecture), and [Product Specification](PRODUCT_SPEC.md).
+1. **Read the Documentation**: Start with [docs/CONTEXT.md](docs/CONTEXT.md) (full app context), then the [README](README.md) and [Contributing-adjacent architecture notes](docs/architecture.md). `PRODUCT_SPEC.md` is historical.
 2. **Search Existing Issues**: Before opening a new issue or pull request, search the [GitHub Issues tracker](https://github.com/KamrulIslamArnob/Syncly/issues) to verify if the bug or feature has already been reported or is currently in progress.
 3. **Open an Issue for Major Changes**: For significant architectural refactors, new third-party integrations, or major UX overhauls, open an issue first to discuss the design with maintainers before writing code.
 
@@ -156,7 +156,7 @@ test(backup): add compatibility test for legacy v1 bookmark format
    - How the change was tested.
 3. **Provide Visual Proof**: For UI changes, attach before-and-after screenshots or a short screen recording.
 4. **No Committed Secrets**: Verify that no API keys, tokens, or personal configuration files are included in the diff.
-5. **Ensure CI Passes**: Ensure that all automated checks in GitHub Actions pass cleanly.
+5. **Run tests locally**: `npm test` must pass before opening the PR. There is **no GitHub Actions CI yet** — reviewers rely on your local run.
 
 ---
 

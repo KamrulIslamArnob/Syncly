@@ -16,8 +16,8 @@ This guide walks through setting up, developing, testing, and debugging Syncly f
 
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/KamrulIslamArnob/NothingTab.git
-   cd NothingTab
+   git clone https://github.com/KamrulIslamArnob/Syncly.git
+   cd Syncly
    ```
 
 2. **Install Test Dependencies:**
@@ -39,7 +39,7 @@ This guide walks through setting up, developing, testing, and debugging Syncly f
 1. Open your browser and navigate to `chrome://extensions`.
 2. Toggle **Developer mode** in the upper-right corner.
 3. Click the **Load unpacked** button in the top-left toolbar.
-4. Select the cloned repository root folder (`NothingTab`).
+4. Select the cloned repository root folder (`Syncly`).
 5. Open a new tab (`Ctrl + T` on Windows/Linux or `Cmd + T` on macOS) to verify that Syncly loads.
 
 ---

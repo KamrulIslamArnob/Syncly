@@ -153,14 +153,20 @@ export class CategoryDialogView {
 
     try {
       // Native folder mode: Shortcuts → Category = subfolder inside Shortcuts
-      if (this.shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
+      let shortcutsFolderId = this.shortcutsFolderId;
+      if (!shortcutsFolderId && this.useCases?.resolveShortcutsFolder && typeof chrome !== "undefined" && chrome.bookmarks) {
+        const resolved = await this.useCases.resolveShortcutsFolder.execute({ ensure: true }).catch(() => null);
+        shortcutsFolderId = resolved?.shortcutsFolderId || null;
+        if (shortcutsFolderId) this.setShortcutsFolderId(shortcutsFolderId);
+      }
+      if (shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
         if (this.isRename) {
           if (!this.targetCategory) return;
           const catId = this.targetCategory.id?.value || this.targetCategory.id || this.targetCategory.nativeId;
           await chrome.bookmarks.update(catId, { title: name });
           this.toast?.show(`Renamed category to "${name}"`);
         } else {
-          await chrome.bookmarks.create({ parentId: this.shortcutsFolderId, title: name });
+          await chrome.bookmarks.create({ parentId: shortcutsFolderId, title: name });
           this.toast?.show(`Created category "${name}"`);
         }
       } else {

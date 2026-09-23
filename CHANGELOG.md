@@ -10,11 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- GitHub Actions CI workflow for automated test runs on pull requests and branch pushes.
-- Automated Release packaging workflow for version tags (`v*`).
 - GitHub issue templates for bug reporting and feature requests.
 - Pull request template with comprehensive verification checklist.
 - Architecture and permissions documentation in `docs/`.
+- Canonical full-app context memory: `docs/CONTEXT.md`.
+
+### Changed
+- README test badge, permission table, and commands updated to match the live suite and `manifest.json`.
+- `PRODUCT_SPEC.md` and `docs/PROJECT_SUMMARY.md` marked historical; agents directed to `docs/CONTEXT.md`.
+
+### Notes
+- GitHub Actions CI / release workflows are **planned, not yet present** (no files under `.github/workflows/`). Prior draft notes that claimed they shipped were incorrect.
 
 ---
 

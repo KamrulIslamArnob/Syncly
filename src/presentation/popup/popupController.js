@@ -859,8 +859,15 @@ class PopupController {
     if (!name) return;
     try {
       let parentId = this.shortcutsFolderId;
-      if (!parentId && this.useCases?.ensureShortcutsFolder) {
-        parentId = await this.useCases.ensureShortcutsFolder.execute();
+      if (!parentId && this.useCases?.resolveShortcutsFolder) {
+        parentId = await this.useCases.resolveShortcutsFolder.execute({
+          workspaceId: this.workspaceHidden?.value || null,
+          ensure: true,
+        }).then((r) => r?.shortcutsFolderId || null);
+      } else if (!parentId && this.useCases?.ensureShortcutsFolder) {
+        parentId = await this.useCases.ensureShortcutsFolder.execute({
+          workspaceId: this.workspaceHidden?.value || null,
+        });
       }
       const created = await chrome.bookmarks.create({
         parentId: parentId || "2",
@@ -949,7 +956,10 @@ class PopupController {
     if (!name) return;
     try {
       if (this.useCases?.createBookmarkCollection) {
-        const created = await this.useCases.createBookmarkCollection.execute({ name });
+        const created = await this.useCases.createBookmarkCollection.execute({
+          name,
+          workspaceId: this.workspaceHidden?.value || null,
+        });
         await this.populateCollections();
         if (created) this.selectCustomCollection(created.id, created.name);
       }
@@ -1043,7 +1053,13 @@ class PopupController {
       });
     }
 
-    if (this.useCases.ensureShortcutsFolder) {
+    // Bootstrap global Shortcuts only when no active workspace; workspace path
+    // is ensured later via resolveShortcutsFolder / ensureWorkspaceStructure.
+    if (this.useCases.resolveShortcutsFolder && !this.workspaceHidden?.value) {
+      this.useCases.resolveShortcutsFolder.execute({ workspaceId: null, ensure: true }).catch((err) => {
+        console.warn("Could not ensure shortcuts folder:", err);
+      });
+    } else if (this.useCases.ensureShortcutsFolder && !this.workspaceHidden?.value) {
       this.useCases.ensureShortcutsFolder.execute().catch((err) => {
         console.warn("Could not ensure shortcuts folder:", err);
       });
@@ -1140,6 +1156,11 @@ class PopupController {
       }
     }
     this.filterFoldersByWorkspace(id);
+    // Refresh workspace-owned collections + shortcuts on switch
+    try {
+      if (this.populateCollections) this.populateCollections().catch(() => {});
+      if (this.populateCategories) this.populateCategories().catch(() => {});
+    } catch {}
   }
 
   async populateFolders() {
@@ -1176,8 +1197,18 @@ class PopupController {
 
   filterFoldersByWorkspace(groupId) {
     const group = this.groups.find((g) => g.id === groupId);
-    if (!group) return;
-    const scoped = this.folders.filter((f) => group.folderIds.includes(f.id));
+    if (!group) {
+      // No active workspace → leave global folder list as-is
+      return;
+    }
+    const systemTitles = new Set(["collections", "shortcuts", "quickie"]);
+    const isSystem = (f) => systemTitles.has(String(f.title || "").trim().toLowerCase());
+    const rootId = group.rootFolderId || group.folderIds?.[0] || null;
+    let scoped = this.folders.filter((f) => (group.folderIds || []).includes(f.id) && !isSystem(f));
+    // Prefer the dedicated workspace root subtree when present
+    if (rootId && this.folders.some((f) => f.id === rootId)) {
+      scoped = this.folders.filter((f) => !isSystem(f) && (f.id === rootId || String(f.parentId || "") === rootId));
+    }
     if (scoped.length) this.selectFolder(scoped[0].id, scoped[0].title, { persist: false });
   }
 
@@ -1229,8 +1260,11 @@ class PopupController {
     try {
       const raw = typeof chrome !== "undefined" && chrome.bookmarks ? await chrome.bookmarks.getTree() : [];
       let shortcutsFolderId = null;
+      const workspaceId = this.workspaceHidden?.value || null;
       if (this.useCases?.ensureShortcutsFolder) {
-        shortcutsFolderId = await this.useCases.ensureShortcutsFolder.execute({ tree: raw });
+        shortcutsFolderId = workspaceId
+          ? await this.useCases.ensureShortcutsFolder.execute({ tree: raw, workspaceId })
+          : await this.useCases.ensureShortcutsFolder.execute({ tree: raw });
       }
       this.shortcutsFolderId = shortcutsFolderId;
 
@@ -1340,7 +1374,11 @@ class PopupController {
   async populateCollections() {
     try {
       if (this.useCases?.listBookmarkCollections) {
-        this.collections = await this.useCases.listBookmarkCollections.execute();
+        // Prefer workspace-scoped collections when a workspace is active
+        const workspaceId = this.workspaceHidden?.value || null;
+        this.collections = workspaceId
+          ? await this.useCases.listBookmarkCollections.execute({ workspaceId })
+          : await this.useCases.listBookmarkCollections.execute();
       } else {
         this.collections = [];
       }
@@ -1670,8 +1708,15 @@ class PopupController {
             targetCategoryId = this.categories[0].id;
           } else {
             let shortcutsFolderId = this.shortcutsFolderId;
-            if (!shortcutsFolderId && this.useCases?.ensureShortcutsFolder) {
-              shortcutsFolderId = await this.useCases.ensureShortcutsFolder.execute();
+            if (!shortcutsFolderId && this.useCases?.resolveShortcutsFolder) {
+              shortcutsFolderId = await this.useCases.resolveShortcutsFolder.execute({
+                workspaceId: this.workspaceHidden?.value || null,
+                ensure: true,
+              }).then((r) => r?.shortcutsFolderId || null);
+            } else if (!shortcutsFolderId && this.useCases?.ensureShortcutsFolder) {
+              shortcutsFolderId = await this.useCases.ensureShortcutsFolder.execute({
+                workspaceId: this.workspaceHidden?.value || null,
+              });
             }
             const createdCat = await chrome.bookmarks.create({
               parentId: shortcutsFolderId || "2",
@@ -1695,15 +1740,25 @@ class PopupController {
           collectionId = this.collections[0].id;
         }
         if (!collectionId && this.useCases?.createBookmarkCollection) {
-          const created = await this.useCases.createBookmarkCollection.execute({ name: "Favorites" });
+          const created = await this.useCases.createBookmarkCollection.execute({
+            name: "Favorites",
+            workspaceId: this.workspaceHidden?.value || null,
+          });
           collectionId = created.id;
           await this.populateCollections();
         }
 
         const targetColl = Array.isArray(this.collections) ? this.collections.find((c) => c.id === collectionId) : null;
         let parentId = targetColl?.folderId;
-        if (!parentId && this.useCases?.ensureCollectionsFolder) {
-          parentId = await this.useCases.ensureCollectionsFolder.execute();
+        if (!parentId) {
+          const workspaceId = this.workspaceHidden?.value || null;
+          if (workspaceId && this.useCases?.ensureWorkspaceStructure) {
+            const structure = await this.useCases.ensureWorkspaceStructure.execute(workspaceId).catch(() => null);
+            parentId = structure?.collectionsFolderId || null;
+          }
+          if (!parentId && this.useCases?.ensureCollectionsFolder) {
+            parentId = await this.useCases.ensureCollectionsFolder.execute();
+          }
         }
         if (!parentId) {
           const otherFolder = this.folders.find((f) => f.id === "2" || /other bookmarks/i.test(f.title));

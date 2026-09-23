@@ -64,7 +64,7 @@ export class FolderTreeSelectorView {
       this.treeContainer.replaceChildren();
 
       let folderRoots = roots.filter(isFolder);
-      
+
       // If scoped to a specific workspace root folder, find and display only that folder tree
       if (this.scopeRootFolderId) {
         const findScoped = (nodes, id) => {
@@ -81,6 +81,25 @@ export class FolderTreeSelectorView {
         if (scopedRoot) {
           folderRoots = [scopedRoot];
         }
+      }
+
+      // Never offer reserved system folders as destinations (Collections / Shortcuts / Quickie)
+      const isSystemFolderNode = (n) => {
+        const t = String(n?.title || "").trim().toLowerCase();
+        return t === "collections" || t === "shortcuts" || t === "quickie";
+      };
+      const stripSystem = (nodes) =>
+        (nodes || []).filter(isFolder).filter((n) => !isSystemFolderNode(n));
+      if (this.scopeRootFolderId) {
+        folderRoots = folderRoots.map((root) => ({
+          ...root,
+          children: stripSystem(root.children),
+        }));
+      } else {
+        folderRoots = folderRoots.map((root) => ({
+          ...root,
+          children: stripSystem(root.children),
+        }));
       }
 
       if (folderRoots.length === 0) {

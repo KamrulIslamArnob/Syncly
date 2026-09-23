@@ -23,20 +23,58 @@
 export class EnsureShortcutsFolderUseCase {
   #storage;
   #bookmarks;
+  #resolveWorkspaceStructure;
+  #ensureWorkspaceStructure;
 
-  constructor({ storage, bookmarks } = {}) {
+  constructor({ storage, bookmarks, resolveWorkspaceStructure = null, ensureWorkspaceStructure = null } = {}) {
     this.#storage = storage || (typeof chrome !== "undefined" && chrome.storage ? chrome.storage.local : null);
     this.#bookmarks = bookmarks || (typeof chrome !== "undefined" && chrome.bookmarks ? chrome.bookmarks : null);
+    this.#resolveWorkspaceStructure = resolveWorkspaceStructure || null;
+    this.#ensureWorkspaceStructure = ensureWorkspaceStructure || null;
+  }
+
+  /** Late-wire workspace deps when constructed before structure use cases exist. */
+  setWorkspaceDeps(resolveWorkspaceStructure, ensureWorkspaceStructure) {
+    this.#resolveWorkspaceStructure = resolveWorkspaceStructure || this.#resolveWorkspaceStructure;
+    this.#ensureWorkspaceStructure = ensureWorkspaceStructure || this.#ensureWorkspaceStructure;
   }
 
   /**
-   * @param {object} [options]
+   * @param {object|string} [options]
    * @param {Array} [options.tree] pre-fetched chrome.bookmarks.getTree() output
-   *   (PERF-T01: lets callers share one tree fetch per reload). Must be fresh
-   *   (same tick as fetch). An empty array is honored as-is — parent lookup
-   *   then falls back to "2", matching the no-tree behavior.
+   * @param {string} [options.workspaceId] when set, ensures/returns the
+   *   workspace-owned Shortcuts folder under `w-{name}/Shortcuts`.
+   *   Omit for legacy global Shortcuts under Other Bookmarks (migration only).
+   * @returns {Promise<string|null>} shortcuts folder id
    */
-  async execute({ tree: providedTree } = {}) {
+  async execute(options = {}) {
+    const opts = typeof options === "string" ? { workspaceId: options } : options || {};
+    const { tree: providedTree = null, workspaceId = null } = opts;
+
+    if (workspaceId && this.#ensureWorkspaceStructure) {
+      try {
+        const structure = await this.#ensureWorkspaceStructure.execute(workspaceId, {
+          tree: providedTree || undefined,
+        });
+        if (structure?.shortcutsFolderId) return structure.shortcutsFolderId;
+      } catch (err) {
+        console.warn("EnsureShortcutsFolder: workspace ensure failed:", err);
+      }
+      // Fall through to resolve-only if ensure failed
+      if (this.#resolveWorkspaceStructure) {
+        const resolved = await this.#resolveWorkspaceStructure.execute({
+          workspaceId,
+          tree: providedTree || undefined,
+        });
+        if (resolved?.shortcutsFolderId) return resolved.shortcutsFolderId;
+      }
+      return null;
+    }
+
+    return this.#executeGlobal({ tree: providedTree });
+  }
+
+  async #executeGlobal({ tree: providedTree } = {}) {
     if (!this.#bookmarks) return null;
 
     let shortcutsFolderId = null;
@@ -65,10 +103,12 @@ export class EnsureShortcutsFolderUseCase {
       console.warn("Could not inspect bookmark tree:", err);
     }
 
-    // 3. Also try find by title under Other Bookmarks if id missing
+    // 3. Also try find by title under Other Bookmarks if id missing.
+    // Only match a direct child of Other Bookmarks (or top-level root) so a
+    // workspace-owned Shortcuts under w-* is never mistaken for the global one.
     if (!shortcutsFolderId) {
       try {
-        const found = this._findFolderByTitle(tree, "Shortcuts");
+        const found = this._findGlobalShortcutsByTitle(tree);
         if (found) shortcutsFolderId = found.id;
       } catch {}
     }
@@ -131,6 +171,23 @@ export class EnsureShortcutsFolderUseCase {
         const found = this._findFolderByTitle(node.children, title);
         if (found) return found;
       }
+    }
+    return null;
+  }
+
+  /** Global Shortcuts lives only under Other Bookmarks (or a top-level root) — never under w-*. */
+  _findGlobalShortcutsByTitle(tree) {
+    if (!Array.isArray(tree)) return null;
+    const roots =
+      tree.length === 1 && (tree[0]?.id === "0" || tree[0]?.title === "") && tree[0]?.children
+        ? tree[0].children
+        : tree;
+    const other = roots.find((r) => r.id === "2" || /other bookmarks/i.test(r.title || ""));
+    const scope = other ? other.children || [] : roots;
+    for (const node of scope) {
+      if (node.url) continue;
+      if (/^w-/i.test(String(node.title || ""))) continue; // workspace roots
+      if (String(node.title || "").trim().toLowerCase() === "shortcuts") return node;
     }
     return null;
   }
