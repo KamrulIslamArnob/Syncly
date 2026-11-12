@@ -216,7 +216,13 @@ async function writeLocal(key, value) {
   } catch { /* non-fatal */ }
 }
 
-class PopupController {
+export function rankPopupWorkspaces(groups, activeId, usage = {}) {
+  return [{ id: "", name: "All bookmarks" }, ...groups].sort((a, b) =>
+    Number(b.id === activeId) - Number(a.id === activeId)
+    || (Number(usage[b.id]) || 0) - (Number(usage[a.id]) || 0));
+}
+
+export class PopupController {
   constructor() {
     this.themeToggleBtn = document.getElementById("btn-theme-toggle");
     this.btnQuickAddQuickie = document.getElementById("btn-quick-add-quickie");
@@ -284,15 +290,10 @@ class PopupController {
     this.collectionCreatorCancel = document.getElementById("collection-creator-cancel");
     this.collectionList = document.getElementById("collection-dropdown-list");
 
-    // Workspace Destination & Inline Dropdown (Bookmark Mode)
-    this.workspaceTrigger = document.getElementById("bm-workspace-trigger");
     this.workspaceHidden = document.getElementById("bm-workspace-value");
-    this.workspaceSwatch = document.getElementById("bm-workspace-swatch");
-    this.workspaceLabel = document.getElementById("bm-workspace-label");
-    this.workspaceDropdown = document.getElementById("workspace-dropdown-panel");
-    this.workspaceSearchInput = document.getElementById("workspace-search-input");
-    this.workspaceSearchClear = document.getElementById("workspace-search-clear");
-    this.workspaceList = document.getElementById("workspace-dropdown-list");
+    this.workspaceButtons = document.getElementById("workspace-buttons");
+    this.workspaceUsage = {};
+    this.workspacesExpanded = false;
 
     this.destinationType = "bookmark"; // "bookmark" | "shortcut" | "collection"
     this.activeDropdown = null; // "folder" | "category" | "collection" | "workspace" | null
@@ -335,10 +336,27 @@ class PopupController {
     this.viewExistingFolderBtn?.addEventListener("click", () => this.openExistingBookmarkLocation());
     this.existingFolderNameEl?.addEventListener("click", () => this.openExistingBookmarkLocation());
 
+    const quickieKey = document.getElementById("quickie-shortcut");
+    if (quickieKey) quickieKey.textContent = /Mac|iPhone|iPad/.test(navigator.platform) ? "\u2318 S" : "Ctrl+S";
+    window.addEventListener("resize", () => this._positionDropdown());
+    document.addEventListener("scroll", (event) => {
+      if (!event.target.closest?.(".picker-dropdown-panel")) this._positionDropdown();
+    }, true);
+    document.querySelector(".popup-url-details")?.addEventListener("toggle", (event) => {
+      if (event.target.open) {
+        this.closeAllDropdowns();
+        this.urlInput?.focus({ preventScroll: true });
+      }
+    });
+
     // Input listeners to automatically clear saved state when editing
     this.titleInput?.addEventListener("input", () => {
       this._resetSavedState();
       this._updateSubmitButtonLabel();
+    });
+    this.urlInput?.addEventListener("invalid", () => {
+      const details = this.urlInput.closest("details");
+      if (details) details.open = true;
     });
     this.urlInput?.addEventListener("input", () => {
       this._resetSavedState();
@@ -388,12 +406,6 @@ class PopupController {
       e.preventDefault();
       e.stopPropagation();
       this.toggleDropdown("collection");
-    });
-
-    this.workspaceTrigger?.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.toggleDropdown("workspace");
     });
 
     // Dropdown Search & Creator - Folder
@@ -462,24 +474,15 @@ class PopupController {
       }
     });
 
-    // Dropdown Search - Workspace
-    this.workspaceSearchInput?.addEventListener("input", () => this._onWorkspaceSearch());
-    this.workspaceSearchClear?.addEventListener("click", () => {
-      if (this.workspaceSearchInput) {
-        this.workspaceSearchInput.value = "";
-        this._onWorkspaceSearch();
-        this.workspaceSearchInput.focus();
-      }
-    });
-
     // Dismiss open dropdown when clicking outside
     document.addEventListener("click", (e) => {
-      if (!e.target.closest(".picker-trigger-box")) {
-        this.closeAllDropdowns();
-      }
+      if (!e.target.closest(".picker-trigger-box")) this.closeAllDropdowns();
+      const details = document.querySelector(".popup-url-details");
+      if (details?.open && !details.contains(e.target)) details.open = false;
     });
 
     // Tags
+    this.tagsInput?.addEventListener("input", () => this._resetSavedState());
     this.tagsInput?.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === ",") {
         e.preventDefault();
@@ -515,10 +518,38 @@ class PopupController {
       });
     }
 
+    // Search + keyboard selection work consistently for every destination picker.
+    document.addEventListener("keydown", (e) => {
+      const panel = e.target.closest(".picker-dropdown-panel");
+      if (!panel) return;
+      const options = [...panel.querySelectorAll('[role="option"]')];
+      const index = options.indexOf(document.activeElement);
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const next = index < 0 ? (e.key === "ArrowDown" ? 0 : options.length - 1)
+          : (index + (e.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+        options[next]?.focus();
+      } else if (e.key === "Enter" && (index >= 0 || e.target.matches(".picker-dropdown-search-input"))) {
+        e.preventDefault();
+        const trigger = panel.closest(".picker-trigger-box")?.querySelector(".picker-trigger-btn");
+        (options[index] || options[0])?.click();
+        trigger?.focus();
+      }
+    });
+
     // Keyboard shortcuts
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        if (this.hasOpenDropdown()) {
+      if (e.defaultPrevented) return;
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (!this.btnQuickAddQuickie?.disabled) this.onQuickAddQuickie();
+      } else if (e.key === "Escape") {
+        const details = document.querySelector(".popup-url-details");
+        if (details?.open) {
+          e.preventDefault();
+          details.open = false;
+          details.querySelector("summary")?.focus();
+        } else if (this.hasOpenDropdown()) {
           e.preventDefault();
           this.closeAllDropdowns();
         } else {
@@ -539,16 +570,21 @@ class PopupController {
     const isCol = type === "collection";
 
     this.typeBtnBookmark?.classList.toggle("is-active", isBm);
-    this.typeBtnBookmark?.setAttribute("aria-selected", String(isBm));
+    this.typeBtnBookmark?.setAttribute("aria-pressed", String(isBm));
 
     this.typeBtnShortcut?.classList.toggle("is-active", isSc);
-    this.typeBtnShortcut?.setAttribute("aria-selected", String(isSc));
+    this.typeBtnShortcut?.setAttribute("aria-pressed", String(isSc));
 
     this.typeBtnCollection?.classList.toggle("is-active", isCol);
-    this.typeBtnCollection?.setAttribute("aria-selected", String(isCol));
+    this.typeBtnCollection?.setAttribute("aria-pressed", String(isCol));
 
     if (this.fieldFolder) this.fieldFolder.style.display = isBm ? "" : "none";
-    if (this.fieldWorkspace) this.fieldWorkspace.style.display = isBm ? "" : "none";
+    if (this.fieldWorkspace) this.fieldWorkspace.style.display = "";
+    const help = document.getElementById("destination-help");
+    if (help) help.textContent = isSc
+      ? "Keep a link handy in this workspace’s shortcuts."
+      : isCol ? "Save a bookmark into a collection in this workspace."
+      : "Choose a folder in your Chrome bookmarks.";
     if (this.fieldCategory) this.fieldCategory.style.display = isSc ? "" : "none";
     if (this.fieldCollection) this.fieldCollection.style.display = isCol ? "" : "none";
 
@@ -559,9 +595,9 @@ class PopupController {
   _updateSubmitButtonLabel() {
     if (!this.submitBtnText) return;
     if (this.destinationType === "shortcut") {
-      this.submitBtnText.textContent = "Save to Shortcuts";
+      this.submitBtnText.textContent = "Save shortcut";
     } else if (this.destinationType === "collection") {
-      this.submitBtnText.textContent = "Add to Collection";
+      this.submitBtnText.textContent = "Add to collection";
     } else {
       if (this.existingBookmark) {
         const currentFolderId = this.folderHidden?.value;
@@ -570,14 +606,14 @@ class PopupController {
         const isDifferentTitle = currentTitle && currentTitle !== this.existingBookmark.title;
 
         if (isDifferentFolder) {
-          this.submitBtnText.textContent = "Move Bookmark";
+          this.submitBtnText.textContent = "Move bookmark";
         } else if (isDifferentTitle) {
-          this.submitBtnText.textContent = "Update Bookmark";
+          this.submitBtnText.textContent = "Update bookmark";
         } else {
-          this.submitBtnText.textContent = "Already Saved · Move";
+          this.submitBtnText.textContent = "Save changes";
         }
       } else {
-        this.submitBtnText.textContent = "Save Bookmark";
+        this.submitBtnText.textContent = "Save bookmark";
       }
     }
   }
@@ -592,6 +628,8 @@ class PopupController {
       this.submitBtn.disabled = false;
     }
     this._updateSubmitButtonLabel();
+    const status = document.getElementById("save-status");
+    if (status) status.textContent = "";
   }
 
   /* ============================================================
@@ -619,9 +657,28 @@ class PopupController {
     this.customCollectionTrigger?.setAttribute("aria-expanded", "false");
     this._closeCollectionCreator();
 
-    if (this.workspaceDropdown) this.workspaceDropdown.hidden = true;
-    this.workspaceTrigger?.classList.remove("is-open");
-    this.workspaceTrigger?.setAttribute("aria-expanded", "false");
+
+  }
+
+  _scrollOptionIntoView(option) {
+    const list = option.closest(".picker-dropdown-list-wrap");
+    if (list) list.scrollTop = option.offsetTop - list.offsetTop;
+  }
+
+  _positionDropdown() {
+    const pair = { folder: [this.folderTrigger, this.folderDropdown], category: [this.categoryTrigger, this.categoryDropdown], collection: [this.customCollectionTrigger, this.collectionDropdown] }[this.activeDropdown];
+    if (!pair) return;
+    const [trigger, panel] = pair;
+    const rect = trigger.getBoundingClientRect();
+    const width = Math.min(352, document.documentElement.clientWidth - 32);
+    const below = window.innerHeight - rect.bottom - 12;
+    const above = rect.top - 12;
+    const opensAbove = below < 190 && above > below;
+    panel.style.width = `${width}px`;
+    panel.style.left = `${Math.max(16, Math.min(rect.right - width, document.documentElement.clientWidth - width - 16))}px`;
+    panel.style.top = opensAbove ? "auto" : `${rect.bottom + 6}px`;
+    panel.style.bottom = opensAbove ? `${window.innerHeight - rect.top + 6}px` : "auto";
+    panel.style.maxHeight = `${Math.max(80, Math.min(300, opensAbove ? above : below))}px`;
   }
 
   toggleDropdown(type) {
@@ -631,6 +688,8 @@ class PopupController {
     }
 
     this.closeAllDropdowns();
+    const details = document.querySelector(".popup-url-details");
+    if (details) details.open = false;
     this.activeDropdown = type;
 
     if (type === "folder" && this.folderDropdown) {
@@ -644,8 +703,8 @@ class PopupController {
       this._renderFolderList(this.folders);
       setTimeout(() => {
         const selected = this.folderList?.querySelector(".dropdown-item.is-selected");
-        if (selected) selected.scrollIntoView({ block: "nearest" });
-        this.folderSearchInput?.focus();
+        if (selected) this._scrollOptionIntoView(selected);
+        this.folderSearchInput?.focus({ preventScroll: true });
       }, 50);
     } else if (type === "category" && this.categoryDropdown) {
       this.categoryDropdown.hidden = false;
@@ -658,8 +717,8 @@ class PopupController {
       this._renderCategoryList(this.categories);
       setTimeout(() => {
         const selected = this.categoryList?.querySelector(".dropdown-item.is-selected");
-        if (selected) selected.scrollIntoView({ block: "nearest" });
-        this.categorySearchInput?.focus();
+        if (selected) this._scrollOptionIntoView(selected);
+        this.categorySearchInput?.focus({ preventScroll: true });
       }, 50);
     } else if (type === "collection" && this.collectionDropdown) {
       this.collectionDropdown.hidden = false;
@@ -672,24 +731,11 @@ class PopupController {
       this._renderCollectionList(this.collections);
       setTimeout(() => {
         const selected = this.collectionList?.querySelector(".dropdown-item.is-selected");
-        if (selected) selected.scrollIntoView({ block: "nearest" });
-        this.collectionSearchInput?.focus();
-      }, 50);
-    } else if (type === "workspace" && this.workspaceDropdown) {
-      this.workspaceDropdown.hidden = false;
-      this.workspaceTrigger?.classList.add("is-open");
-      this.workspaceTrigger?.setAttribute("aria-expanded", "true");
-      if (this.workspaceSearchInput) {
-        this.workspaceSearchInput.value = "";
-        this.workspaceSearchClear.hidden = true;
-      }
-      this._renderWorkspaceList(this.groups);
-      setTimeout(() => {
-        const selected = this.workspaceList?.querySelector(".dropdown-item.is-selected");
-        if (selected) selected.scrollIntoView({ block: "nearest" });
-        this.workspaceSearchInput?.focus();
+        if (selected) this._scrollOptionIntoView(selected);
+        this.collectionSearchInput?.focus({ preventScroll: true });
       }, 50);
     }
+    this._positionDropdown();
   }
 
   /* ── Folder Dropdown Methods (Bookmarks) ───────────────── */
@@ -717,6 +763,8 @@ class PopupController {
     for (const f of folders) {
       const li = document.createElement("li");
       li.className = "dropdown-item";
+      li.tabIndex = 0;
+      li.setAttribute("role", "option");
       li.dataset.value = f.id;
       if (f.id === currentId) li.classList.add("is-selected");
       li.title = f.fullPath || f.title;
@@ -745,6 +793,7 @@ class PopupController {
         li.appendChild(hint);
       }
 
+      li.setAttribute("aria-selected", String(li.classList.contains("is-selected")));
       const check = document.createElement("span");
       check.className = "dropdown-item-check";
       check.textContent = "✓";
@@ -812,6 +861,8 @@ class PopupController {
     for (const c of categories) {
       const li = document.createElement("li");
       li.className = "dropdown-item";
+      li.tabIndex = 0;
+      li.setAttribute("role", "option");
       li.dataset.value = c.id;
       if (c.id === currentId) li.classList.add("is-selected");
 
@@ -823,6 +874,7 @@ class PopupController {
       title.className = "dropdown-item-title";
       title.textContent = c.name;
 
+      li.setAttribute("aria-selected", String(li.classList.contains("is-selected")));
       const check = document.createElement("span");
       check.className = "dropdown-item-check";
       check.textContent = "✓";
@@ -904,6 +956,8 @@ class PopupController {
     for (const c of collections) {
       const li = document.createElement("li");
       li.className = "dropdown-item";
+      li.tabIndex = 0;
+      li.setAttribute("role", "option");
       li.dataset.value = c.id;
       if (c.id === currentId) li.classList.add("is-selected");
 
@@ -920,6 +974,7 @@ class PopupController {
       hint.className = "dropdown-item-hint";
       hint.textContent = `${count} item${count === 1 ? "" : "s"}`;
 
+      li.setAttribute("aria-selected", String(li.classList.contains("is-selected")));
       const check = document.createElement("span");
       check.className = "dropdown-item-check";
       check.textContent = "✓";
@@ -969,68 +1024,51 @@ class PopupController {
     }
   }
 
-  /* ── Workspace Dropdown Methods ─────────────────────────── */
-  _onWorkspaceSearch() {
-    const q = this.workspaceSearchInput?.value.trim().toLowerCase() || "";
-    if (this.workspaceSearchClear) this.workspaceSearchClear.hidden = !q;
-    const filtered = this.groups.filter((g) => !q || (g.name && g.name.toLowerCase().includes(q)));
-    this._renderWorkspaceList(filtered);
+  /* ── Workspace quick buttons ─────────────────────────── */
+  // Direct workspace selection, with infrequent choices behind More.
+  _renderWorkspaceButtons() {
+    if (!this.workspaceButtons) return;
+    const activeId = this.workspaceHidden?.value || "";
+    const choices = rankPopupWorkspaces(this.groups, activeId, this.workspaceUsage);
+    const visible = this.workspacesExpanded ? choices : choices.slice(0, 3);
+    this.workspaceButtons.replaceChildren();
+    for (const group of visible) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "workspace-chip";
+      button.dataset.workspaceId = group.id;
+      button.setAttribute("aria-pressed", String(group.id === activeId));
+      button.title = group.name;
+      button.textContent = group.name;
+      button.addEventListener("click", () => {
+        this.selectWorkspace(group.id || null, group.name);
+        [...this.workspaceButtons.querySelectorAll("[data-workspace-id]")]
+          .find((item) => item.dataset.workspaceId === group.id)?.focus({ preventScroll: true });
+      });
+      this.workspaceButtons.appendChild(button);
+    }
+    if (choices.length > 3) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "workspace-more";
+      more.textContent = this.workspacesExpanded ? "Less" : "More";
+      more.setAttribute("aria-expanded", String(this.workspacesExpanded));
+      more.setAttribute("aria-controls", "workspace-buttons");
+      more.addEventListener("click", () => {
+        this.workspacesExpanded = !this.workspacesExpanded;
+        this.closeAllDropdowns();
+        this._renderWorkspaceButtons();
+        this.workspaceButtons.querySelector(".workspace-more")?.focus({ preventScroll: true });
+      });
+      this.workspaceButtons.appendChild(more);
+    }
   }
 
-  _renderWorkspaceList(groups) {
-    if (!this.workspaceList) return;
-    this.workspaceList.replaceChildren();
-    const currentId = this.workspaceHidden?.value ?? "";
-
-    // All Bookmarks option
-    const allLi = document.createElement("li");
-    allLi.className = "dropdown-item";
-    if (!currentId) allLi.classList.add("is-selected");
-
-    const allSwatch = document.createElement("span");
-    allSwatch.className = "custom-select-swatch";
-
-    const allTitle = document.createElement("span");
-    allTitle.className = "dropdown-item-title";
-    allTitle.textContent = "All Bookmarks";
-
-    const allCheck = document.createElement("span");
-    allCheck.className = "dropdown-item-check";
-    allCheck.textContent = "✓";
-
-    allLi.append(allSwatch, allTitle, allCheck);
-    allLi.addEventListener("click", () => {
-      this.selectWorkspace(null, "All Bookmarks", null);
-      this.closeAllDropdowns();
-    });
-    this.workspaceList.appendChild(allLi);
-
-    for (const g of groups) {
-      const li = document.createElement("li");
-      li.className = "dropdown-item";
-      li.dataset.value = g.id;
-      if (g.id === currentId) li.classList.add("is-selected");
-
-      const swatch = document.createElement("span");
-      swatch.className = "custom-select-swatch";
-      if (g.color) swatch.style.background = g.color;
-
-      const title = document.createElement("span");
-      title.className = "dropdown-item-title";
-      title.textContent = g.name;
-
-      const check = document.createElement("span");
-      check.className = "dropdown-item-check";
-      check.textContent = "✓";
-
-      li.append(swatch, title, check);
-      li.addEventListener("click", () => {
-        this.selectWorkspace(g.id, g.name, g.color);
-        this.closeAllDropdowns();
-      });
-
-      this.workspaceList.appendChild(li);
-    }
+  async _rememberWorkspace() {
+    const id = this.workspaceHidden?.value;
+    if (!id) return;
+    this.workspaceUsage[id] = (Number(this.workspaceUsage[id]) || 0) + 1;
+    await writeLocal("popupWorkspaceUsage", this.workspaceUsage);
   }
 
   /* ============================================================
@@ -1068,11 +1106,9 @@ class PopupController {
     await Promise.all([
       this.populateWorkspaces(),
       this.populateFolders(),
-      this.populateCategories(),
-      this.populateCollections(),
     ]);
 
-    await this.seedFromActiveTab();
+    await this.seedFromActiveTab({ focusTitle: false });
     this.form?.addEventListener("submit", (event) => this.onSubmit(event));
     this.btnQuickAddQuickie?.addEventListener("click", () => this.onQuickAddQuickie());
   }
@@ -1134,33 +1170,30 @@ class PopupController {
   async populateWorkspaces() {
     try {
       this.groups = await this.useCases.listBookmarkGroups.execute();
+      const usage = await readLocal("popupWorkspaceUsage");
+      this.workspaceUsage = usage && typeof usage === "object" && !Array.isArray(usage) ? usage : {};
       let activeId = null;
       if (this.useCases?.setActiveGroup?.getActive) {
         activeId = await this.useCases.setActiveGroup.getActive();
       }
       const active = this.groups.find((g) => g.id === activeId) || null;
-      this.selectWorkspace(active ? active.id : null, active ? active.name : "All Bookmarks", active ? active.color : null);
-      this._renderWorkspaceList(this.groups);
+      await this.selectWorkspace(active ? active.id : null, active ? active.name : "All Bookmarks", active ? active.color : null);
+      this._renderWorkspaceButtons();
     } catch { /* non-fatal */ }
   }
 
   selectWorkspace(id, name, color) {
     if (this.workspaceHidden) this.workspaceHidden.value = id ?? "";
-    if (this.workspaceLabel) this.workspaceLabel.textContent = name;
-    if (this.workspaceSwatch) {
-      if (color) {
-        this.workspaceSwatch.style.background = color;
-        this.workspaceSwatch.style.display = "inline-block";
-      } else {
-        this.workspaceSwatch.style.background = "var(--accent)";
-      }
-    }
+    this._resetSavedState();
     this.filterFoldersByWorkspace(id);
-    // Refresh workspace-owned collections + shortcuts on switch
-    try {
-      if (this.populateCollections) this.populateCollections().catch(() => {});
-      if (this.populateCategories) this.populateCategories().catch(() => {});
-    } catch {}
+    this.closeAllDropdowns();
+    this._renderWorkspaceButtons();
+    // Serialize refreshes so rapid switches cannot leave stale destinations.
+    this._workspaceRefresh = (this._workspaceRefresh || Promise.resolve()).then(() => Promise.all([
+      this.populateCollections(),
+      this.populateCategories(),
+    ]));
+    return this._workspaceRefresh;
   }
 
   async populateFolders() {
@@ -1217,7 +1250,7 @@ class PopupController {
     if (this.folderLabel) this.folderLabel.textContent = name;
     if (persist) this._rememberFolder(id, name);
     this._renderFolderQuickChips();
-    this._updateSubmitButtonLabel();
+    this._resetSavedState();
   }
 
   async _rememberFolder(id, name) {
@@ -1234,7 +1267,7 @@ class PopupController {
   _renderFolderQuickChips() {
     if (!this.folderQuickRow) return;
     const validIds = new Set(this.folders.map((f) => f.id));
-    const visible = this.recentFolders.filter((f) => validIds.has(f.id));
+    const visible = this.recentFolders.filter((f) => validIds.has(f.id) && f.id !== this.folderHidden?.value);
     const currentId = this.folderHidden?.value;
 
     this.folderQuickRow.replaceChildren();
@@ -1317,8 +1350,9 @@ class PopupController {
         this.selectCategory(last.id, last.name, { persist: false });
       } else if (this.categories.length > 0) {
         this.selectCategory(this.categories[0].id, this.categories[0].name, { persist: false });
-      } else if (this.categoryLabel) {
-        this.categoryLabel.textContent = "Select Category";
+      } else {
+        if (this.categoryHidden) this.categoryHidden.value = "";
+        if (this.categoryLabel) this.categoryLabel.textContent = "Select category";
       }
 
       this._renderCategoryQuickChips();
@@ -1333,6 +1367,7 @@ class PopupController {
     if (this.categoryLabel) this.categoryLabel.textContent = name;
     if (persist) this._rememberCategory(id, name);
     this._renderCategoryQuickChips();
+    this._resetSavedState();
   }
 
   async _rememberCategory(id, name) {
@@ -1349,7 +1384,7 @@ class PopupController {
   _renderCategoryQuickChips() {
     if (!this.categoryQuickRow) return;
     const validIds = new Set(this.categories.map((c) => c.id));
-    const visible = this.recentCategories.filter((c) => validIds.has(c.id));
+    const visible = this.recentCategories.filter((c) => validIds.has(c.id) && c.id !== this.categoryHidden?.value);
     const currentId = this.categoryHidden?.value;
 
     this.categoryQuickRow.replaceChildren();
@@ -1401,8 +1436,9 @@ class PopupController {
         this.selectCustomCollection(last.id, last.name, { persist: false });
       } else if (this.collections.length > 0) {
         this.selectCustomCollection(this.collections[0].id, this.collections[0].name, { persist: false });
-      } else if (this.customCollectionLabel) {
-        this.customCollectionLabel.textContent = "Select Collection";
+      } else {
+        if (this.customCollectionHidden) this.customCollectionHidden.value = "";
+        if (this.customCollectionLabel) this.customCollectionLabel.textContent = "Select collection";
       }
 
       this._renderCollectionQuickChips();
@@ -1428,12 +1464,13 @@ class PopupController {
     if (this.customCollectionLabel) this.customCollectionLabel.textContent = name;
     if (persist) this._rememberCollection(id, name);
     this._renderCollectionQuickChips();
+    this._resetSavedState();
   }
 
   _renderCollectionQuickChips() {
     if (!this.collectionQuickRow) return;
     const validIds = new Set(this.collections.map((c) => c.id));
-    const visible = this.recentCollections.filter((c) => validIds.has(c.id));
+    const visible = this.recentCollections.filter((c) => validIds.has(c.id) && c.id !== this.customCollectionHidden?.value);
     const currentId = this.customCollectionHidden?.value;
 
     this.collectionQuickRow.replaceChildren();
@@ -1475,6 +1512,16 @@ class PopupController {
     }
 
     this.clearError();
+
+    if (this.btnQuickAddQuickie) {
+      this.btnQuickAddQuickie.disabled = false;
+      this.btnQuickAddQuickie.classList.remove("is-saved");
+      const text = this.btnQuickAddQuickie.querySelector(".popup-quickie-btn-text");
+      if (text) text.textContent = "Quickie";
+    }
+    const status = document.getElementById("save-status");
+    if (status) status.textContent = "";
+    if (this.tagsInput) this.tagsInput.value = "";
 
     // Reset button state to fresh/ready state on any tab switch
     if (this.submitBtn) {
@@ -1637,8 +1684,8 @@ class PopupController {
 
     if (this.activeTags.has(clean)) {
       if (isActive) {
-        const existing = this.tagsList?.querySelector(`[data-tag="${clean}"]`);
-        if (existing) existing.classList.add("is-active");
+        const existing = [...(this.tagsList?.querySelectorAll("[data-tag]") || [])].find((chip) => chip.dataset.tag === clean);
+        if (existing) { existing.classList.add("is-active"); existing.setAttribute("aria-pressed", "true"); }
       }
       return;
     }
@@ -1647,9 +1694,11 @@ class PopupController {
     chip.type = "button";
     chip.className = "popup-tag-chip" + (isActive ? " is-active" : "");
     chip.dataset.tag = clean;
+    chip.setAttribute("aria-pressed", String(isActive));
     chip.textContent = `#${clean}`;
     chip.addEventListener("click", () => {
       chip.classList.toggle("is-active");
+      chip.setAttribute("aria-pressed", String(chip.classList.contains("is-active")));
       this._resetSavedState();
     });
     this.tagsList?.appendChild(chip);
@@ -1675,8 +1724,27 @@ class PopupController {
     }
   }
 
+  async _saveTags(bookmarkId) {
+    if (!bookmarkId || !this.useCases?.setBookmarkTags) return;
+    const pending = this.tagsInput?.value.trim();
+    const tags = [...this.getSelectedTags(), ...(pending ? pending.split(",") : [])];
+    if (!tags.length) return;
+    try {
+      const existing = await this.useCases.listBookmarkTags.execute();
+      await this.useCases.setBookmarkTags.execute({ bookmarkId, tags: [...(existing[bookmarkId] || []), ...tags] });
+    } catch {
+      this.showError("Bookmark saved, but tags could not be saved.");
+    }
+  }
+
   async onSubmit(event) {
     if (event) event.preventDefault();
+    let refresh;
+    do {
+      refresh = this._workspaceRefresh;
+      if (refresh) await refresh;
+    } while (refresh !== this._workspaceRefresh);
+    if (this._saving || this.submitBtn?.classList.contains("is-saved")) return;
     this.clearError();
     this.closeAllDropdowns();
 
@@ -1700,6 +1768,9 @@ class PopupController {
       if (this.submitBtnText) this.submitBtnText.textContent = "Saving...";
     }
 
+    this._saving = true;
+    if (this.btnQuickAddQuickie) this.btnQuickAddQuickie.disabled = true;
+    let savedBookmark;
     try {
       if (this.destinationType === "shortcut") {
         let targetCategoryId = this.categoryHidden?.value;
@@ -1726,7 +1797,7 @@ class PopupController {
           }
         }
 
-        await chrome.bookmarks.create({
+        savedBookmark = await chrome.bookmarks.create({
           parentId: String(targetCategoryId),
           title,
           url,
@@ -1766,6 +1837,7 @@ class PopupController {
         }
 
         const createdBm = await chrome.bookmarks.create({ parentId, title, url });
+        savedBookmark = createdBm;
         if (collectionId && this.useCases?.updateCollectionMembers && createdBm?.id) {
           await this.useCases.updateCollectionMembers.execute({
             collectionId,
@@ -1791,6 +1863,7 @@ class PopupController {
             await chrome.bookmarks.update(this.existingBookmark.id, { title });
             this.existingBookmark.title = title;
           }
+          savedBookmark = this.existingBookmark;
           const usedFolder = this.folders.find((f) => f.id === String(parentId));
           if (usedFolder) await this._rememberFolder(usedFolder.id, usedFolder.title);
         } else {
@@ -1801,10 +1874,13 @@ class PopupController {
             url,
           });
           if (created) this.existingBookmark = created;
+          savedBookmark = this.existingBookmark;
           const usedFolder = this.folders.find((f) => f.id === String(parentId));
           if (usedFolder) await this._rememberFolder(usedFolder.id, usedFolder.title);
         }
       }
+      await this._saveTags(savedBookmark?.id);
+      await this._rememberWorkspace();
     } catch (err) {
       if (this.submitBtn) {
         this.submitBtn.disabled = false;
@@ -1812,10 +1888,18 @@ class PopupController {
       }
       this.showError(err?.message || "Failed to save bookmark.");
       return;
+    } finally {
+      this._saving = false;
+      if (this.btnQuickAddQuickie) this.btnQuickAddQuickie.disabled = false;
     }
 
+    const destination = this.destinationType === "shortcut" ? this.categoryLabel?.textContent
+      : this.destinationType === "collection" ? this.customCollectionLabel?.textContent : this.folderLabel?.textContent;
+    const status = document.getElementById("save-status");
+    if (status) status.textContent = `Saved to ${destination || "bookmarks"}.`;
     if (this.submitBtn) this.submitBtn.classList.add("is-saved");
     if (this.submitBtnText) this.submitBtnText.textContent = "Saved";
+    if (this.submitBtn) this.submitBtn.disabled = true;
 
     if (this.isSidePanel) {
       // In Side Panel mode, keep panel open and automatically reset after 1.8 seconds
@@ -1827,6 +1911,7 @@ class PopupController {
   }
 
   async onQuickAddQuickie() {
+    if (this._saving) return;
     this.clearError();
     this.closeAllDropdowns();
 
@@ -1842,8 +1927,10 @@ class PopupController {
     const quickBtn = this.btnQuickAddQuickie;
     const quickText = quickBtn?.querySelector(".popup-quickie-btn-text");
     const quickBadge = quickBtn?.querySelector(".popup-quickie-badge");
+    this._saving = true;
+    if (this.submitBtn) this.submitBtn.disabled = true;
     if (quickBtn) quickBtn.disabled = true;
-    if (quickText) quickText.textContent = "Saving to Quickies...";
+    if (quickText) quickText.textContent = "Saving...";
 
     try {
       let quickieFolderId = null;
@@ -1855,15 +1942,19 @@ class PopupController {
         quickieFolderId = other?.id || "2";
       }
 
-      await chrome.bookmarks.create({
+      const created = await chrome.bookmarks.create({
         parentId: String(quickieFolderId),
         title,
         url,
       });
 
+      await this._saveTags(created?.id);
+      this._setExistingBookmark(created, "Quickie", "Quickie", String(quickieFolderId));
+      const status = document.getElementById("save-status");
+      if (status) status.textContent = "Saved to Quickie. You can organize it now or close this popup.";
       if (quickBtn) {
         quickBtn.classList.add("is-saved");
-        if (quickText) quickText.textContent = "Saved to Quickies! ⚡";
+        if (quickText) quickText.textContent = "Saved";
         if (quickBadge) quickBadge.textContent = "✓ Saved";
       }
 
@@ -1872,20 +1963,19 @@ class PopupController {
           if (quickBtn) {
             quickBtn.disabled = false;
             quickBtn.classList.remove("is-saved");
-            if (quickText) quickText.textContent = "Quick Add to Quickies";
+            if (quickText) quickText.textContent = "Quickie";
             if (quickBadge) quickBadge.textContent = "1-Click";
           }
         }, 2000);
-      } else {
-        setTimeout(() => {
-          window.close();
-        }, 600);
       }
     } catch (err) {
       if (quickBtn) quickBtn.disabled = false;
-      if (quickText) quickText.textContent = "Quick Add to Quickies";
+      if (quickText) quickText.textContent = "Quickie";
       if (quickBadge) quickBadge.textContent = "1-Click";
-      this.showError(err?.message || "Could not save to Quickies");
+      this.showError(err?.message || "Could not save to Quickie");
+    } finally {
+      this._saving = false;
+      if (this.submitBtn) this.submitBtn.disabled = false;
     }
   }
 }

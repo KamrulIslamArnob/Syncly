@@ -58,6 +58,17 @@
 - **Drag-drop:** move/reorder bookmarks and folders (`chrome.bookmarks.move`).
 - **Add / edit:** `NewFolderDialogView`, `BookmarkEditDialogView`, `BookmarkPickerModalView`, `ConfirmDialogView`, `FolderTreeSelectorView`.
 
+### Popup capture interaction (2026-11-12)
+
+- Compact 400px light/dark surface: editable page title, domain with an **Edit URL** chip, workspace quick buttons, Folder / Shortcut / Collection, destination, optional tags.
+- Workspace defaults to the active new-tab workspace. Three quick buttons show the current workspace and the most used choices (local `popupWorkspaceUsage` save counts); More/Less reveals the remaining choices. Workspace remains available for every destination type. Saving waits for workspace destination refresh; empty destination lists clear stale selections.
+- The header **Quickie** button or **Ctrl/Cmd+S** saves to global Quickie in one click and keeps the popup open for confirmation or immediate organization. Selecting a folder afterwards moves that saved bookmark.
+- Destination pickers and URL editing use anchored overlays; opening them does not change form geometry. Stable gutters and reserved space keep mode switching at the same width.
+- Recent destination chips omit the already selected destination. Search and inline creation remain available for folders, shortcut categories, and collections.
+- Arrow keys / Enter select picker options; Ctrl/Cmd+Enter saves. Selected chips and unfinished typed tags persist through the existing tag use case, preserving existing tags.
+- Success identifies the destination; concurrent submissions are guarded. A tag-storage error reports that the bookmark was saved without its tags.
+- Source: `src/presentation/popup/`. Design rationale and validation: `docs/design/POPUP_UX.md`.
+
 ### 3.2 Quickie (inbox)
 
 - Native folder **"Quickie"** under Other Bookmarks.
