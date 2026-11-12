@@ -1,3 +1,4 @@
+import { BookmarkSourcesView } from "./BookmarkSourcesView.js";
 import { el } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 import { filterBackupData, validateImportData } from "../../../infrastructure/services/backupAllowlist.js";
@@ -1160,47 +1161,13 @@ export class SettingsSidebarView {
     const { card: shortcutsCard, body: shortcutsBody } = this._createCard({
       id: "shortcuts",
       iconName: "grid",
-      title: "Shortcuts & Bookmarks",
+      title: "Bookmarks",
     });
 
-    const moveBookmarksCheckbox = el("input", {
-      type: "checkbox",
-      className: "settings-toggle-input",
-      id: "settings-move-bookmarks-toggle",
-      checked: !!draft.moveBookmarksToQuickAccess,
-    });
-    const moveBookmarksSlider = el("span", { className: "settings-toggle-track" });
-    const moveBookmarksToggle = el("label", { className: "settings-toggle-switch", htmlFor: "settings-move-bookmarks-toggle" }, moveBookmarksCheckbox, moveBookmarksSlider);
+    if (this.useCases.getBookmarkLibrary) {
+      shortcutsBody.append(new BookmarkSourcesView({ useCases: this.useCases, toast: this.toast }).render());
+    }
 
-    moveBookmarksCheckbox.addEventListener("change", async () => {
-      draft.moveBookmarksToQuickAccess = moveBookmarksCheckbox.checked;
-      await this.save();
-      if (draft.moveBookmarksToQuickAccess) {
-        try {
-          if (this.useCases?.migrateBookmarkBarToQuickAccess) {
-            const res = await this.useCases.migrateBookmarkBarToQuickAccess.execute();
-            if (res.success && res.count > 0) {
-              this.toast.show(`Transferred ${res.count} bookmark bar link(s) to Quick Access ✓`);
-            } else if (res.success) {
-              this.toast.show("Quick Access category ready ✓");
-            }
-          }
-          this.events.emit("bookmarks:changed");
-        } catch (err) {
-          this.toast.show(err.message || "Failed to transfer bookmarks", { error: true });
-        }
-      }
-    });
-
-    const moveBookmarksRow = el("div", { className: "settings-row-between" },
-      el("div", { className: "settings-option-meta" },
-        el("span", { className: "settings-option-label" }, "Move Bookmark Bar links to Quick Access Shortcuts"),
-        el("span", { className: "settings-option-hint" }, "Automatically transfer direct bookmark bar links to the default Quick Access shortcut category.")
-      ),
-      moveBookmarksToggle
-    );
-
-    shortcutsBody.append(moveBookmarksRow);
 
     // ═══════════════════════════════════════════════════════════
     // 3. BACKUP & RESTORE CARD

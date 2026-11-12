@@ -1,3 +1,4 @@
+import { BookmarkLibraryService } from "../../infrastructure/services/BookmarkLibraryService.js";
 /* ============================================================
    serviceWorker.js — MV3 background service worker
 
@@ -176,12 +177,14 @@ import { AdoptNativeWorkspaceFolders } from "../../application/useCases/workspac
 import { EnsureCollectionsFolderUseCase } from "../../application/useCases/bookmarks/EnsureCollectionsFolderUseCase.js";
 
 const googleSync = new GoogleSyncService();
+const bookmarkLibrary = new BookmarkLibraryService();
 const RECONCILE_ALARM = "syncly-sync-reconcile";
 
 function runNativeWorkspaceAdoption() {
   try {
     const adopter = new AdoptNativeWorkspaceFolders({
       groupRepository: new ChromeBookmarkGroupRepository(),
+      resolveParent: async () => (await bookmarkLibrary.resolve())?.workspacesParentId || null,
       getTree: () => chrome.bookmarks.getTree(),
       updateFolder: async (folderId, title) => {
         await chrome.bookmarks.update(folderId, { title });
@@ -193,8 +196,8 @@ function runNativeWorkspaceAdoption() {
 
 function runNativeCollectionAdoption() {
   try {
-    const ensureCollections = new EnsureCollectionsFolderUseCase();
-    ensureCollections.execute().catch(() => {});
+    const ensureCollections = new EnsureCollectionsFolderUseCase({ library: bookmarkLibrary });
+    ensureCollections.execute({ allowCreate: false }).catch(() => {});
   } catch {}
 }
 
@@ -236,7 +239,11 @@ if (chrome.sidePanel && typeof chrome.sidePanel.setPanelBehavior === "function")
     .catch((err) => console.warn("[SidePanel] setPanelBehavior failed:", err));
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async (details) => {
+  if (details?.reason === "install") {
+    const existing = await chrome.storage.local.get(["bookmarkLibrary"]);
+    if (!existing.bookmarkLibrary) await chrome.storage.local.set({ synclySetupPending: true });
+  }
   try {
     chrome.alarms.create(RECONCILE_ALARM, { periodInMinutes: 15 });
   } catch {}

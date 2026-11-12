@@ -101,7 +101,7 @@ export class ResolveShortcutsFolderUseCase {
       // Prefer ensure without create when ensure=false is not supported by global path;
       // global ensure is idempotent and only creates when missing.
       const id = await this.#ensureShortcutsFolder
-        .execute({ tree })
+        .execute({ tree, allowCreate: false })
         .catch(() => null);
       return { workspaceId: null, mode, shortcutsFolderId: id || null, path };
     }

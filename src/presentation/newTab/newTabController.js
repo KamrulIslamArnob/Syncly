@@ -1,3 +1,5 @@
+import { BookmarkSetupView } from "./views/BookmarkSourcesView.js";
+import { ThemeRegistry } from "../../domain/services/ThemeRegistry.js";
 import { buildContainer } from "../../infrastructure/di/container.js";
 import { el } from "../shared/dom.js";
 import { deriveAccentShades } from "../shared/colorUtils.js";
@@ -45,6 +47,10 @@ export class NewTabController {
     this.events = events;
     this.internals = internals;
     this.stateRef = { current: this.state };
+    if ((await useCases.getBookmarkLibrary.execute()).needsSetup) {
+      await this.loadState();
+      await new BookmarkSetupView({ useCases }).open();
+    }
 
     try {
       this.views = {
@@ -394,5 +400,5 @@ export class NewTabController {
 }
 
 const controller = new NewTabController();
-controller.init();
+controller.init().catch(error => controller.fatal("Failed to initialize Syncly", error));
 window.__newTab = controller;

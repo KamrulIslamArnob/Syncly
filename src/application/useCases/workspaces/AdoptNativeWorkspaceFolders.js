@@ -31,12 +31,13 @@ export class AdoptNativeWorkspaceFolders {
    * @param {(folderId: string, title: string) => Promise<void>} [deps.updateFolder] renames a native folder
    * @param {number} [deps.maxGroups] same cap as CreateBookmarkGroup (default 10)
    */
-  constructor({ groupRepository, events = null, getTree, updateFolder = null, maxGroups = 10 }) {
+  constructor({ groupRepository, events = null, getTree, updateFolder = null, maxGroups = 10, resolveParent = null }) {
     this.groupRepository = groupRepository;
     this.events = events;
     this.getTree = getTree;
     this.updateFolder = updateFolder;
     this.maxGroups = maxGroups;
+    this.resolveParent = resolveParent;
   }
 
   async execute() {
@@ -50,7 +51,8 @@ export class AdoptNativeWorkspaceFolders {
     }
     if (!Array.isArray(tree) || tree.length === 0) return result;
 
-    const parentId = this._findOtherBookmarksId(tree);
+    const parentId = this.resolveParent ? await this.resolveParent(tree).catch(() => null) : this._findOtherBookmarksId(tree);
+    if (!parentId) return result;
     const siblings = this._getChildrenOfParent(tree, parentId);
 
     const groups = await this.groupRepository.findAll().catch(() => []);
@@ -150,7 +152,7 @@ export class AdoptNativeWorkspaceFolders {
         if (n.id === parentId) return Array.isArray(n.children) ? n.children : [];
         if (Array.isArray(n.children)) {
           const res = find(n.children);
-          if (res.length > 0 || nodes.some((x) => x.id === parentId)) return res;
+          if (res !== null) return res;
         }
       }
       return null;

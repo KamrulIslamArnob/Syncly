@@ -32,7 +32,8 @@ export class ResolveWorkspaceStructureUseCase {
    * @param {object} [deps.bookmarks] chrome.bookmarks (or mock)
    * @param {object} [deps.storage] chrome.storage.local (or mock) for cache read
    */
-  constructor({ groupRepository, bookmarks = null, storage = null } = {}) {
+  constructor({ groupRepository, bookmarks = null, storage = null, resolveParent = null } = {}) {
+    this.resolveParent = resolveParent;
     this.#groupRepository = groupRepository;
     this.#bookmarks = bookmarks || (typeof chrome !== "undefined" && chrome.bookmarks ? chrome.bookmarks : null);
     this.#storage = storage || (typeof chrome !== "undefined" && chrome.storage ? chrome.storage.local : null);
@@ -90,9 +91,18 @@ export class ResolveWorkspaceStructureUseCase {
     const cache = await this.#readCache(workspaceId);
     let rootId = group.rootFolderId || (Array.isArray(group.folderIds) ? group.folderIds[0] : null);
     let rootNode = rootId && tree ? this._findNodeById(tree, rootId) : null;
+    if (this.resolveParent && tree) {
+      const parentId = await this.resolveParent(tree).catch(() => null);
+      const parent = this._findNodeById(tree, parentId);
+      const candidates = (parent?.children || []).filter(n => !n.url && !n.unmodifiable);
+      // The native binding is profile-local. Never trust a synced ID outside this parent.
+      rootNode = candidates.find(n => n.id === cache?.rootFolderId)
+        || candidates.find(n => n.title === toFolderTitle(group.name)) || null;
+      rootId = rootNode?.id || null;
+    }
 
     // Repair root id if stale: find by w-{name} under Other Bookmarks
-    if (!rootNode && tree) {
+    if (!rootNode && tree && !this.resolveParent) {
       const wanted = toFolderTitle(group.name).toLowerCase();
       rootNode = this._findWorkspaceRootByTitle(tree, wanted) || this._findWorkspaceRootByTitle(tree, group.name);
       if (rootNode) rootId = String(rootNode.id);
@@ -104,8 +114,8 @@ export class ResolveWorkspaceStructureUseCase {
         workspaceId,
         group,
         rootFolderId: rootId || null,
-        collectionsFolderId: cache?.collectionsFolderId || null,
-        shortcutsFolderId: cache?.shortcutsFolderId || null,
+        collectionsFolderId: null,
+        shortcutsFolderId: null,
         found: false,
       };
     }

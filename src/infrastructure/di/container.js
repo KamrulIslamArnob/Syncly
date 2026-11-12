@@ -1,3 +1,6 @@
+import { ResolveCollectionFolder } from "../../application/useCases/collections/ResolveCollectionFolder.js";
+import { BookmarkLibraryService } from "../services/BookmarkLibraryService.js";
+import { GetBookmarkLibrary, SetBookmarkSources, CompleteBookmarkSetup } from "../../application/useCases/bookmarks/BookmarkLibrarySettings.js";
 // Composition root.
 // Builds the dependency graph once and exports a frozen container.
 // Presentation controllers consume the container; nothing else wires
@@ -105,12 +108,14 @@ export function buildContainer() {
   const ids = new UuidGenerator();
   const sanitizer = new BasicSanitizer();
   const events = new EventBus();
+  const bookmarkLibrary = new BookmarkLibraryService();
   const autoBackupService = new AutoBackupService();
   const githubBackupService = new GitHubBackupService();
   const googleSyncService = new GoogleSyncService();
   const adoptNativeWorkspaceFolders = new AdoptNativeWorkspaceFolders({
     groupRepository: bookmarkGroupRepo,
     events,
+    resolveParent: async () => (await bookmarkLibrary.resolve())?.workspacesParentId || null,
     getTree: () =>
       typeof chrome !== "undefined" && chrome.bookmarks?.getTree
         ? chrome.bookmarks.getTree()
@@ -123,6 +128,7 @@ export function buildContainer() {
 
   // ---- repositories that can be wiped when another tab changes state ----
   storage.onChanged((changes) => {
+    if (changes.bookmarkLibrary) events.emit("bookmarkSources:changed", changes.bookmarkLibrary.newValue);
     if (changes.bookmarks) bookmarkRepo.invalidate();
     if (changes.categories) categoryRepo.invalidate();
     if (changes.settings) settingsRepo.invalidate();
@@ -201,9 +207,12 @@ export function buildContainer() {
   // other devices via Chrome's native bookmark sync (quota-proof channel).
   .then(() => adoptNativeWorkspaceFolders.execute()).catch(() => {})
   // Native-sync fallback for collections: adopt native subfolders inside "Collections" folder
-  .then(() => ensureCollectionsFolderUseCase.execute()).catch(() => {})
+  .then(async () => { if (!(await bookmarkLibrary.getSettings()).needsSetup) return ensureCollectionsFolderUseCase.execute({ allowCreate: false }); }).catch(() => {})
   // Workspace structure v2: ensure Collections/Shortcuts under each w-* root
-  .then(() => migrateWorkspaceStructureV2.execute().catch(() => {}));
+   .then(async () => {
+    const setup = await bookmarkLibrary.getSettings();
+    if (!setup.needsSetup && setup.completed && setup.layout === "legacy") return migrateWorkspaceStructureV2.execute();
+  }).catch(() => {});
 
   // PERF-T04: page-side reconcile polling (30s interval + post-write trigger)
   // was removed — the MV3 service worker now owns catch-up convergence via its
@@ -211,11 +220,12 @@ export function buildContainer() {
   // reconcile alarm. Pages keep only the instant event-driven merge listener
   // above; manual Push/Pull buttons call pushAll()/pullAll() directly.
 
-  const ensureShortcutsFolderUseCase = new EnsureShortcutsFolderUseCase();
-  const ensureCollectionsFolderUseCase = new EnsureCollectionsFolderUseCase({ events });
+  const ensureShortcutsFolderUseCase = new EnsureShortcutsFolderUseCase({ library: bookmarkLibrary });
+  const ensureCollectionsFolderUseCase = new EnsureCollectionsFolderUseCase({ events, library: bookmarkLibrary });
 
   // Workspace ownership: resolve + bootstrap Collections/Shortcuts under w-* roots
   const resolveWorkspaceStructure = new ResolveWorkspaceStructureUseCase({
+    resolveParent: async () => (await bookmarkLibrary.resolve())?.workspacesParentId || null,
     groupRepository: bookmarkGroupRepo,
     storage,
   });
@@ -247,7 +257,12 @@ export function buildContainer() {
 
   // ---- use cases ----
   const useCases = Object.freeze({
-    ensureQuickieFolder: new EnsureQuickieFolderUseCase(),
+    resolveCollectionFolder: new ResolveCollectionFolder({ resolveWorkspace: resolveWorkspaceStructure, library: bookmarkLibrary,
+      getTree: () => globalThis.chrome.bookmarks.getTree() }),
+    getBookmarkLibrary: new GetBookmarkLibrary({ library: bookmarkLibrary }),
+    setBookmarkSources: new SetBookmarkSources({ library: bookmarkLibrary, events }),
+    completeBookmarkSetup: new CompleteBookmarkSetup({ library: bookmarkLibrary, events, afterSetup: () => adoptNativeWorkspaceFolders.execute() }),
+    ensureQuickieFolder: new EnsureQuickieFolderUseCase({ library: bookmarkLibrary }),
     ensureShortcutsFolder: ensureShortcutsFolderUseCase,
     ensureCollectionsFolder: ensureCollectionsFolderUseCase,
     resolveShortcutsFolder,

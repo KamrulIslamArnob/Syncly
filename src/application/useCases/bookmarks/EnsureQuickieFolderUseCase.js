@@ -10,7 +10,8 @@ export class EnsureQuickieFolderUseCase {
   #storage;
   #bookmarks;
 
-  constructor({ storage, bookmarks } = {}) {
+  constructor({ storage, bookmarks, library = null } = {}) {
+    this.library = library;
     this.#storage = storage || (typeof chrome !== "undefined" && chrome.storage ? chrome.storage.local : null);
     this.#bookmarks = bookmarks || (typeof chrome !== "undefined" && chrome.bookmarks ? chrome.bookmarks : null);
   }
@@ -22,8 +23,9 @@ export class EnsureQuickieFolderUseCase {
    *   (same tick as fetch). An empty array is honored as-is — parent lookup
    *   then falls back to "2", matching the no-tree behavior.
    */
-  async execute({ tree: providedTree } = {}) {
+  async execute({ tree: providedTree, allowCreate = true } = {}) {
     if (!this.#bookmarks) return null;
+    if (this.library) return this.library.ensureGlobalFolder("Quickie", "quickieFolderId", { allowCreate });
 
     let quickieFolderId = null;
 

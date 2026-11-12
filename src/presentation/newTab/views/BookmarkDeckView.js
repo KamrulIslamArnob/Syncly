@@ -1,3 +1,5 @@
+import { bookmarkRoots } from "../../../domain/services/bookmarkRoots.js";
+import { projectBookmarkSources } from "../../../domain/services/bookmarkSources.js";
 import { el } from "../../shared/dom.js";
 import { icon } from "../../shared/icons.js";
 import { initial, websiteFaviconUrl } from "../../shared/favicon.js";
@@ -409,6 +411,16 @@ export class BookmarkDeckView {
 
     if (this.events) {
       this._unsubEvents.push(
+        this.events.on("bookmarkSources:changed", async () => {
+          this._sourceSettings = await this.useCases.getBookmarkLibrary.execute();
+          if (!this.groupButtons?.activeGroup) {
+            const location = await this.useCases.getBookmarkLibrary.resolve().catch(() => null);
+            const parent = location?.workspacesParentId ? findFolderById(this._roots, location.workspacesParentId) : null;
+            this._sourceWorkspaceFolders = (parent?.children || []).filter(n => n.type === "folder" && /^w-/.test(n.title));
+          }
+          // Preferences change only the sidebar projection; do not run ensure/migration.
+          if (this._sidebarBody) this._renderSidebar();
+        }),
         this.events.on("categories:changed", () => this._scheduleLoad()),
         this.events.on("bookmarks:changed", () => this._scheduleLoad()),
         this.events.on("bookmarkCollections:changed", () => this._scheduleLoad()),
@@ -531,28 +543,23 @@ export class BookmarkDeckView {
     // with both ensure use cases (same-tick contract) instead of each one
     // issuing its own chrome.bookmarks.getTree() IPC round-trip.
     const raw = await this.getTree().catch(() => []);
+    this._sourceSettings = this.useCases?.getBookmarkLibrary
+      ? await this.useCases.getBookmarkLibrary.execute() : { mode: "legacy" };
 
     // Workspace switcher state first so structure resolution uses the active id
     await this.groupButtons.loadState().catch(() => null);
     let activeGroup = this.groupButtons.activeGroup;
     const activeWorkspaceId = activeGroup?.id || null;
 
-    // Bootstrap/repair workspace-owned Collections + Shortcuts under w-* root
-    let workspaceStructure = null;
-    if (activeWorkspaceId && this.useCases?.ensureWorkspaceStructure) {
-      workspaceStructure = await this.useCases.ensureWorkspaceStructure
-        .execute(activeWorkspaceId, { tree: raw })
-        .catch(() => null);
-    } else if (activeWorkspaceId && this.useCases?.resolveWorkspaceStructure) {
-      workspaceStructure = await this.useCases.resolveWorkspaceStructure
-        .execute({ workspaceId: activeWorkspaceId, tree: raw })
-        .catch(() => null);
-    }
+    // Passive browsing resolves destinations without repairing possibly delayed sync.
+    const workspaceStructure = activeWorkspaceId && this.useCases?.resolveWorkspaceStructure
+      ? await this.useCases.resolveWorkspaceStructure.execute({ workspaceId: activeWorkspaceId, tree: raw }).catch(() => null)
+      : null;
 
     // Central SHORTCUTS destination: workspace path or global path — never re-branch
     const shortcutsResolved = this.useCases?.resolveShortcutsFolder
       ? await this.useCases.resolveShortcutsFolder
-          .execute({ workspaceId: activeWorkspaceId, tree: raw, ensure: true })
+          .execute({ workspaceId: activeWorkspaceId, tree: raw, ensure: false })
           .catch(() => null)
       : null;
     const shortcutsFolderId =
@@ -564,12 +571,12 @@ export class BookmarkDeckView {
         ? workspaceStructure?.collectionsFolderId
         : null) ||
       (!activeWorkspaceId && this.useCases?.ensureCollectionsFolder
-        ? await this.useCases.ensureCollectionsFolder.execute({ tree: raw }).catch(() => null)
+        ? await this.useCases.ensureCollectionsFolder.execute({ tree: raw, allowCreate: false }).catch(() => null)
         : null) ||
       null;
 
     const [quickieId, , , , , openLog, tags, settings, folderColors] = await Promise.all([
-      this.useCases?.ensureQuickieFolder ? this.useCases.ensureQuickieFolder.execute({ tree: raw }).catch(() => null) : Promise.resolve(null),
+      this.useCases?.ensureQuickieFolder ? this.useCases.ensureQuickieFolder.execute({ tree: raw, allowCreate: false }).catch(() => null) : Promise.resolve(null),
       Promise.resolve(shortcutsFolderId),
       Promise.resolve(collectionsFolderId),
       Promise.resolve(null),
@@ -636,21 +643,16 @@ export class BookmarkDeckView {
         }
       }
     }
-    if (_cats.length === 0 && this._shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
-      try {
-        const gen = await chrome.bookmarks.create({ parentId: this._shortcutsFolderId, title: "General" });
-        _cats = [{ id: { value: gen.id }, name: gen.title, order: 0, nativeId: gen.id }];
-        // Rebuild roots to include new folder for immediate render
-        this._roots = buildBookmarkTree(await this.getTree().catch(() => []), { pruneEmpty: false });
-      } catch {}
-    }
     this._categories = _cats;
     this._shortcuts = _shortcuts;
     if (!this._activeCategoryId || !this._categories.some((c) => (c.id?.value || c.id) === this._activeCategoryId)) {
       this._activeCategoryId = this._categories[0] ? (this._categories[0].id?.value || this._categories[0].id) : null;
     }
 
-    const bookmarkBarRoot = this._roots.find((r) => r.id === "1" || /bookmarks bar|favorites bar/i.test(r.title)) || this._roots[0];
+    const barIds = new Set(bookmarkRoots(raw, "bookmarks-bar").map(n => n.id));
+    const barRoots = this._roots.filter(n => barIds.has(n.id));
+    this._chromeSourceFolders = collectFolders(barRoots);
+    const bookmarkBarRoot = barRoots[0];
     const defaultRoots = bookmarkBarRoot ? [bookmarkBarRoot] : this._roots;
     
     // Index leaves across the ENTIRE bookmark library so collections/searches can resolve any bookmark
@@ -664,43 +666,8 @@ export class BookmarkDeckView {
     }
     this._quickieLeaves = quickieFolder ? flattenLeaves(quickieFolder.children || []) : [];
 
-    // Auto-cleanup orphan workspaces whose native folder was manually deleted via chrome://bookmarks
-    // If all folderIds of a workspace are gone, the workspace info is gone — delete the workspace.
-    try {
-      const allGroups = this.groupButtons.groups ? [...this.groupButtons.groups] : [];
-      let needReload = false;
-      for (const g of allGroups) {
-        if (!g.folderIds || g.folderIds.length === 0) continue;
-        const missing = g.folderIds.filter((id) => !findFolderById(this._roots, id));
-        if (missing.length === 0) continue;
-        if (missing.length === g.folderIds.length) {
-          await this.useCases.deleteBookmarkGroup.execute(g.id).catch(() => {});
-          needReload = true;
-        } else {
-          const remaining = g.folderIds.filter((id) => findFolderById(this._roots, id));
-          const remainingRoot = g.rootFolderId && findFolderById(this._roots, g.rootFolderId)
-            ? g.rootFolderId
-            : (remaining[0] || null);
-          try {
-            await this.useCases.updateBookmarkGroup.execute({
-              id: g.id,
-              folderIds: remaining,
-              ...(remainingRoot ? { rootFolderId: remainingRoot } : {}),
-            });
-          } catch {}
-          needReload = true;
-        }
-      }
-      if (needReload) {
-        await this.groupButtons.loadState().catch(() => {});
-        // If active was deleted, clear active
-        const stillExists = this.groupButtons.groups.some((g) => g.id === this.groupButtons.activeGroupId);
-        if (!stillExists && this.groupButtons.activeGroupId) {
-          await this.useCases.setActiveGroup.execute(null).catch(() => {});
-          await this.groupButtons.loadState().catch(() => {});
-        }
-      }
-    } catch {}
+    // Unresolved folders may still be arriving via native bookmark sync.
+    // Preserve workspace metadata; explicit deletion is the only delete path.
 
     if (this._workspaceSlot) {
       const switcherEl = await this.groupButtons.render();
@@ -717,6 +684,7 @@ export class BookmarkDeckView {
 
     // Workspace root (preferred): rootFolderId, then folderIds[0]
     const workspaceRootId =
+      this._workspaceStructure?.rootFolderId ||
       activeGroup?.rootFolderId ||
       (Array.isArray(activeGroup?.folderIds) && activeGroup.folderIds[0]) ||
       this._workspaceStructure?.rootFolderId ||
@@ -767,6 +735,13 @@ export class BookmarkDeckView {
     }
     // Final dedupe: ensure no system folder sneaks into tree via duplicate names
     this._folders = this._folders.filter((f) => !isSystemFolder(f));
+    this._sourceWorkspaceFolders = this._folders;
+    if (!activeGroup) {
+      const location = await this.useCases?.getBookmarkLibrary?.resolve().catch(() => null);
+      const parent = location?.workspacesParentId ? findFolderById(this._roots, location.workspacesParentId) : null;
+      this._sourceWorkspaceFolders = parent
+        ? (parent.children || []).filter(n => n.type === "folder" && /^w-/.test(n.title)) : [];
+    }
     this._leaves = flattenLeaves(this._folders);
     this._folderColorIndex = assignFolderColors(this._folders);
 
@@ -1160,7 +1135,7 @@ export class BookmarkDeckView {
       this._collectionsExpanded = !this._collectionsExpanded;
       this._renderSidebar();
     });
-    quickSection.append(quickieItem, collectionsItem);
+    quickSection.append(quickieItem, this._renderQuickItem("library", icon("bookmark"), "All bookmarks", this._unscopedLeaves.length), collectionsItem);
 
     const isCollectionsOpen = (this._activeSelection.type === "collections" || this._activeSelection.type === "collection") && this._collectionsExpanded;
     if (visibleCollections.length > 0 && isCollectionsOpen) {
@@ -1195,25 +1170,25 @@ export class BookmarkDeckView {
     const addFolderBtn = el("button", {
       type: "button",
       className: "raindrop-add-col-btn",
-      title: isGlobalMode ? "Add Folder" : `Add Folder to ${activeGroup.name}`,
-      "aria-label": isGlobalMode ? "Add Folder" : `Add Folder to ${activeGroup.name}`,
+      title: isGlobalMode ? (this._sourceSettings?.layout === "managed" ? "Create workspace" : "Add Folder") : `Add Folder to ${activeGroup.name}`,
+      "aria-label": isGlobalMode ? (this._sourceSettings?.layout === "managed" ? "Create workspace" : "Add Folder") : `Add Folder to ${activeGroup.name}`,
     }, icon("plus"));
     addFolderBtn.addEventListener("click", () => this._promptCreateFolder());
 
-    const sectionTitleText = isGlobalMode ? "BOOKMARKS" : `${activeGroup.name} / FOLDERS`;
-    const sectionHeader = el("div", { className: "raindrop-section-header" },
-      el("span", { className: "raindrop-section-title" }, sectionTitleText),
-      addFolderBtn
-    );
-
-    const treeContainer = el("div", { className: "raindrop-tree-container" });
-    if (this._folders.length > 0) {
-      for (const folder of this._folders) {
-        treeContainer.appendChild(this._renderTreeNode(folder, 0));
-      }
+    this._sidebarBody.append(quickSection);
+    const sections = projectBookmarkSources({ mode: this._sourceSettings?.mode,
+      chromeFolders: this._chromeSourceFolders || [], workspaceFolders: this._sourceSettings?.mode === "legacy" ? this._folders : this._sourceWorkspaceFolders || [],
+      workspaceName: activeGroup?.name });
+    for (const section of sections) {
+      const header = el("div", { className: "raindrop-section-header" },
+        el("span", { className: "raindrop-section-title" }, section.title));
+      if (section.id === "workspace") header.append(addFolderBtn);
+      const tree = el("div", { className: "raindrop-tree-container", "data-bookmark-source": section.id });
+      for (const folder of section.folders) tree.append(this._renderTreeNode(folder, 0));
+      if (!section.folders.length) tree.append(el("p", { className: "bookmark-source-empty" },
+        section.id === "chrome" ? "No bookmarks in your Chrome bar yet." : "Choose or create a workspace to organize folders."));
+      this._sidebarBody.append(header, tree);
     }
-
-    this._sidebarBody.append(quickSection, sectionHeader, treeContainer);
     this._renderSidebarTags();
     this._renderSidebarFooter();
   }
@@ -1526,6 +1501,10 @@ export class BookmarkDeckView {
       iconName = "collection";
       color = siblingColor(1);
       meta = `${collections.length} collection${collections.length === 1 ? "" : "s"} · ${links(total)}`;
+    } else if (type === "library") {
+      title = "All bookmarks";
+      iconName = "bookmark";
+      meta = links(this._unscopedLeaves.length);
     } else if (type === "quickie") {
       title = "Quickie";
       iconName = "inbox";
@@ -1870,6 +1849,7 @@ export class BookmarkDeckView {
   /** Every link the current view covers, before chip, prune, tag or search filters. */
   _selectionLeaves() {
     const { type, id, folder } = this._activeSelection;
+    if (type === "library") return this._unscopedLeaves;
     if (type === "all") return this._leaves;
     if (type === "quickie") return this._quickieLeaves;
     if (type === "cold") return this._leaves.filter((b) => this._bandFor(b) === "cold");
@@ -3454,7 +3434,7 @@ export class BookmarkDeckView {
 
     // 1. Omni-Search Active Mode (Matches Shortcuts AND Bookmarks with O(1) indexed lookup)
     if (this._query) {
-      const isHomeSelection = this._activeSelection.type === "all";
+      const isHomeSelection = this._activeSelection.type === "all" || this._activeSelection.type === "library";
       const isCollection = this._activeSelection.type === "collection";
       let scopedBookmarkIds = null;
 
@@ -4737,12 +4717,16 @@ export class BookmarkDeckView {
   }
 
   _promptCreateFolder() {
+    if (!this.groupButtons?.activeGroup && this._sourceSettings?.layout === "managed" && this._activeSelection.type !== "folder") {
+      this.groupDialog.openForCreate();
+      return;
+    }
     let parentId = "1";
     let scopeRootId = null;
     const activeGroup = this.groupButtons?.activeGroup;
     const workspaceRoot =
-      activeGroup?.rootFolderId ||
       this._workspaceStructure?.rootFolderId ||
+      activeGroup?.rootFolderId ||
       (Array.isArray(activeGroup?.folderIds) && activeGroup.folderIds[0] ? activeGroup.folderIds[0] : null);
     if (workspaceRoot) {
       scopeRootId = workspaceRoot;

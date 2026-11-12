@@ -1,0 +1,25 @@
+.bookmark-setup-overlay { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 24px; background: var(--bg); overflow: auto; }
+.bookmark-setup-panel { width: 100%; max-width: 640px; padding: 32px; border: 1px solid var(--border); border-radius: 12px; color: var(--fg); background: var(--surface, var(--bg)); }
+.bookmark-setup-panel button, .bookmark-sources-settings button { font-family: inherit; }
+.bookmark-setup-eyebrow { font-size: 12px; color: var(--muted); }
+.bookmark-setup-panel h1 { font-size: clamp(24px, 4vw, 32px); line-height: 1.25; letter-spacing: -.035em; margin: 12px 0; }
+.bookmark-setup-panel p { font-size: 13px; line-height: 1.7; }
+.bookmark-source-choices { display: grid; gap: 8px; margin: 16px 0; }
+.bookmark-source-choice { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 5px; padding: 14px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--fg); }
+.bookmark-source-choice span { font-size: 12px; line-height: 1.6; color: var(--muted); }
+.bookmark-source-choice[aria-pressed="true"] { border-color: var(--fg); background: var(--surface-2, var(--bg)); }
+.bookmark-source-choice:hover { background: var(--surface-2, var(--bg)); }
+.bookmark-source-choice:focus-visible, .bookmark-setup-panel button:focus-visible, .bookmark-setup-panel select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.bookmark-source-description, .bookmark-bar-help { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.bookmark-bar-help summary { cursor: pointer; padding: 8px 0; color: var(--fg); }
+.bookmark-bar-help p { margin: 4px 0 10px; }
+.bookmark-setup-location-label { display: block; font-size: 12px; margin: 16px 0 8px; }
+.bookmark-setup-location { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px; color: var(--fg); background: var(--surface, var(--bg)); font: inherit; font-size: 12px; }
+.bookmark-setup-location option { color: var(--fg); background: var(--bg); }
+.bookmark-setup-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 12px; }
+.bookmark-setup-continue { padding: 10px 20px; border: 0; border-radius: 5px; background: var(--fg); color: var(--bg); font-weight: 600; cursor: pointer; }
+.bookmark-setup-skip, .bookmark-source-undo { border: 0; background: transparent; cursor: pointer; color: var(--fg); font-size: 12px; text-decoration: underline; text-underline-offset: 4px; padding: 8px 0; }
+.bookmark-setup-error:empty, .bookmark-source-status:empty { display: none; }
+.bookmark-setup-error, .bookmark-source-status { font-size: 12px; line-height: 1.6; }
+.bookmark-source-empty { margin: 8px 14px 16px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+@media (max-width: 540px) { .bookmark-setup-overlay { padding: 12px; align-items: start; } .bookmark-setup-panel { padding: 20px; } }

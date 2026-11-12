@@ -122,3 +122,13 @@ test("tag failure reports a partial save without duplicating the bookmark", asyn
   assert.equal(calls.filter(([type]) => type === "create").length, 1);
   assert.equal(popup.submitBtnText.textContent, "Saved");
 });
+
+test("unresolved shortcut destination cannot fall back outside the selected workspace", async () => {
+  const { popup, calls } = setup();
+  popup.destinationType = "shortcut";
+  popup.categoryHidden.value = "";
+  popup.useCases.resolveShortcutsFolder = { execute: async () => ({ shortcutsFolderId: null }) };
+  await popup.onSubmit();
+  assert.equal(calls.some(([type]) => type === "create"), false);
+  assert.match(popup.error, /unavailable/);
+});

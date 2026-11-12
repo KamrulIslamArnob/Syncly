@@ -56,39 +56,36 @@ export class CreateBookmarkCollectionUseCase {
     let initialUrls = Array.isArray(bookmarkUrls) ? [...bookmarkUrls] : [];
 
     if (this.#bookmarks) {
-      try {
-        let parentId = "2";
-        if (workspaceId && this.#ensureWorkspaceStructure) {
-          const structure = await this.#ensureWorkspaceStructure.execute(workspaceId);
-          if (structure?.collectionsFolderId) {
-            parentId = structure.collectionsFolderId;
-          } else if (this.#resolveWorkspaceStructure) {
-            const resolved = await this.#resolveWorkspaceStructure.execute({ workspaceId });
-            if (resolved?.collectionsFolderId) parentId = resolved.collectionsFolderId;
-          }
-        } else if (this.#ensureCollectionsFolder) {
-          // Legacy/global path (no workspace) — kept for back-compat only
-          parentId = (await this.#ensureCollectionsFolder.execute()) || "2";
+      let parentId = null;
+      if (workspaceId && this.#ensureWorkspaceStructure) {
+        const structure = await this.#ensureWorkspaceStructure.execute(workspaceId);
+        if (structure?.collectionsFolderId) {
+          parentId = structure.collectionsFolderId;
+        } else if (this.#resolveWorkspaceStructure) {
+          const resolved = await this.#resolveWorkspaceStructure.execute({ workspaceId });
+          if (resolved?.collectionsFolderId) parentId = resolved.collectionsFolderId;
         }
-        const createdFolder = await this.#bookmarks.create({
-          parentId,
-          title: validatedName,
-        });
-        folderId = String(createdFolder.id);
+      } else if (this.#ensureCollectionsFolder) {
+        // Legacy/global path (no workspace) — kept for back-compat only
+        parentId = await this.#ensureCollectionsFolder.execute();
+      }
+      if (!parentId) throw new Error("The collection destination is unavailable. Wait for Chrome to finish syncing or choose a bookmark location in Settings.");
+      const createdFolder = await this.#bookmarks.create({
+        parentId,
+        title: validatedName,
+      });
+      folderId = String(createdFolder.id);
 
-        // If initial bookmarkUrls are provided, create them in the new folder
-        for (const url of initialUrls) {
-          try {
-            const leaf = await this.#bookmarks.create({
-              parentId: folderId,
-              title: validatedName,
-              url,
-            });
-            initialIds.push(String(leaf.id));
-          } catch (_) {}
-        }
-      } catch (err) {
-        console.warn("Could not create native collection folder:", err);
+      // If initial bookmarkUrls are provided, create them in the new folder
+      for (const url of initialUrls) {
+        try {
+          const leaf = await this.#bookmarks.create({
+            parentId: folderId,
+            title: validatedName,
+            url,
+          });
+          initialIds.push(String(leaf.id));
+        } catch (_) {}
       }
     }
 

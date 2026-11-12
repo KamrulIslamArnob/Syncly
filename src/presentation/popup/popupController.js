@@ -1084,9 +1084,15 @@ export class PopupController {
     }
 
     await this.initTheme();
+    if (this.useCases.getBookmarkLibrary && (await this.useCases.getBookmarkLibrary.execute()).needsSetup) {
+      this.showError("Open a new tab to choose your bookmark setup first.");
+      if (this.submitBtn) this.submitBtn.disabled = true;
+      if (this.btnQuickAddQuickie) this.btnQuickAddQuickie.disabled = true;
+      return;
+    }
 
     if (this.useCases.ensureQuickieFolder) {
-      this.useCases.ensureQuickieFolder.execute().catch((err) => {
+      this.useCases.ensureQuickieFolder.execute({ allowCreate: false }).catch((err) => {
         console.warn("Could not ensure quickie folder:", err);
       });
     }
@@ -1094,11 +1100,11 @@ export class PopupController {
     // Bootstrap global Shortcuts only when no active workspace; workspace path
     // is ensured later via resolveShortcutsFolder / ensureWorkspaceStructure.
     if (this.useCases.resolveShortcutsFolder && !this.workspaceHidden?.value) {
-      this.useCases.resolveShortcutsFolder.execute({ workspaceId: null, ensure: true }).catch((err) => {
+      this.useCases.resolveShortcutsFolder.execute({ workspaceId: null, ensure: false }).catch((err) => {
         console.warn("Could not ensure shortcuts folder:", err);
       });
     } else if (this.useCases.ensureShortcutsFolder && !this.workspaceHidden?.value) {
-      this.useCases.ensureShortcutsFolder.execute().catch((err) => {
+      this.useCases.ensureShortcutsFolder.execute({ allowCreate: false }).catch((err) => {
         console.warn("Could not ensure shortcuts folder:", err);
       });
     }
@@ -1192,7 +1198,13 @@ export class PopupController {
     this._workspaceRefresh = (this._workspaceRefresh || Promise.resolve()).then(() => Promise.all([
       this.populateCollections(),
       this.populateCategories(),
-    ]));
+    ])).then(async () => {
+      if (id && this.useCases?.resolveWorkspaceStructure) {
+        const local = await this.useCases.resolveWorkspaceStructure.execute({ workspaceId: id });
+        if (local?.found) this.selectFolder(local.rootFolderId, local.root.title, { persist: false });
+        else if (this.folderHidden) this.folderHidden.value = "";
+      }
+    });
     return this._workspaceRefresh;
   }
 
@@ -1296,8 +1308,8 @@ export class PopupController {
       const workspaceId = this.workspaceHidden?.value || null;
       if (this.useCases?.ensureShortcutsFolder) {
         shortcutsFolderId = workspaceId
-          ? await this.useCases.ensureShortcutsFolder.execute({ tree: raw, workspaceId })
-          : await this.useCases.ensureShortcutsFolder.execute({ tree: raw });
+          ? await this.useCases.ensureShortcutsFolder.execute({ tree: raw, workspaceId, allowCreate: false })
+          : await this.useCases.ensureShortcutsFolder.execute({ tree: raw, allowCreate: false });
       }
       this.shortcutsFolderId = shortcutsFolderId;
 
@@ -1321,13 +1333,6 @@ export class PopupController {
             }
           }
         }
-      }
-
-      if (cats.length === 0 && shortcutsFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
-        try {
-          const created = await chrome.bookmarks.create({ parentId: shortcutsFolderId, title: "Quick Access" });
-          cats = [{ id: String(created.id), name: created.title }];
-        } catch { /* non-fatal */ }
       }
 
       this.categories = cats;
@@ -1789,8 +1794,9 @@ export class PopupController {
                 workspaceId: this.workspaceHidden?.value || null,
               });
             }
+            if (!shortcutsFolderId) throw new Error("Your shortcut destination is unavailable. Wait for Chrome to finish syncing.");
             const createdCat = await chrome.bookmarks.create({
-              parentId: shortcutsFolderId || "2",
+              parentId: shortcutsFolderId,
               title: "Quick Access",
             });
             targetCategoryId = createdCat.id;
@@ -1821,6 +1827,10 @@ export class PopupController {
 
         const targetColl = Array.isArray(this.collections) ? this.collections.find((c) => c.id === collectionId) : null;
         let parentId = targetColl?.folderId;
+        if (this.useCases.resolveCollectionFolder) {
+          if (!targetColl) throw new Error("Choose an available collection before saving.");
+          parentId = await this.useCases.resolveCollectionFolder.execute(targetColl);
+        }
         if (!parentId) {
           const workspaceId = this.workspaceHidden?.value || null;
           if (workspaceId && this.useCases?.ensureWorkspaceStructure) {
@@ -1831,10 +1841,7 @@ export class PopupController {
             parentId = await this.useCases.ensureCollectionsFolder.execute();
           }
         }
-        if (!parentId) {
-          const otherFolder = this.folders.find((f) => f.id === "2" || /other bookmarks/i.test(f.title));
-          parentId = otherFolder?.id || "2";
-        }
+        if (!parentId) throw new Error("Your collection destination is unavailable. Wait for Chrome to finish syncing.");
 
         const createdBm = await chrome.bookmarks.create({ parentId, title, url });
         savedBookmark = createdBm;
@@ -1851,6 +1858,7 @@ export class PopupController {
         }
       } else {
         // Standard Bookmark Mode
+        if (this.workspaceHidden?.value && !this.folderHidden.value) throw new Error("This workspace is unavailable. Wait for Chrome to finish syncing.");
         const parentId = this.folderHidden.value || "1";
 
         if (this.existingBookmark?.id) {

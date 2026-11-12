@@ -41,6 +41,19 @@
 
 ---
 
+## Bookmark source setup (2026-11-13)
+
+- `bookmarkLibrary` and `synclySetupPending` are **local-only** settings; they are excluded from sync and backup payloads because native IDs are profile-local.
+- New installs get first-run Chrome bookmarks / Workspace folders / Both choices. Account/local bookmark locations are labeled when Chrome exposes `syncing`; Chrome 114 uses explicit unknown-status wording. Multiple locations require a choice.
+- New completed setups create `Other bookmarks/Syncly/Workspaces`; global Quickie/Shortcuts/Collections are siblings beneath Syncly. Existing layouts remain in place. Users can explicitly reuse a discovered synced Syncly library using the current profile's IDs.
+- Skip defers folder creation; Settings > Bookmarks offers finish/setup and location reconnection. Updates/reloads do not reset setup. Completed library bindings survive a stale setup tab's Skip.
+- Source switching only projects sidebar sections. All bookmarks and search remain accessible, and collections/shortcuts retain active-workspace ownership. No native bookmark writes occur when switching views. Undo restores the previous view.
+- Chrome bookmarks-bar visibility remains a manual Chrome action; help shows Ctrl+Shift+B / Command+Shift+B and never claims automatic control/detection.
+- Shared root/location discovery: `domain/services/bookmarkRoots.js`, `infrastructure/services/BookmarkLibraryService.js`; application source/setup use cases are wired in container.js. Both page and worker adoption use the configured workspace parent.
+- Missing native folders no longer auto-delete workspace metadata. Save destinations and workspace mutations use verified local roots; unavailable/ambiguous destinations produce an error rather than falling back to another root. Collection folder saves validate name and ancestry within the local owned container.
+- The old automatic bookmarks-bar transfer toggle is replaced by reversible source preferences. Its historical migration use case remains available internally; no new existing-library relocation flow is shipped.
+- Verification: unit/regression tests plus mocked browser flows. Real two-device Google sync and full physical-migration/undo behavior remain unverified and outside this change.
+
 ## 3. Feature Inventory (complete)
 
 ### 3.1 Bookmark browsing (new tab core)

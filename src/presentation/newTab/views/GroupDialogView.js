@@ -153,6 +153,11 @@ export class GroupDialogView {
   }
 
   async _resolveTargetParentId() {
+    if (this.useCases?.getBookmarkLibrary) {
+      const location = await this.useCases.getBookmarkLibrary.resolve({ ensure: true });
+      if (!location?.workspacesParentId) throw new Error("Finish bookmark setup in a new tab first.");
+      return location.workspacesParentId;
+    }
     try {
       const raw = await this.getTree();
       const topChildren = (raw.length === 1 && (raw[0].id === "0" || raw[0].title === "") && raw[0].children)
@@ -230,23 +235,17 @@ export class GroupDialogView {
 
     try {
       if (this.isEditMode && this.editGroup) {
+        const localRoot = await this._resolveOwnedWorkspaceRoot(this.editGroup);
+        // Rename only the verified profile-local owned root.
+        if (String(localRoot.title).startsWith(WORKSPACE_PREFIX)) {
+          await chrome.bookmarks.update(localRoot.id, { title: toFolderTitle(name) });
+        }
         // Update workspace name & icon
         await this.useCases.updateBookmarkGroup.execute({
           id: this.editGroup.id,
           name,
           icon: iconName,
         });
-
-        // Optionally rename the root folder in Chrome if it exists —
-        // the "w-" prefixed title propagates to all devices via native sync
-        const rootFolderId = this.editGroup.rootFolderId || this.editGroup.folderIds?.[0];
-        if (rootFolderId && typeof chrome !== "undefined" && chrome.bookmarks?.update) {
-          try {
-            await chrome.bookmarks.update(rootFolderId, { title: toFolderTitle(name) });
-          } catch {
-            // Non-fatal if native folder rename fails
-          }
-        }
 
         this.toast?.show("Workspace updated");
       } else {
@@ -351,24 +350,22 @@ export class GroupDialogView {
     return walk(roots);
   }
 
+  async _resolveOwnedWorkspaceRoot(group) {
+    const resolved = await this.useCases.resolveWorkspaceStructure.execute({ workspaceId: group.id, group });
+    if (!resolved?.found || !resolved.root || resolved.root.unmodifiable) {
+      throw new Error("This workspace is unavailable. Wait for Chrome to finish syncing before changing it.");
+    }
+    return resolved.root;
+  }
+
   async handleDelete() {
     if (!this.editGroup?.id) return;
 
     const targetGroup = this.editGroup;
-    // Detect whether the workspace's root folder is DEDICATED to it (carries
-    // the "w-" prefix we create). Dedicated roots are removed natively so the
-    // deletion syncs everywhere; referenced external folders are never touched.
-    let dedicatedRootId = null;
-    try {
-        const rootFolderId = targetGroup.rootFolderId || targetGroup.folderIds?.[0];
-      if (rootFolderId && typeof chrome !== "undefined" && chrome.bookmarks) {
-        const tree = await this.getTree().catch(() => []);
-        const node = this._findNodeById(tree, rootFolderId);
-        if (node && !node.url && String(node.title ?? "").startsWith(WORKSPACE_PREFIX)) {
-          dedicatedRootId = node.id;
-        }
-      }
-    } catch {}
+    let verifiedRoot;
+    try { verifiedRoot = await this._resolveOwnedWorkspaceRoot(targetGroup); }
+    catch (error) { this.toast?.show(error.message, { error: true }); return; }
+    const dedicatedRootId = String(verifiedRoot.title).startsWith(WORKSPACE_PREFIX) ? verifiedRoot.id : null;
 
     this.confirmDialog.open({
       title: "Delete Workspace",
@@ -377,10 +374,10 @@ export class GroupDialogView {
       isDanger: true,
       onConfirm: async () => {
         try {
+          const currentRoot = await this._resolveOwnedWorkspaceRoot(targetGroup);
+          if (currentRoot.id !== verifiedRoot.id) throw new Error("The workspace location changed. Reopen this dialog before deleting.");
+          if (dedicatedRootId) await chrome.bookmarks.removeTree(dedicatedRootId);
           await this.useCases.deleteBookmarkGroup.execute(targetGroup.id);
-          if (dedicatedRootId && typeof chrome !== "undefined" && chrome.bookmarks?.removeTree) {
-            try { await chrome.bookmarks.removeTree(dedicatedRootId); } catch {}
-          }
           this.toast?.show("Workspace deleted");
           if (this.onDelete) this.onDelete();
           this.hide();

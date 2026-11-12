@@ -1,6 +1,6 @@
 # Bookmark onboarding and reversible sidebar sources
 
-Research date: 2026-11-12. Status: recommendation, not implemented. This work adds research notes only; it does not change application code or migrate bookmarks. Platform details are collected in [Chrome bookmark capabilities](CHROME_BOOKMARK_CAPABILITIES.md).
+Research date: 2026-11-12. Status: research baseline. Reversible sources and new-install owned storage implemented on 2026-11-13; physical existing-library relocation remains a proposal. This document records the research baseline; current implementation details are in docs/CONTEXT.md. Platform details are collected in [Chrome bookmark capabilities](CHROME_BOOKMARK_CAPABILITIES.md).
 
 ## Recommendation
 

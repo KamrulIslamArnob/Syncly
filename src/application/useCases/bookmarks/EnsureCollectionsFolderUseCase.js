@@ -24,7 +24,8 @@ export class EnsureCollectionsFolderUseCase {
   #bookmarks;
   #events;
 
-  constructor({ storage, bookmarks, events } = {}) {
+  constructor({ storage, bookmarks, events, library = null } = {}) {
+    this.library = library;
     this.#storage = storage || (typeof chrome !== "undefined" && chrome.storage ? chrome.storage.local : null);
     this.#bookmarks = bookmarks || (typeof chrome !== "undefined" && chrome.bookmarks ? chrome.bookmarks : null);
     this.#events = events || null;
@@ -34,8 +35,13 @@ export class EnsureCollectionsFolderUseCase {
    * @param {object} [options]
    * @param {Array} [options.tree] pre-fetched chrome.bookmarks.getTree() output
    */
-  async execute({ tree: providedTree } = {}) {
+  async execute({ tree: providedTree, allowCreate = true } = {}) {
     if (!this.#bookmarks) return null;
+    if (this.library) {
+      const id = await this.library.ensureGlobalFolder("Collections", "collectionsFolderId", { allowCreate });
+      if (id && allowCreate) await this._migrateStoredCollections(id, await this.#bookmarks.getTree());
+      return id;
+    }
 
     let collectionsFolderId = null;
 
@@ -143,7 +149,7 @@ export class EnsureCollectionsFolderUseCase {
     let changed = false;
 
     for (const coll of collList) {
-      if (!coll || !coll.name) continue;
+      if (!coll || !coll.name || coll.workspaceId) continue;
       const key = String(coll.name).toLowerCase().trim();
       let subfolder = existingByName.get(key);
 
@@ -213,7 +219,7 @@ export class EnsureCollectionsFolderUseCase {
       if (!sub || !sub.title) continue;
       const key = String(sub.title).toLowerCase().trim();
       const existingMatch = Object.values(updatedStorageColls).find(
-        (c) => c.folderId === sub.id || String(c.name).toLowerCase().trim() === key
+        (c) => !c.workspaceId && (c.folderId === sub.id || String(c.name).toLowerCase().trim() === key)
       );
       const childBookmarks = (sub.children || []).filter((c) => c.url);
 

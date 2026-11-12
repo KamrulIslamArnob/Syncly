@@ -26,7 +26,8 @@ export class EnsureShortcutsFolderUseCase {
   #resolveWorkspaceStructure;
   #ensureWorkspaceStructure;
 
-  constructor({ storage, bookmarks, resolveWorkspaceStructure = null, ensureWorkspaceStructure = null } = {}) {
+  constructor({ storage, bookmarks, library = null, resolveWorkspaceStructure = null, ensureWorkspaceStructure = null } = {}) {
+    this.library = library;
     this.#storage = storage || (typeof chrome !== "undefined" && chrome.storage ? chrome.storage.local : null);
     this.#bookmarks = bookmarks || (typeof chrome !== "undefined" && chrome.bookmarks ? chrome.bookmarks : null);
     this.#resolveWorkspaceStructure = resolveWorkspaceStructure || null;
@@ -49,8 +50,11 @@ export class EnsureShortcutsFolderUseCase {
    */
   async execute(options = {}) {
     const opts = typeof options === "string" ? { workspaceId: options } : options || {};
-    const { tree: providedTree = null, workspaceId = null } = opts;
+    const { tree: providedTree = null, workspaceId = null, allowCreate = true } = opts;
 
+    if (workspaceId && !allowCreate && this.#resolveWorkspaceStructure) {
+      return (await this.#resolveWorkspaceStructure.execute({ workspaceId, tree: providedTree }))?.shortcutsFolderId || null;
+    }
     if (workspaceId && this.#ensureWorkspaceStructure) {
       try {
         const structure = await this.#ensureWorkspaceStructure.execute(workspaceId, {
@@ -71,10 +75,20 @@ export class EnsureShortcutsFolderUseCase {
       return null;
     }
 
-    return this.#executeGlobal({ tree: providedTree });
+    return this.#executeGlobal({ tree: providedTree, allowCreate });
   }
 
-  async #executeGlobal({ tree: providedTree } = {}) {
+  async #executeGlobal({ tree: providedTree, allowCreate = true } = {}) {
+    if (this.library) {
+      const id = await this.library.ensureGlobalFolder("Shortcuts", "shortcutsFolderId", { allowCreate });
+      if (!id) return null;
+      const data = await this.#storage.get(["shortcutsMigrated"]);
+      if (allowCreate && !data.shortcutsMigrated) {
+        await this._migrateLegacy(await this.#bookmarks.getTree(), id);
+        await this.#storage.set({ shortcutsMigrated: true });
+      }
+      return id;
+    }
     if (!this.#bookmarks) return null;
 
     let shortcutsFolderId = null;
